@@ -1,0 +1,332 @@
+<?php
+/**
+ * API: Related Products (Sản phẩm liên quan)
+ * Method: GET
+ * URL: /v1/related_products?product_id={id}&limit=15
+ * 
+ * Description: Lấy danh sách sản phẩm liên quan dựa trên:
+ * - Cùng shop
+ * - Cùng danh mục
+ * - Cùng thương hiệu
+ * - Khoảng giá tương đương (±30%)
+ */
+
+header("Access-Control-Allow-Methods: GET");
+require_once './vendor/autoload.php';
+require_once './includes/config.php';
+
+use \Firebase\JWT\JWT;
+use \Firebase\JWT\Key;
+
+// Cấu hình JWT
+$key = "Socdo123@2025";
+$issuer = "api.socdo.vn";
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+if ($method === 'GET') {
+    // Get parameters
+    $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
+    $shop_id = isset($_GET['shop_id']) ? intval($_GET['shop_id']) : 0;
+    $limit = isset($_GET['limit']) ? max(1, min(50, intval($_GET['limit']))) : 15;
+    $type = isset($_GET['type']) ? $_GET['type'] : 'auto'; // auto, same_shop, same_category, same_brand
+    
+    if ($product_id <= 0) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Product ID is required'
+        ]);
+        exit;
+    }
+    
+    // Lấy thông tin sản phẩm gốc
+    $product_query = "SELECT cat, thuong_hieu, gia_moi, shop FROM sanpham WHERE id = $product_id LIMIT 1";
+    $product_result = mysqli_query($conn, $product_query);
+    
+    if (!$product_result || mysqli_num_rows($product_result) == 0) {
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Product not found'
+        ]);
+        exit;
+    }
+    
+    $product_info = mysqli_fetch_assoc($product_result);
+    $categories = $product_info['cat'];
+    $brand = $product_info['thuong_hieu'];
+    $price = $product_info['gia_moi'];
+    
+    if ($shop_id == 0) {
+        $shop_id = $product_info['shop'];
+    }
+    
+    // Tính khoảng giá ±30%
+    $price_min = $price * 0.7;
+    $price_max = $price * 1.3;
+    
+    // Xây dựng WHERE conditions
+    $where_conditions = [
+        "s.id != $product_id",
+        "s.active = 0"
+    ];
+    
+    // ORDER BY logic (ưu tiên giảm dần)
+    $order_parts = [];
+    
+    switch ($type) {
+        case 'same_shop':
+            $where_conditions[] = "s.shop = $shop_id";
+            $order_parts[] = "s.id DESC";
+            break;
+            
+        case 'same_category':
+            if (!empty($categories)) {
+                $cat_array = explode(',', $categories);
+                $cat_conditions = [];
+                foreach ($cat_array as $cat) {
+                    $cat_conditions[] = "FIND_IN_SET('$cat', s.cat) > 0";
+                }
+                $where_conditions[] = '(' . implode(' OR ', $cat_conditions) . ')';
+            }
+            $order_parts[] = "s.view DESC";
+            $order_parts[] = "s.ban DESC";
+            break;
+            
+        case 'same_brand':
+            $where_conditions[] = "s.thuong_hieu = $brand";
+            $order_parts[] = "s.view DESC";
+            $order_parts[] = "s.ban DESC";
+            break;
+            
+        case 'auto':
+        default:
+            // Logic ưu tiên: Cùng shop > Cùng brand + category > Cùng category + giá > Cùng brand
+            $order_parts[] = "(s.shop = $shop_id) DESC";
+            $order_parts[] = "(s.thuong_hieu = $brand AND FIND_IN_SET('$categories', s.cat) > 0) DESC";
+            $order_parts[] = "(FIND_IN_SET('$categories', s.cat) > 0 AND s.gia_moi BETWEEN $price_min AND $price_max) DESC";
+            $order_parts[] = "(s.thuong_hieu = $brand) DESC";
+            $order_parts[] = "s.view DESC";
+            $order_parts[] = "s.ban DESC";
+            break;
+    }
+    
+    $where_clause = "WHERE " . implode(" AND ", $where_conditions);
+    $order_by = "ORDER BY " . implode(", ", $order_parts);
+    
+    // Xác định timeline flash sale
+    $hientai = time();
+    $now = new DateTime('now', new DateTimeZone('Asia/Ho_Chi_Minh'));
+    $hour = (int) $now->format('H');
+    
+    if ($hour >= 0 && $hour < 9) {
+        $timeline = "00:00";
+    } elseif ($hour >= 9 && $hour < 16) {
+        $timeline = "09:00";
+    } else {
+        $timeline = "16:00";
+    }
+    
+    // Query sản phẩm liên quan
+    $products_query = "
+        SELECT 
+            s.*,
+            th.tieu_de as brand_name,
+            th.anh_thuong_hieu as brand_logo,
+            u.name as shop_name,
+            t.ten_kho AS warehouse_name,
+            tm.tieu_de AS province_name,
+            COALESCE(pc.total_reviews, 0) AS total_reviews,
+            COALESCE(pc.avg_rating, 0) AS avg_rating
+        FROM sanpham s
+        LEFT JOIN thuong_hieu th ON th.id = s.thuong_hieu
+        LEFT JOIN user_info u ON u.user_id = s.shop
+        LEFT JOIN transport t ON s.kho_id = t.id
+        LEFT JOIN tinh_moi tm ON t.province = tm.id
+        LEFT JOIN (
+            SELECT
+                product_id,
+                COUNT(*) AS total_reviews,
+                AVG(rating) AS avg_rating
+            FROM product_comments
+            WHERE status = 'approved' AND parent_id = 0
+            GROUP BY product_id
+        ) AS pc ON s.id = pc.product_id
+        $where_clause
+        $order_by
+        LIMIT $limit
+    ";
+    
+    $products_result = mysqli_query($conn, $products_query);
+    
+    if (!$products_result) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Lỗi truy vấn database: ' . mysqli_error($conn)
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // Lấy giá flash sale
+    $product_ids = [];
+    mysqli_data_seek($products_result, 0);
+    while ($row = mysqli_fetch_assoc($products_result)) {
+        $product_ids[] = $row['id'];
+    }
+    
+    $flash_prices = [];
+    if (!empty($product_ids)) {
+        $ids_string = implode(',', $product_ids);
+        
+        $flash_query = "
+            SELECT d.sub_product, s.id AS product_id
+            FROM deal d
+            JOIN sanpham s ON FIND_IN_SET(s.id, d.main_product) > 0
+            WHERE s.id IN ($ids_string)
+            AND d.date_start <= '$hientai'
+            AND d.date_end >= '$hientai'
+            AND d.status = '2'
+            AND (d.timeline = '$timeline' OR d.timeline = '0' OR d.timeline IS NULL)
+            AND d.loai = 'flash_sale'
+            GROUP BY s.id
+        ";
+        
+        $flash_result = mysqli_query($conn, $flash_query);
+        
+        while ($flash = mysqli_fetch_assoc($flash_result)) {
+            $pid = $flash['product_id'];
+            $sub_product = json_decode($flash['sub_product'], true);
+            $min_price = null;
+            
+            if (isset($sub_product[$pid]) && is_array($sub_product[$pid])) {
+                foreach ($sub_product[$pid] as $variant) {
+                    if (isset($variant['gia'])) {
+                        $p = intval(str_replace(',', '', $variant['gia']));
+                        if ($min_price === null || $p < $min_price) {
+                            $min_price = $p;
+                        }
+                    }
+                }
+            }
+            
+            if ($min_price !== null) {
+                $flash_prices[$pid] = $min_price;
+            }
+        }
+    }
+    
+    $products = [];
+    mysqli_data_seek($products_result, 0);
+    
+    while ($product = mysqli_fetch_assoc($products_result)) {
+        $sp_id = $product['id'];
+        
+        // Lấy giá min/max từ phân loại
+        $pl_query = "SELECT MIN(gia_moi) AS gia_moi_min, MAX(gia_cu) AS gia_cu_max 
+                     FROM phanloai_sanpham WHERE sp_id = '$sp_id'";
+        $pl_result = mysqli_query($conn, $pl_query);
+        $pl_data = mysqli_fetch_assoc($pl_result);
+        
+        $gia_moi = $product['gia_moi'];
+        $gia_cu = $product['gia_cu'];
+        
+        if ($pl_data && $pl_data['gia_moi_min'] > 0) {
+            $gia_moi = $pl_data['gia_moi_min'];
+            if ($pl_data['gia_cu_max'] > 0) {
+                $gia_cu = $pl_data['gia_cu_max'];
+            }
+        }
+        
+        // Áp dụng giá flash sale nếu có
+        $is_flash = false;
+        if (isset($flash_prices[$sp_id])) {
+            $gia_cu = $gia_moi;
+            $gia_moi = $flash_prices[$sp_id];
+            $is_flash = true;
+        }
+        
+        // Tính % giảm giá
+        $discount_percent = 0;
+        if ($gia_cu > 0 && $gia_moi < $gia_cu) {
+            $discount_percent = round((($gia_cu - $gia_moi) / $gia_cu) * 100);
+        }
+        
+        // Sử dụng helper function để thêm badges và location
+        require_once './product_badge_helper.php';
+        $product = addProductBadgesAndLocation($product, $conn);
+        
+        // Format image URL
+        $image_url = $product['minh_hoa'];
+        if ($image_url && strpos($image_url, 'http') !== 0) {
+            $image_url = 'https://socdo.vn/' . ltrim($image_url, '/');
+        }
+        
+        // Badges
+        $badges = [];
+        if ($discount_percent > 0) {
+            $badges[] = 'Giảm ' . $discount_percent . '%';
+        }
+        if ($is_flash) {
+            $badges[] = 'Flash Sale';
+        }
+        if ($product['has_voucher']) {
+            $badges[] = 'Voucher';
+        }
+        if ($product['has_freeship']) {
+            $badges[] = $product['freeship_label'] ?: 'Freeship';
+        }
+        if ($product['box_noibat'] == 1) {
+            $badges[] = 'Nổi bật';
+        }
+        $badges[] = 'Chính hãng';
+        
+        $products[] = [
+            'id' => intval($sp_id),
+            'name' => $product['tieu_de'],
+            'slug' => $product['link'],
+            'price' => intval($gia_moi),
+            'old_price' => intval($gia_cu),
+            'discount_percent' => $discount_percent,
+            'image' => $image_url,
+            'shop_id' => intval($product['shop']),
+            'shop_name' => $product['shop_name'] ?? '',
+            'brand_id' => intval($product['thuong_hieu']),
+            'brand_name' => $product['brand_name'] ?? '',
+            'category_ids' => array_filter(array_map('intval', explode(',', $product['cat']))),
+            'total_reviews' => intval($product['total_reviews']),
+            'avg_rating' => round(floatval($product['avg_rating']), 1),
+            'total_sold' => intval($product['ban']),
+            'total_views' => intval($product['view']),
+            'is_flash_sale' => $is_flash,
+            'has_free_shipping' => $product['has_freeship'],
+            'hasVoucher' => $product['has_voucher'],
+            'isFreeship' => $product['has_freeship'],
+            'location_text' => $product['location_text'],
+            'badges' => $badges,
+            'product_url' => 'https://socdo.vn/product/' . $product['link'] . '.html',
+            'price_formatted' => number_format($gia_moi) . 'đ',
+            'old_price_formatted' => $gia_cu > 0 ? number_format($gia_cu) . 'đ' : ''
+        ];
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'Lấy danh sách sản phẩm liên quan thành công',
+        'data' => [
+            'products' => $products,
+            'total_products' => count($products),
+            'product_id' => $product_id,
+            'type' => $type
+        ]
+    ], JSON_UNESCAPED_UNICODE);
+    
+} else {
+    http_response_code(405);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Chỉ hỗ trợ phương thức GET'
+    ]);
+}
+

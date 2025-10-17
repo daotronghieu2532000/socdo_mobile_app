@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../viewed_products/viewed_products_screen.dart';
 import '../../favorite_products/favorite_products_screen.dart';
-import '../../notifications/notifications_screen.dart';
+import '../../orders/orders_screen.dart';
 
 class ActionRow extends StatelessWidget {
   final IconData icon;
@@ -22,13 +21,11 @@ class ActionRow extends StatelessWidget {
 
   void _handleNavigation(BuildContext context) {
     switch (title) {
-      case 'Sản phẩm đã xem':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ViewedProductsScreen(),
-          ),
-        );
+      case 'Tất cả đơn hàng':
+        Navigator.pushNamed(context, '/orders');
+        break;
+      case 'Thông tin cá nhân':
+        Navigator.pushNamed(context, '/profile/edit');
         break;
       case 'Sản phẩm yêu thích':
         Navigator.push(
@@ -39,10 +36,13 @@ class ActionRow extends StatelessWidget {
         );
         break;
       case 'Thông báo':
+        Navigator.pushNamed(context, '/notifications');
+        break;
+      case 'Đã huỷ & Trả lại':
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const NotificationsScreen(),
+            builder: (context) => const OrdersScreen(initialIndex: 4),
           ),
         );
         break;

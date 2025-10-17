@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 
 class ViewedProductCard extends StatelessWidget {
   final int index;
@@ -11,6 +12,31 @@ class ViewedProductCard extends StatelessWidget {
     this.product,
     this.onTap,
   });
+
+  // Helper function to generate fake rating and sold data
+  Map<String, dynamic> _generateFakeData(String currentPrice) {
+    final random = Random();
+    
+    // Parse price to check if it's expensive (>= 1,000,000)
+    final priceStr = currentPrice.replaceAll(RegExp(r'[^\d]'), '');
+    final price = int.tryParse(priceStr) ?? 0;
+    final isExpensive = price >= 1000000;
+    
+    // Generate fake data based on price
+    final reviews = isExpensive 
+        ? random.nextInt(21) // 0-20 for expensive products
+        : random.nextInt(100); // 0-99 for normal products
+    
+    final sold = isExpensive
+        ? random.nextInt(21) // 0-20 for expensive products
+        : random.nextInt(99) + 2; // 2-100 for normal products
+    
+    return {
+      'rating': '5.0',
+      'reviews': reviews,
+      'sold': sold,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +74,9 @@ class ViewedProductCard extends StatelessWidget {
     ];
 
     final productData = product ?? products[index % products.length];
+    
+    // Generate fake rating and sold data
+    final fakeData = _generateFakeData(productData['currentPrice']!);
 
     return GestureDetector(
       onTap: onTap,
@@ -68,7 +97,7 @@ class ViewedProductCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     child: Image.asset(
                       productData['image']!,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain, // Đổi từ cover sang contain để không cắt ảnh
                       width: double.infinity,
                       height: double.infinity,
                       errorBuilder: (context, error, stackTrace) {
@@ -162,7 +191,7 @@ class ViewedProductCard extends StatelessWidget {
                 const SizedBox(width: 2),
                 Expanded(
                   child: Text(
-                    '${productData['rating']} | Đã bán ${productData['sold']}',
+                    '${fakeData['rating']} (${fakeData['reviews']}) | Đã bán ${fakeData['sold']}',
                     style: const TextStyle(
                       fontSize: 11,
                       color: Colors.grey,

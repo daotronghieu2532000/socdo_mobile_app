@@ -7,24 +7,33 @@ import 'widgets/payment_methods_section.dart';
 import 'widgets/payment_details_section.dart';
 import 'widgets/terms_section.dart';
 import 'widgets/bottom_order_bar.dart';
+import '../../core/services/cart_service.dart' as cart_service;
+import '../../core/services/api_service.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/shipping_quote_store.dart';
+import '../../core/services/voucher_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  final int totalPrice;
-  final int selectedCount;
-  
-  const CheckoutScreen({
-    super.key,
-    required this.totalPrice,
-    required this.selectedCount,
-  });
+  const CheckoutScreen({super.key});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  String selectedPaymentMethod = 'cod'; // cod, transfer, atm, credit
+  String selectedPaymentMethod = 'cod'; // Chỉ hỗ trợ COD
   bool agreeToTerms = false;
+  final cart_service.CartService _cartService = cart_service.CartService();
+  final ApiService _api = ApiService();
+  final AuthService _auth = AuthService();
+
+  int get totalPrice => _cartService.items
+      .where((item) => item.isSelected)
+      .fold(0, (sum, item) => sum + (item.price * item.quantity));
+
+  int get selectedCount => _cartService.items
+      .where((item) => item.isSelected)
+      .length;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +48,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         children: [
           const DeliveryInfoSection(),
           const SizedBox(height: 12),
-          const ProductSection(),
+          ProductSection(),
           const SizedBox(height: 12),
           const OrderSummarySection(),
           const SizedBox(height: 12),
@@ -48,9 +57,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           PaymentMethodsSection(
             selectedPaymentMethod: selectedPaymentMethod,
             onPaymentMethodChanged: (value) {
-              setState(() {
-                selectedPaymentMethod = value ?? 'cod';
-              });
+              // Không cần thay đổi vì chỉ có COD
             },
           ),
           const SizedBox(height: 12),
@@ -68,16 +75,90 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ],
       ),
       bottomNavigationBar: BottomOrderBar(
-        totalPrice: 3307000, // Total of 3 products + shipping
-        onOrder: () {
-          if (agreeToTerms) {
-            // Handle order placement
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Đặt hàng thành công!')),
-            );
-          } else {
+        totalPrice: totalPrice,
+        onOrder: () async {
+          if (!agreeToTerms) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Vui lòng đồng ý với điều khoản')),
+            );
+            return;
+          }
+          final user = await _auth.getCurrentUser();
+          if (user == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Vui lòng đăng nhập để đặt hàng')),
+            );
+            return;
+          }
+          // Chuẩn bị payload theo API create_order
+          final items = _cartService.items
+              .where((i) => i.isSelected)
+              .map((i) => {
+                    'id': i.id,
+                    'tieu_de': i.name,
+                    'anh_chinh': i.image,
+                    'quantity': i.quantity,
+                    'gia_moi': i.price,
+                    'thanh_tien': i.price * i.quantity,
+                    'shop': i.shopId,
+                  })
+              .toList();
+          // Lấy địa chỉ mặc định từ user_profile để điền
+          final profile = await _api.getUserProfile(userId: user.userId);
+          final addr = (profile?['addresses'] as List?)?.cast<Map<String, dynamic>?>().firstWhere(
+                  (a) => (a?['active'] == 1 || a?['active'] == '1'),
+                  orElse: () => null) ??
+              (profile?['addresses'] as List?)?.cast<Map<String, dynamic>?>().firstOrNull;
+          if (addr == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Vui lòng thêm địa chỉ nhận hàng')),
+            );
+            return;
+          }
+          final ship = ShippingQuoteStore();
+          final voucherService = VoucherService();
+          
+          // Tính voucher discount như trong PaymentDetailsSection
+          final totalGoods = items.fold(0, (s, i) => s + (i['gia_moi'] as int) * (i['quantity'] as int));
+          final shopDiscount = voucherService.calculateTotalDiscount(totalGoods);
+          final platformDiscount = voucherService.calculatePlatformDiscountWithItems(
+            totalGoods,
+            items.map((e) => e['id'] as int).toList(),
+          );
+          final voucherDiscount = (shopDiscount + platformDiscount).clamp(0, totalGoods);
+          
+          // Lấy mã coupon từ platform voucher
+          final platformVoucher = voucherService.platformVoucher;
+          final couponCode = platformVoucher?.code ?? '';
+          
+          final res = await _api.createOrder(
+            userId: user.userId,
+            hoTen: addr['ho_ten']?.toString() ?? user.name,
+            dienThoai: addr['dien_thoai']?.toString() ?? user.mobile,
+            email: user.email,
+            diaChi: addr['dia_chi']?.toString() ?? '',
+            tinh: int.tryParse('${addr['tinh'] ?? 0}') ?? 0,
+            huyen: int.tryParse('${addr['huyen'] ?? 0}') ?? 0,
+            xa: int.tryParse('${addr['xa'] ?? 0}'),
+            sanpham: items.cast<Map<String, dynamic>>(),
+            thanhtoan: selectedPaymentMethod.toUpperCase(),
+            ghiChu: '',
+            coupon: couponCode,
+            giam: 0,
+            voucherTmdt: voucherDiscount,
+            phiShip: ship.lastFee,
+            shipSupport: 0,
+            shippingProvider: ship.provider,
+          );
+          if ((res?['success'] == true)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Đặt hàng thành công: ${res?['data']?['ma_don'] ?? ''}')),
+            );
+            if (!mounted) return;
+            Navigator.pushNamed(context, '/order/success', arguments: {'ma_don': res?['data']?['ma_don']});
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Đặt hàng thất bại: ${res?['message'] ?? 'Lỗi không xác định'}')),
             );
           }
         },

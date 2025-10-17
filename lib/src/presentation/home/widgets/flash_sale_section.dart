@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../flash_sale/flash_sale_screen.dart';
-import 'product_card_vertical.dart';
 import '../../../core/utils/format_utils.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/models/flash_sale_product.dart';
+import '../../../core/models/flash_sale_deal.dart';
+import 'flash_sale_product_card_horizontal.dart';
 
 class FlashSaleSection extends StatefulWidget {
   const FlashSaleSection({super.key});
@@ -14,19 +17,104 @@ class FlashSaleSection extends StatefulWidget {
 class _FlashSaleSectionState extends State<FlashSaleSection> {
   Duration _timeLeft = const Duration(hours: 2, minutes: 6, seconds: 49);
   late Timer _timer;
+  final ApiService _apiService = ApiService();
+  List<FlashSaleDeal> _deals = [];
+  bool _isLoading = true;
+  String? _error;
+  bool _expanded = false; // Hiển thị 10 sản phẩm mặc định, mở rộng để xem thêm
 
   @override
   void initState() {
     super.initState();
+    _loadFlashSaleDeals();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeLeft.inSeconds > 0) {
         setState(() {
           _timeLeft = Duration(seconds: _timeLeft.inSeconds - 1);
         });
       } else {
-        timer.cancel();
+        // Khi hết giờ, reload flash sale để lấy timeline mới
+        // Tắt logging để tránh spam terminal
+        // print('⏰ Timeline ended, reloading flash sale...');
+        _loadFlashSaleDeals();
+        // Reset timer để tránh gọi liên tục
+        _timeLeft = const Duration(hours: 1); // Tạm thời set 1 giờ
       }
     });
+  }
+
+  Future<void> _loadFlashSaleDeals() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Xác định timeline hiện tại theo logic website
+      final now = DateTime.now();
+      final hour = now.hour;
+      String currentTimeline;
+      
+      if (hour >= 0 && hour < 9) {
+        currentTimeline = '00:00';
+      } else if (hour >= 9 && hour < 16) {
+        currentTimeline = '09:00';
+      } else {
+        currentTimeline = '16:00';
+      }
+
+      // Tắt logging để tránh spam terminal
+      // print('🕐 Current timeline: $currentTimeline (hour: $hour)');
+
+      // Chỉ lấy flash sale của timeline hiện tại, giống website
+      final deals = await _apiService.getFlashSaleDeals(
+        timeSlot: currentTimeline,
+        status: 'active',
+        limit: 10, // Tăng limit để lấy đủ sản phẩm như website
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (deals != null && deals.isNotEmpty) {
+            _deals = deals;
+            // Cập nhật countdown theo mốc hiện tại (đến cuối slot)
+            final slotEnd = _currentSlotEnd(currentTimeline);
+            final nowTs = DateTime.now();
+            final remaining = slotEnd.difference(nowTs).inSeconds;
+            _timeLeft = Duration(seconds: remaining > 0 ? remaining : 0);
+            
+            // Tắt logging để tránh spam terminal
+            // print('✅ Loaded ${deals.length} deals for timeline $currentTimeline');
+            // print('⏰ Time remaining: ${_timeLeft.inHours}h ${_timeLeft.inMinutes % 60}m ${_timeLeft.inSeconds % 60}s');
+          } else {
+            _error = 'Không có flash sale cho khung giờ $currentTimeline';
+            // Tắt logging để tránh spam terminal
+            // print('❌ No deals found for timeline $currentTimeline');
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Lỗi kết nối: $e';
+        });
+      }
+      // Tắt logging để tránh spam terminal
+      // print('❌ Error loading flash sale: $e');
+    }
+  }
+
+  DateTime _currentSlotEnd(String slot) {
+    final now = DateTime.now();
+    if (slot == '00:00') {
+      return DateTime(now.year, now.month, now.day, 9, 0, 0);
+    } else if (slot == '09:00') {
+      return DateTime(now.year, now.month, now.day, 16, 0, 0);
+    } else {
+      return DateTime(now.year, now.month, now.day, 23, 59, 59);
+    }
   }
 
   @override
@@ -37,6 +125,166 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
 
   String _formatTime(int seconds) {
     return FormatUtils.formatTime(seconds).replaceAll(':', ' : ');
+  }
+
+  Widget _buildProductsList() {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(
+          child: CircularProgressIndicator(color: Colors.pink),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: const TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _loadFlashSaleDeals,
+              child: const Text('Thử lại'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_deals.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Icon(Icons.flash_off, size: 48, color: Colors.grey),
+            SizedBox(height: 8),
+            Text(
+              'Không có flash sale',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Lấy tất cả sản phẩm từ các deals của timeline hiện tại
+    final List<FlashSaleProduct> allProducts = [];
+    
+    // Xác định timeline hiện tại
+    final now = DateTime.now();
+    final hour = now.hour;
+    String currentTimeline;
+    if (hour >= 0 && hour < 9) {
+      currentTimeline = '00:00';
+    } else if (hour >= 9 && hour < 16) {
+      currentTimeline = '09:00';
+    } else {
+      currentTimeline = '16:00';
+    }
+    
+    for (var deal in _deals) {
+      // Chỉ lấy sản phẩm của timeline hiện tại
+      // Sửa logic: không dựa vào isTimelineActive từ API, mà check timeline trực tiếp
+      if (deal.timeline == currentTimeline) {
+        allProducts.addAll(deal.allProducts);
+      }
+    }
+    
+    // Loại bỏ sản phẩm trùng lặp dựa trên ID
+    final uniqueProducts = <int, FlashSaleProduct>{};
+    for (var product in allProducts) {
+      uniqueProducts[product.id] = product;
+    }
+    final deduplicatedProducts = uniqueProducts.values.toList();
+    
+    // Tắt logging để tránh spam terminal
+    // if (deduplicatedProducts.length != allProducts.length) {
+    //   print('⚠️ Found ${allProducts.length - deduplicatedProducts.length} duplicate products');
+    // }
+    // print('🎯 Flash Sale: ${deduplicatedProducts.length} unique products for timeline $currentTimeline');
+
+    if (deduplicatedProducts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Icon(Icons.flash_off, size: 48, color: Colors.grey),
+            const SizedBox(height: 8),
+            Text(
+              'Không có sản phẩm flash sale cho khung giờ hiện tại',
+              style: TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _loadFlashSaleDeals,
+              child: const Text('Tải lại'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Chuẩn bị countdown theo slot cho UI
+    final slotEnd = _currentSlotEnd(currentTimeline);
+    final slotCountdown = (() {
+      final secs = slotEnd.difference(now).inSeconds;
+      final s = secs <= 0 ? 0 : secs;
+      final h = s ~/ 3600;
+      final m = (s % 3600) ~/ 60;
+      final sec = s % 60;
+      return '${h.toString().padLeft(2, '0')} : ${m.toString().padLeft(2, '0')} : ${sec.toString().padLeft(2, '0')}';
+    })();
+
+    // Xác định số lượng item hiển thị theo trạng thái thu gọn/mở rộng
+    final int visibleCount = _expanded
+        ? deduplicatedProducts.length
+        : (deduplicatedProducts.length > 10 ? 10 : deduplicatedProducts.length);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          itemBuilder: (context, index) {
+            final product = deduplicatedProducts[index];
+            return FlashSaleProductCardHorizontal(
+              product: product,
+              index: index,
+              countdownText: slotCountdown,
+            );
+          },
+          itemCount: visibleCount,
+        ),
+        if (deduplicatedProducts.length > 10)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 1), // Giảm từ 2 xuống 1 để giảm thêm khoảng trống
+            child: Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _expanded = !_expanded;
+                  });
+                },
+                icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+                label: Text(_expanded ? 'Ẩn bớt' : 'Xem thêm'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -50,7 +298,7 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12), // Giảm horizontal từ 12 xuống 4
             child: Row(
               children: [
                 Row(
@@ -109,7 +357,7 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
             child: Text(
               'Giảm giá sốc, đừng bỏ lỡ!',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 color: Colors.grey[700],
                 fontWeight: FontWeight.w500,
               ),
@@ -117,13 +365,7 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
           ),
           const SizedBox(height: 12),
           // Hiển thị sản phẩm theo dạng dọc
-          ListView.separated(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            itemBuilder: (context, index) => ProductCardVertical(index: index),
-            separatorBuilder: (context, _) => const SizedBox(height: 0),
-            itemCount: 4, // Hiển thị 4 sản phẩm như trong hình
-          ),
+          _buildProductsList(),
           const SizedBox(height: 12),
         ],
       ),

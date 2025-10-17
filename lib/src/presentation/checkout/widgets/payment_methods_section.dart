@@ -34,27 +34,6 @@ class PaymentMethodsSection extends StatelessWidget {
             groupValue: selectedPaymentMethod,
             onChanged: onPaymentMethodChanged,
           ),
-          PaymentOption(
-            icon: Icons.qr_code,
-            title: 'Thanh toán chuyển khoản',
-            value: 'transfer',
-            groupValue: selectedPaymentMethod,
-            onChanged: onPaymentMethodChanged,
-          ),
-          PaymentOption(
-            icon: Icons.credit_card,
-            title: 'Thẻ ATM',
-            value: 'atm',
-            groupValue: selectedPaymentMethod,
-            onChanged: onPaymentMethodChanged,
-          ),
-          PaymentOption(
-            icon: Icons.payment,
-            title: 'Thẻ tín dụng ghi nợ',
-            value: 'credit',
-            groupValue: selectedPaymentMethod,
-            onChanged: onPaymentMethodChanged,
-          ),
         ],
       ),
     );

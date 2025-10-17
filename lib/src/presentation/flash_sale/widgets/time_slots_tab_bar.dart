@@ -25,7 +25,7 @@ class TimeSlotsTabBar extends StatelessWidget {
         labelColor: Colors.red,
         unselectedLabelColor: Colors.grey,
         labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-        tabs: List.generate(4, (index) => Tab(
+        tabs: List.generate(timeSlots.length, (index) => Tab(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

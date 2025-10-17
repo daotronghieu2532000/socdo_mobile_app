@@ -1,13 +1,26 @@
 import 'package:flutter/material.dart';
 import '../../product/product_detail_screen.dart';
 import '../../../core/utils/format_utils.dart';
-import '../../../core/models/product_variant.dart';
+import '../../../core/models/product_detail.dart';
 import '../../../core/assets/app_images.dart';
 import 'simple_variant_selector.dart';
+import '../../shared/widgets/product_badges.dart';
 
 class ProductCardVertical extends StatefulWidget {
   final int index;
-  const ProductCardVertical({super.key, required this.index});
+  final List<String>? badges;
+  final String? locationText;
+  final String? warehouseName;
+  final String? provinceName;
+  
+  const ProductCardVertical({
+    super.key, 
+    required this.index,
+    this.badges,
+    this.locationText,
+    this.warehouseName,
+    this.provinceName,
+  });
 
   @override
   State<ProductCardVertical> createState() => _ProductCardVerticalState();
@@ -184,6 +197,22 @@ class _ProductCardVerticalState extends State<ProductCardVertical> {
                             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 4),
+                      // Badges row
+                      if (widget.badges != null && widget.badges!.isNotEmpty)
+                        ProductBadgesRow(
+                          badges: widget.badges!,
+                          fontSize: 8,
+                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                        ),
+                      const SizedBox(height: 4),
+                      // Location info
+                      ProductLocationInfo(
+                        locationText: widget.locationText,
+                        warehouseName: widget.warehouseName,
+                        provinceName: widget.provinceName,
+                        fontSize: 10,
                       ),
                       const SizedBox(height: 8),
                       

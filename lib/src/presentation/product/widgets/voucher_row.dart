@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
-import 'voucher_tag.dart';
 
 class VoucherRow extends StatelessWidget {
-  final List<String> vouchers;
+  final List<String>? vouchers;
+  final String? couponCode;
+  final String? couponDetails;
   final VoidCallback? onTap;
 
   const VoucherRow({
     super.key,
-    this.vouchers = const ['50.000₫', '20.000₫'],
+    this.vouchers,
+    this.couponCode,
+    this.couponDetails,
     this.onTap,
   });
 
@@ -27,9 +30,13 @@ class VoucherRow extends StatelessWidget {
             const SizedBox(width: 8),
             const Text('Mã giảm giá', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(width: 8),
-            Wrap(
-              spacing: 8, 
-              children: vouchers.map((voucher) => VoucherTag(text: voucher)).toList(),
+            Expanded(
+              child: Text(
+                couponDetails ?? (vouchers?.isNotEmpty == true ? vouchers!.join(', ') : 'Có sẵn'),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             const Spacer(),
             const Icon(Icons.chevron_right),

@@ -141,7 +141,6 @@ class AuthService {
       await prefs.setString(_userKey, jsonEncode(user.toJson()));
       
       _currentUser = user;
-      print('✅ Đã lưu thông tin user vĩnh viễn: ${user.name}');
       
       // Thông báo cho các listener về việc thay đổi trạng thái
       _notifyAuthStateChanged();

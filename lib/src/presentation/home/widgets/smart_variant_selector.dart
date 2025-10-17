@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/models/product_variant.dart';
+import '../../../core/models/product_detail.dart';
 import '../../../core/utils/format_utils.dart';
 
 class SmartVariantSelector extends StatefulWidget {

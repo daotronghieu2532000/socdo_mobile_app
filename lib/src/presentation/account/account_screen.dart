@@ -4,6 +4,7 @@ import 'widgets/section_header.dart';
 import 'widgets/action_list.dart';
 import 'models/action_item.dart';
 import '../../core/services/auth_service.dart';
+import '../root_shell.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -20,11 +21,11 @@ class AccountScreen extends StatelessWidget {
         children: [
           const HeaderCard(),
           const SizedBox(height: 12),
-          const SectionHeader(title: 'Đơn hàng/ Sản phẩm'),
+          const SectionHeader(title: 'Tài khoản'),
           ActionList(items: const [
+            ActionItem(Icons.manage_accounts_outlined, 'Thông tin cá nhân'),
             ActionItem(Icons.receipt_long_outlined, 'Tất cả đơn hàng'),
             ActionItem(Icons.shopping_bag_outlined, 'Sản phẩm đã mua'),
-            ActionItem(Icons.visibility_outlined, 'Sản phẩm đã xem'),
             ActionItem(Icons.favorite_border, 'Sản phẩm yêu thích'),
           ]),
           const SizedBox(height: 12),
@@ -33,7 +34,7 @@ class AccountScreen extends StatelessWidget {
             ActionItem(Icons.location_on_outlined, 'Sổ địa chỉ'),
             ActionItem(Icons.sell_outlined, 'Mã giảm giá'),
             ActionItem(Icons.star_border, 'Lịch sử đánh giá'),
-            ActionItem(Icons.notifications_outlined, 'Thông báo'),
+            ActionItem(Icons.inventory_2_outlined, 'Đã huỷ & Trả lại'),
           ]),
           const SizedBox(height: 12),
           const SectionHeader(title: 'Hỗ trợ'),
@@ -149,6 +150,7 @@ class AccountScreen extends StatelessWidget {
           const SizedBox(height: 24),
         ],
       ),
+      bottomNavigationBar: const RootShellBottomBar(),
     );
   }
 }

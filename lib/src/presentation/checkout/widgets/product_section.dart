@@ -1,108 +1,179 @@
 import 'package:flutter/material.dart';
-import '../../../core/assets/app_images.dart';
 import '../../../core/utils/format_utils.dart';
+import '../../../core/services/cart_service.dart' as cart_service;
+import '../../../core/services/voucher_service.dart';
+import '../../../core/utils/format_utils.dart' as utils;
+import '../../cart/widgets/voucher_dialog.dart';
 
 class ProductSection extends StatelessWidget {
-  const ProductSection({super.key});
+  ProductSection({super.key});
 
-  final List<Map<String, dynamic>> _products = const [
-    {
-      'title': 'Viên uống Collagen Youtheory Type 1 2 & 3 của Mỹ, 390 viên',
-      'currentPrice': 615000,
-      'oldPrice': 670000,
-      'quantity': 1,
-      'image': 1,
-    },
-    {
-      'title': 'Viên uống chống lão hoá, đẹp da Collagen Youtheory Type 1-2-3 - 390 viên của Mỹ',
-      'currentPrice': 880000,
-      'oldPrice': 900000,
-      'quantity': 1,
-      'image': 0,
-    },
-    {
-      'title': 'Okinawa Fucoidan của Nhật - Fucoidan xanh 180 viên',
-      'currentPrice': 1799000,
-      'oldPrice': 2100000,
-      'quantity': 1,
-      'image': 2,
-    },
-  ];
+  final cart_service.CartService _cartService = cart_service.CartService();
+
+  List<cart_service.CartItem> get selectedItems => _cartService.items
+      .where((item) => item.isSelected)
+      .toList();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.store, color: Colors.grey),
-              const SizedBox(width: 8),
-              const Text('VitaGlow', style: TextStyle(fontWeight: FontWeight.w600)),
-            ],
+    if (selectedItems.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Text(
+            'Không có sản phẩm nào được chọn',
+            style: TextStyle(color: Colors.grey),
           ),
-          const Divider(height: 20),
-          for (int i = 0; i < _products.length; i++) ...[
-            if (i > 0) const SizedBox(height: 12),
-            Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    color: const Color(0xFFF4F6FB),
-                    child: Image.asset(
-                      AppImages.products[_products[i]['image'] as int],
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) => const Icon(Icons.image, color: Colors.grey),
+        ),
+      );
+    }
+
+    // Group items by shop
+    final Map<String, List<cart_service.CartItem>> itemsByShop = {};
+    for (final item in selectedItems) {
+      if (!itemsByShop.containsKey(item.shopName)) {
+        itemsByShop[item.shopName] = [];
+      }
+      itemsByShop[item.shopName]!.add(item);
+    }
+
+    final voucherService = VoucherService();
+    return Column(
+      children: itemsByShop.entries.map((entry) {
+        final shopName = entry.key;
+        final items = entry.value;
+        final shopId = items.first.shopId;
+        final appliedVoucher = voucherService.getAppliedVoucher(shopId);
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.local_offer, color: Colors.red),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(shopName, style: const TextStyle(fontWeight: FontWeight.w600))),
+                  InkWell(
+                    onTap: () async {
+                      final shopTotal = items.fold(0, (s, i) => s + i.price * i.quantity);
+                      final selected = await showDialog(
+                        context: context,
+                        builder: (_) => VoucherDialog(
+                          shopId: shopId,
+                          shopName: shopName,
+                          shopTotal: shopTotal,
+                          currentVoucher: appliedVoucher,
+                        ),
+                      );
+                      if (selected != null && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Đã áp dụng voucher shop')),
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        appliedVoucher == null
+                            ? 'Voucher shop'
+                            : '${appliedVoucher.code} · ${_discountText(appliedVoucher)}',
+                        style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _products[i]['title'] as String,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                ],
+              ),
+              const Divider(height: 20),
+              for (int i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        color: const Color(0xFFF4F6FB),
+                        child: items[i].image.isNotEmpty
+                            ? Image.network(
+                                items[i].image,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => const Icon(Icons.image, color: Colors.grey),
+                              )
+                            : const Icon(Icons.image, color: Colors.grey),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            FormatUtils.formatCurrency(_products[i]['currentPrice'] as int),
-                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
+                            items[i].name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            FormatUtils.formatCurrency(_products[i]['oldPrice'] as int),
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              decoration: TextDecoration.lineThrough,
-                              fontSize: 12,
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                FormatUtils.formatCurrency(items[i].price),
+                                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
+                              ),
+                              if (items[i].oldPrice != null && items[i].oldPrice! > items[i].price) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  FormatUtils.formatCurrency(items[i].oldPrice!),
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    decoration: TextDecoration.lineThrough,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Text('x${items[i].quantity}', style: const TextStyle(color: Colors.grey)),
+                  ],
                 ),
-                Text('x${_products[i]['quantity']}', style: const TextStyle(color: Colors.grey)),
               ],
-            ),
-          ],
-        ],
-      ),
+            ],
+          ),
+        );
+      }).toList(),
     );
+  }
+}
+
+String _discountText(dynamic v) {
+  if (v == null) return '';
+  try {
+    final type = v.discountType?.toString();
+    final value = v.discountValue;
+    if (type == 'percentage') {
+      return '${value?.toInt()}%';
+    }
+    return utils.FormatUtils.formatCurrency(value?.round() ?? 0);
+  } catch (_) {
+    return '';
   }
 }

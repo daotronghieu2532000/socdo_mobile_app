@@ -7,6 +7,33 @@ class ShopSection extends StatelessWidget {
   final VoidCallback onChanged;
   const ShopSection({super.key, required this.shop, required this.onChanged});
 
+  void _showDeleteShopDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa shop'),
+        content: Text('Bạn có chắc muốn xóa tất cả sản phẩm của ${shop.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Implement delete shop functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Đã xóa tất cả sản phẩm của ${shop.name}')),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -34,16 +61,25 @@ class ShopSection extends StatelessWidget {
                 Expanded(
                   child: Row(
                     children: [
-                      Text(shop.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                      Expanded(
+                        child: Text(
+                          shop.name, 
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                       const SizedBox(width: 6),
                       const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
                     ],
                   ),
                 ),
                 TextButton(
-                  onPressed: () {}, 
+                  onPressed: () {
+                    _showDeleteShopDialog(context);
+                  }, 
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('Sửa'),
+                  child: const Text('Xóa'),
                 ),
               ],
             ),

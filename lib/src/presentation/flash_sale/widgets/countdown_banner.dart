@@ -55,9 +55,9 @@ class CountdownBanner extends StatelessWidget {
             ),
             child: Column(
               children: [
-                const Text(
-                  'kết thúc sau',
-                  style: TextStyle(
+                Text(
+                  timeLeft.inSeconds > 0 ? 'kết thúc sau' : 'Đã kết thúc',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -65,9 +65,11 @@ class CountdownBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  FormatUtils.formatTime(timeLeft.inSeconds),
-                  style: const TextStyle(
-                    color: Colors.red,
+                  timeLeft.inSeconds > 0 
+                    ? FormatUtils.formatTime(timeLeft.inSeconds)
+                    : '00:00:00',
+                  style: TextStyle(
+                    color: timeLeft.inSeconds > 0 ? Colors.red : Colors.grey,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),

@@ -1,7 +1,67 @@
 import 'package:flutter/material.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/auth_service.dart';
+import '../root_shell.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final ApiService _api = ApiService();
+  final AuthService _auth = AuthService();
+  bool _loading = true;
+  int _unread = 0;
+  List<dynamic> _items = [];
+  int? _userId;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final logged = await _auth.isLoggedIn();
+    if (!mounted) return;
+    if (!logged) {
+      setState(() {
+        _userId = null;
+        _loading = false;
+      });
+      return;
+    }
+    final user = await _auth.getCurrentUser();
+    _userId = user?.userId;
+    await _load();
+  }
+
+  Future<void> _load() async {
+    if (_userId == null) return;
+    setState(() => _loading = true);
+    final data = await _api.getNotifications(userId: _userId!, page: 1, limit: 20);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _items = (data?['data']?['notifications'] as List?) ?? [];
+      _unread = (data?['data']?['unread_count'] as int?) ?? 0;
+    });
+  }
+
+  Future<void> _markAllRead() async {
+    if (_userId == null) return;
+    final ok = await _api.markAllNotificationsRead(userId: _userId!);
+    if (ok) await _load();
+  }
+
+  Future<void> _markRead(int id) async {
+    if (_userId == null) return;
+    final ok = await _api.markNotificationRead(userId: _userId!, notificationId: id);
+    if (ok) await _load();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,8 +73,18 @@ class NotificationsScreen extends StatelessWidget {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: ListView(
-        children: [
+      body: Builder(
+        builder: (context) {
+          if (_loading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (_userId == null) {
+            return _LoggedOutView();
+          }
+          return RefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              children: [
           // Header với số lượng thông báo
           Container(
             color: Colors.white,
@@ -38,9 +108,11 @@ class NotificationsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Bạn có 3 thông báo mới',
-                        style: TextStyle(
+                      Text(
+                        _unread > 0
+                            ? 'Bạn có $_unread thông báo mới'
+                            : 'Không có thông báo mới',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -56,9 +128,7 @@ class NotificationsScreen extends StatelessWidget {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
-                    // TODO: Đánh dấu tất cả đã đọc
-                  },
+                  onPressed: _unread > 0 ? _markAllRead : null,
                   child: const Text(
                     'Đánh dấu tất cả đã đọc',
                     style: TextStyle(fontSize: 12),
@@ -73,54 +143,29 @@ class NotificationsScreen extends StatelessWidget {
           // Danh sách thông báo
           Container(
             color: Colors.white,
-            child: Column(
-              children: [
-                _buildNotificationItem(
-                  icon: Icons.local_offer,
-                  iconColor: Colors.orange,
-                  title: 'Mã giảm giá mới',
-                  subtitle: 'Bạn có mã giảm giá 20% cho đơn hàng tiếp theo',
-                  time: '2 giờ trước',
-                  isRead: false,
-                ),
-                const Divider(height: 1),
-                _buildNotificationItem(
-                  icon: Icons.shopping_cart,
-                  iconColor: Colors.blue,
-                  title: 'Đơn hàng đã được xác nhận',
-                  subtitle: 'Đơn hàng #12345 của bạn đã được xác nhận và đang chuẩn bị',
-                  time: '5 giờ trước',
-                  isRead: false,
-                ),
-                const Divider(height: 1),
-                _buildNotificationItem(
-                  icon: Icons.local_shipping,
-                  iconColor: Colors.green,
-                  title: 'Đơn hàng đang được giao',
-                  subtitle: 'Đơn hàng #12344 đang được giao đến bạn',
-                  time: '1 ngày trước',
-                  isRead: true,
-                ),
-                const Divider(height: 1),
-                _buildNotificationItem(
-                  icon: Icons.star,
-                  iconColor: Colors.purple,
-                  title: 'Đánh giá sản phẩm',
-                  subtitle: 'Hãy đánh giá sản phẩm bạn vừa mua',
-                  time: '2 ngày trước',
-                  isRead: true,
-                ),
-                const Divider(height: 1),
-                _buildNotificationItem(
-                  icon: Icons.campaign,
-                  iconColor: Colors.red,
-                  title: 'Khuyến mãi cuối tuần',
-                  subtitle: 'Giảm giá lên đến 50% cho tất cả sản phẩm',
-                  time: '3 ngày trước',
-                  isRead: true,
-                ),
-              ],
-            ),
+            child: _items.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: Text('Chưa có thông báo'),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (int i = 0; i < _items.length; i++) ...[
+                        _buildNotificationItem(
+                          id: _items[i]['id'] ?? 0,
+                          icon: Icons.notifications,
+                          iconColor: Colors.blueGrey,
+                          title: _items[i]['title']?.toString() ?? 'Thông báo',
+                          subtitle: _items[i]['content']?.toString() ?? '',
+                          time: _items[i]['time_ago']?.toString() ?? '',
+                          isRead: (_items[i]['is_read'] as bool?) ?? false,
+                        ),
+                        if (i < _items.length - 1) const Divider(height: 1),
+                      ],
+                    ],
+                  ),
           ),
           
           const SizedBox(height: 12),
@@ -159,12 +204,17 @@ class NotificationsScreen extends StatelessWidget {
           ),
           
           const SizedBox(height: 24),
-        ],
+              ],
+            ),
+          );
+        },
       ),
+      bottomNavigationBar: const RootShellBottomBar(),
     );
   }
 
   Widget _buildNotificationItem({
+    required int id,
     required IconData icon,
     required Color iconColor,
     required String title,
@@ -223,9 +273,7 @@ class NotificationsScreen extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
             ),
-      onTap: () {
-        // TODO: Xử lý khi nhấn vào thông báo
-      },
+      onTap: () => _markRead(id),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     );
   }
@@ -261,6 +309,25 @@ class NotificationsScreen extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _LoggedOutView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Bạn chưa đăng nhập'),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () => Navigator.pushNamed(context, '/login'),
+            child: const Text('Đăng nhập'),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../flash_sale/flash_sale_screen.dart';
+import '../../freeship/freeship_products_screen.dart';
+import '../../voucher/voucher_screen.dart';
+import '../../orders/orders_screen.dart';
 
 class QuickActions extends StatelessWidget {
   final List<QAItem> items = const [
     QAItem(Icons.flash_on, 'Flash Sale'),
-    QAItem(Icons.local_shipping, 'Ship 0 đồng'),
+    QAItem(Icons.local_shipping, 'Freeship'),
     QAItem(Icons.confirmation_number_outlined, 'Voucher'),
     QAItem(Icons.receipt_long_outlined, 'Đơn hàng'),
   ];
@@ -25,6 +28,24 @@ class QuickActions extends StatelessWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const FlashSaleScreen(),
+                    ),
+                  );
+                } else if (i == 1) { // Ship 0 đồng item
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const FreeShipProductsScreen(),
+                    ),
+                  );
+                } else if (i == 2) { // Voucher item
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const VoucherScreen(),
+                    ),
+                  );
+                } else if (i == 3) { // Đơn hàng
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const OrdersScreen(),
                     ),
                   );
                 }

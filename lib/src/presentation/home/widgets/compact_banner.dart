@@ -59,7 +59,7 @@ class _CompactBannerState extends State<CompactBanner> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 120,
+      height: 160, // Tăng từ 120 lên 160 để tránh cắt nội dung
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Stack(
         children: [

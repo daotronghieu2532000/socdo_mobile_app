@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/models/product_variant.dart';
+import '../../../core/models/product_detail.dart';
 import '../../../core/utils/format_utils.dart';
 
 class SimpleVariantSelector extends StatefulWidget {
@@ -21,7 +21,7 @@ class SimpleVariantSelector extends StatefulWidget {
 }
 
 class _SimpleVariantSelectorState extends State<SimpleVariantSelector> {
-  Map<String, String> _selectedAttributes = {};
+  final Map<String, String> _selectedAttributes = {};
   final Map<String, int> _quantities = {};
   bool _hasUserSelected = false; // Track xem user đã chọn biến thể hay chưa
 

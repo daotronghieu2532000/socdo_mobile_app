@@ -99,6 +99,42 @@ class CartItemTile extends StatelessWidget {
               ],
             ),
           ),
+          // Delete button
+          IconButton(
+            onPressed: () {
+              _showDeleteItemDialog(context);
+            },
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteItemDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa sản phẩm'),
+        content: Text('Bạn có chắc muốn xóa "${item.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Implement delete item functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Đã xóa "${item.title}"')),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Xóa'),
+          ),
         ],
       ),
     );

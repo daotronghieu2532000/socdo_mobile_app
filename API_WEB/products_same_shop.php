@@ -1,0 +1,296 @@
+<?php
+header("Access-Control-Allow-Methods: GET");
+require_once './vendor/autoload.php';
+use \Firebase\JWT\JWT;
+use \Firebase\JWT\Key;
+
+// Cấu hình thông tin JWT
+$key = "Socdo123@2025"; // Key bí mật dùng để ký JWT
+$issuer = "api.socdo.vn"; // Tên ứng dụng phát hành token
+
+// Lấy token từ header Authorization
+$headers = apache_request_headers();
+$authHeader = isset($headers['Authorization']) ? $headers['Authorization'] : '';
+if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+    http_response_code(401);
+    echo json_encode(array("message" => "Không tìm thấy token"));
+    exit;
+}
+
+$jwt = $matches[1]; // Lấy token từ Bearer
+
+try {
+    // Giải mã JWT
+    $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
+    
+    // Kiểm tra issuer
+    if ($decoded->iss !== $issuer) {
+        http_response_code(401);
+        echo json_encode(array("message" => "Issuer không hợp lệ"));
+        exit;
+    }
+    
+    $method = $_SERVER['REQUEST_METHOD'];
+    
+    if ($method === 'GET') {
+        $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
+        $shop_id = isset($_GET['shop_id']) ? intval($_GET['shop_id']) : 0;
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
+        $category_id = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
+        $sort = isset($_GET['sort']) ? trim($_GET['sort']) : 'time-desc'; // time-desc, time-asc, price-asc, price-desc
+        $exclude_product_id = isset($_GET['exclude_product_id']) ? intval($_GET['exclude_product_id']) : 0;
+        
+        // Validate parameters
+        $get_all = isset($_GET['all']) && $_GET['all'] == '1';
+        
+        if ($page < 1) $page = 1;
+        if ($limit < 1 || $limit > 500) $limit = 20;
+        
+        // Override limit nếu get_all = true
+        if ($get_all) {
+            $limit = 999999;
+            $page = 1;
+        }
+        
+        // Phải có product_id hoặc shop_id
+        if ($product_id <= 0 && $shop_id <= 0) {
+            http_response_code(400);
+            echo json_encode([
+                "success" => false,
+                "message" => "Phải cung cấp product_id hoặc shop_id"
+            ]);
+            exit;
+        }
+        
+        $offset = ($page - 1) * $limit;
+        
+        // Nếu có product_id, lấy shop_id từ sản phẩm đó
+        if ($product_id > 0) {
+            $product_query = "SELECT shop FROM sanpham WHERE id = '$product_id' LIMIT 1";
+            $product_result = mysqli_query($conn, $product_query);
+            
+            if (!$product_result || mysqli_num_rows($product_result) == 0) {
+                http_response_code(404);
+                echo json_encode([
+                    "success" => false,
+                    "message" => "Không tìm thấy sản phẩm"
+                ]);
+                exit;
+            }
+            
+            $product_info = mysqli_fetch_assoc($product_result);
+            $shop_id = intval($product_info['shop']);
+        }
+        
+        // Xây dựng WHERE clause
+        $where_conditions = array("sanpham.status = 1", "sanpham.shop = '$shop_id'");
+        
+        // Loại trừ sản phẩm hiện tại nếu có
+        if ($exclude_product_id > 0) {
+            $where_conditions[] = "sanpham.id != '$exclude_product_id'";
+        } elseif ($product_id > 0) {
+            $where_conditions[] = "sanpham.id != '$product_id'";
+        }
+        
+        // Lọc theo danh mục
+        if ($category_id > 0) {
+            $where_conditions[] = "FIND_IN_SET('$category_id', sanpham.cat) > 0";
+        }
+        
+        $where_clause = "WHERE " . implode(" AND ", $where_conditions);
+        
+        // Đếm tổng số sản phẩm
+        $count_query = "SELECT COUNT(*) as total FROM sanpham $where_clause";
+        $count_result = mysqli_query($conn, $count_query);
+        $total_records = 0;
+        if ($count_result) {
+            $count_row = mysqli_fetch_assoc($count_result);
+            $total_records = $count_row['total'];
+        }
+        
+        $total_pages = ceil($total_records / $limit);
+        
+        // Xử lý sắp xếp
+        $allowed_sorts = ['time-desc', 'time-asc', 'price-asc', 'price-desc'];
+        $sort = in_array($sort, $allowed_sorts) ? $sort : 'time-desc';
+        
+        switch ($sort) {
+            case 'time-desc':
+                $order_by = "ORDER BY sanpham.id DESC";
+                break;
+            case 'time-asc':
+                $order_by = "ORDER BY sanpham.id ASC";
+                break;
+            case 'price-asc':
+                $order_by = "ORDER BY sanpham.gia_moi ASC";
+                break;
+            case 'price-desc':
+                $order_by = "ORDER BY sanpham.gia_moi DESC";
+                break;
+            default:
+                $order_by = "ORDER BY sanpham.id DESC";
+        }
+        
+        // Lấy thông tin shop
+        $shop_query = "SELECT user_id, username, name, avatar, dia_chi FROM user_info WHERE user_id = '$shop_id' LIMIT 1";
+        $shop_result = mysqli_query($conn, $shop_query);
+        $shop_info = null;
+        if ($shop_result && mysqli_num_rows($shop_result) > 0) {
+            $shop_info = mysqli_fetch_assoc($shop_result);
+            $shop_info['id'] = intval($shop_info['user_id']);
+            $shop_info['fullname'] = $shop_info['name']; // Map name thành fullname
+            $shop_info['address'] = $shop_info['dia_chi']; // Map dia_chi thành address
+            if (!empty($shop_info['avatar'])) {
+                $shop_info['avatar_url'] = 'https://socdo.vn/' . $shop_info['avatar'];
+            } else {
+                $shop_info['avatar_url'] = '';
+            }
+        }
+        
+        // Lấy danh sách sản phẩm cùng shop
+        $products_query = "
+            SELECT 
+                sanpham.*,
+                th.tieu_de as brand_name,
+                th.anh_thuong_hieu as brand_logo,
+                t.ten_kho AS warehouse_name,
+                tm.tieu_de AS province_name
+            FROM sanpham 
+            LEFT JOIN thuong_hieu th ON th.id = sanpham.thuong_hieu
+            LEFT JOIN transport t ON sanpham.kho_id = t.id
+            LEFT JOIN tinh_moi tm ON t.province = tm.id
+            $where_clause 
+            $order_by 
+            LIMIT $offset, $limit
+        ";
+        
+        $products_result = mysqli_query($conn, $products_query);
+        
+        if (!$products_result) {
+            http_response_code(500);
+            echo json_encode([
+                "success" => false,
+                "message" => "Lỗi truy vấn database"
+            ]);
+            exit;
+        }
+        
+        $products = array();
+        
+        while ($product = mysqli_fetch_assoc($products_result)) {
+            // Sử dụng helper function để thêm badges và location
+            require_once './product_badge_helper.php';
+            $product = addProductBadgesAndLocation($product, $conn);
+            
+            // Format dữ liệu sản phẩm
+            $product_data = array();
+            $product_data['id'] = intval($product['id']);
+            $product_data['name'] = $product['tieu_de'];
+            $product_data['slug'] = $product['link'];
+            $product_data['price'] = intval($product['gia_moi']);
+            $product_data['old_price'] = intval($product['gia_cu']);
+            $product_data['discount_percent'] = 0;
+            
+            // Tính % giảm giá
+            if ($product['gia_cu'] > 0 && $product['gia_moi'] < $product['gia_cu']) {
+                $product_data['discount_percent'] = round((($product['gia_cu'] - $product['gia_moi']) / $product['gia_cu']) * 100);
+            }
+            
+            $product_data['shop_id'] = intval($product['shop']);
+            $product_data['category_ids'] = explode(',', $product['cat']);
+            $product_data['category_ids'] = array_filter(array_map('intval', $product_data['category_ids']));
+            $product_data['brand_id'] = intval($product['thuong_hieu']);
+            $product_data['brand_name'] = $product['brand_name'] ?: '';
+            $product_data['brand_logo'] = $product['brand_logo'] ? 'https://socdo.vn/' . $product['brand_logo'] : '';
+            
+            // Xử lý hình ảnh
+            if (!empty($product['minh_hoa'])) {
+                $product_data['image'] = 'https://socdo.vn/' . $product['minh_hoa'];
+                
+                // Tạo thumbnail
+                $thumb_image = str_replace('/uploads/minh-hoa/', '/uploads/thumbs/sanpham_anh_340x340/', $product['minh_hoa']);
+                $product_data['thumb'] = 'https://socdo.vn/' . $thumb_image;
+            } else {
+                $product_data['image'] = '';
+                $product_data['thumb'] = '';
+            }
+            
+            // Tạo URL sản phẩm
+            $product_data['product_url'] = 'https://socdo.vn/san-pham/' . $product_data['id'] . '/' . $product_data['slug'] . '.html';
+            
+            // Thông tin từ helper function
+            $product_data['has_voucher'] = $product['has_voucher'];
+            $product_data['has_freeship'] = $product['has_freeship'];
+            $product_data['freeship_type'] = $product['freeship_type'];
+            $product_data['freeship_label'] = $product['freeship_label'];
+            $product_data['location_text'] = $product['location_text'];
+            
+            // Tạo badges
+            $badges = array();
+            if ($product_data['discount_percent'] > 0) $badges[] = "-{$product_data['discount_percent']}%";
+            if ($product['has_voucher']) $badges[] = 'Voucher';
+            if ($product['has_freeship']) $badges[] = $product['freeship_label'] ?: 'Freeship';
+            if ($product['box_flash'] == 1) $badges[] = 'Flash Sale';
+            $badges[] = 'Chính hãng';
+            $product_data['badges'] = $badges;
+            
+            // Thông tin bổ sung
+            $product_data['is_authentic'] = 0; // Không có trường chinhhang trong DB thực tế
+            $product_data['is_featured'] = intval($product['box_noibat']);
+            $product_data['is_trending'] = 0; // Không có trường xu_huong trong DB thực tế
+            $product_data['is_flash_sale'] = intval($product['box_flash']);
+            $product_data['created_at'] = intval($product['date_post']);
+            $product_data['updated_at'] = intval($product['date_post']); // Không có trường date_update trong DB thực tế
+            
+            // Format giá
+            $product_data['price_formatted'] = number_format($product_data['price'], 0, ',', '.') . ' ₫';
+            $product_data['old_price_formatted'] = $product_data['old_price'] > 0 ? number_format($product_data['old_price'], 0, ',', '.') . ' ₫' : '';
+            
+            $products[] = $product_data;
+        }
+        
+        $response = [
+            "success" => true,
+            "message" => "Lấy danh sách sản phẩm cùng shop thành công",
+            "data" => [
+                "shop_info" => $shop_info,
+                "products" => $products,
+                "pagination" => [
+                    "current_page" => $page,
+                    "total_pages" => $total_pages,
+                    "total_records" => $total_records,
+                    "per_page" => $limit,
+                    "has_next" => $page < $total_pages,
+                    "has_prev" => $page > 1
+                ],
+                "filters" => [
+                    "product_id" => $product_id,
+                    "shop_id" => $shop_id,
+                    "category_id" => $category_id,
+                    "sort" => $sort,
+                    "exclude_product_id" => $exclude_product_id
+                ]
+            ]
+        ];
+        
+        http_response_code(200);
+        echo json_encode($response, JSON_UNESCAPED_UNICODE);
+        
+    } else {
+        http_response_code(405);
+        echo json_encode([
+            "success" => false,
+            "message" => "Chỉ hỗ trợ phương thức GET"
+        ]);
+    }
+    
+} catch (Exception $e) {
+    http_response_code(401);
+    echo json_encode(array(
+        "success" => false,
+        "message" => "Token không hợp lệ",
+        "error" => $e->getMessage()
+    ));
+}
+?>

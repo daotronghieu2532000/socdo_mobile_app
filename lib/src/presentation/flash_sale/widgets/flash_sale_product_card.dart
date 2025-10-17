@@ -1,63 +1,36 @@
 import 'package:flutter/material.dart';
-import '../../../core/assets/app_images.dart';
 import '../../../core/utils/format_utils.dart';
+import '../../../core/models/flash_sale_product.dart';
 
 class FlashSaleProductCard extends StatelessWidget {
+  final FlashSaleProduct product;
   final int index;
+  final VoidCallback? onTap;
+  final VoidCallback? onAddToCart;
 
   const FlashSaleProductCard({
     super.key,
+    required this.product,
     required this.index,
+    this.onTap,
+    this.onAddToCart,
   });
 
   @override
   Widget build(BuildContext context) {
-    final products = [
-      {
-        'name': 'Sữa tắm kháng khuẩn ASEPSO sạch sâu tươi mát Chiết Xuất Thiên Nhiên 1000 ml',
-        'brand': 'Asepso',
-        'originalPrice': 239000,
-        'discount': 25,
-        'rating': 4.5,
-        'reviews': 15,
-        'sold': 137,
-        'image': AppImages.products[0],
-      },
-      {
-        'name': 'Gennie Little Red Dress nước hoa nữ shower gel 450ml',
-        'brand': 'Gennie',
-        'originalPrice': 159000,
-        'discount': 20,
-        'rating': 4.2,
-        'reviews': 5,
-        'sold': 138,
-        'image': AppImages.products[1],
-      },
-      {
-        'name': 'Gota Iconic 2in1 nước hoa shower gel 480g',
-        'brand': 'Gota',
-        'originalPrice': 179000,
-        'discount': 20,
-        'rating': 4.3,
-        'reviews': 23,
-        'sold': 297,
-        'image': AppImages.products[2],
-      },
-    ];
 
-    final product = products[index % products.length];
-    final newPrice = (product['originalPrice'] as int) * (100 - (product['discount'] as int)) / 100;
+    // String formatSold(int sold) {
+    //   if (sold >= 1000) {
+    //     final double inK = sold / 1000.0;
+    //     String s = inK.toStringAsFixed(inK.truncateToDouble() == inK ? 0 : 1);
+    //     return '$s+';
+    //   }
+    //   return '$sold';
+    // }
 
-    String formatSold(int sold) {
-      if (sold >= 1000) {
-        final double inK = sold / 1000.0;
-        String s = inK.toStringAsFixed(inK.truncateToDouble() == inK ? 0 : 1);
-        return '$s+';
-      }
-      return '$sold';
-    }
-
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -80,16 +53,16 @@ class FlashSaleProductCard extends StatelessWidget {
                   color: const Color(0xFFF4F6FB),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
-                    product['image'] as String,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stack) => const Center(
-                      child: Icon(Icons.image_not_supported, size: 32, color: Colors.grey),
-                    ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: product.imageUrl != null
+                        ? Image.network(
+                            product.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stack) => _buildPlaceholderImage(),
+                          )
+                        : _buildPlaceholderImage(),
                   ),
-                ),
               ),
               Positioned(
                 top: 4,
@@ -110,7 +83,7 @@ class FlashSaleProductCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '-${product['discount']}%',
+                    product.formattedDiscount,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -130,19 +103,20 @@ class FlashSaleProductCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Brand
-                Text(
-                  product['brand'] as String,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+                if (product.brand != null)
+                  Text(
+                    product.brand!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 4),
                 
                 // Product name
                 Text(
-                  product['name'] as String,
+                  product.name,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -157,22 +131,24 @@ class FlashSaleProductCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      FormatUtils.formatCurrency(newPrice.round()),
+                      FormatUtils.formatCurrency(product.price),
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.red,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      FormatUtils.formatCurrency(product['originalPrice'] as int),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                        decoration: TextDecoration.lineThrough,
+                    if (product.oldPrice != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        FormatUtils.formatCurrency(product.oldPrice!),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                          decoration: TextDecoration.lineThrough,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -180,15 +156,27 @@ class FlashSaleProductCard extends StatelessWidget {
                 // Rating and sold row under price
                 Row(
                   children: [
-                    const Icon(Icons.star, size: 14, color: Colors.orange),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${product['rating']} | Đã bán ${formatSold(product['sold'] as int)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                    if (product.rating != null) ...[
+                      const Icon(Icons.star, size: 14, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Text(
+                        product.formattedRating,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ),
+                    ],
+                    if (product.sold != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        'Đã bán ${product.formattedSold}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -219,37 +207,20 @@ class FlashSaleProductCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.red, width: 1.5),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(
-                        Icons.shopping_cart,
-                        color: Colors.red,
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
+                      GestureDetector(
+                        onTap: onAddToCart,
                       child: Container(
+                        width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: Colors.red,
+                          color: Colors.white,
+                          border: Border.all(color: Colors.red, width: 1.5),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Center(
-                          child: Text(
-                            'Mua ngay',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        child: const Icon(
+                          Icons.shopping_cart,
+                          color: Colors.red,
+                          size: 16,
                         ),
                       ),
                     ),
@@ -259,6 +230,20 @@ class FlashSaleProductCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    ),
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Container(
+      color: const Color(0xFFF0F0F0),
+      child: const Center(
+        child: Icon(
+          Icons.image_not_supported,
+          size: 32,
+          color: Colors.grey,
+        ),
       ),
     );
   }
