@@ -257,7 +257,8 @@ class SearchPagination {
     return SearchPagination(
       currentPage: SearchProduct._safeParseInt(json['current_page']) ?? 1,
       perPage: SearchProduct._safeParseInt(json['per_page']) ?? 10,
-      total: SearchProduct._safeParseInt(json['total']) ?? 0,
+      total: SearchProduct._safeParseInt(json['total']) ?? 
+             SearchProduct._safeParseInt(json['total_products']) ?? 0,
       totalPages: SearchProduct._safeParseInt(json['total_pages']) ?? 1,
       hasNext: SearchProduct._safeParseBool(json['has_next']) ?? false,
       hasPrev: SearchProduct._safeParseBool(json['has_prev']) ?? false,

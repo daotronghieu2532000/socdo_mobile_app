@@ -17,7 +17,7 @@ class _PlatformVouchersTabState extends State<PlatformVouchersTab> {
   bool _isLoading = true;
   String? _error;
   int _currentPage = 1;
-  final int _limit = 10;
+  final int _limit = 20; // Tăng từ 10 lên 20
   bool _hasMore = true;
 
   @override

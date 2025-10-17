@@ -171,7 +171,7 @@ class _OrdersListState extends State<_OrdersList> {
   bool _loading = true;
   List<dynamic> _orders = [];
   int _page = 1;
-  final int _limit = 20;
+  final int _limit = 50; // Tăng từ 20 lên 50
   final ScrollController _scrollController = ScrollController();
   bool _hasMore = true;
 

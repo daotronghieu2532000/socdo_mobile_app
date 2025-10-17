@@ -78,7 +78,7 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
       final result = await _affiliateService.getMyLinks(
         userId: _currentUserId,
         page: _currentPage,
-        limit: 20,
+        limit: 50, // Tăng từ 20 lên 50
         search: _searchQuery.isEmpty ? null : _searchQuery,
         sortBy: _sortBy,
         onlyHasLink: _onlyHasLink,

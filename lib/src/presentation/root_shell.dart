@@ -20,6 +20,22 @@ class _RootShellState extends State<RootShell> {
   late int _currentIndex = widget.initialIndex;
   final cart_service.CartService _cart = cart_service.CartService();
 
+  @override
+  void initState() {
+    super.initState();
+    _cart.addListener(_onCartChanged);
+  }
+
+  @override
+  void dispose() {
+    _cart.removeListener(_onCartChanged);
+    super.dispose();
+  }
+
+  void _onCartChanged() {
+    if (mounted) setState(() {});
+  }
+
   // Tabs: Trang chủ, Danh mục, Affiliate
   final List<Widget> _tabs = const [
     HomeScreen(),
@@ -84,96 +100,101 @@ class _RootShellState extends State<RootShell> {
               const SizedBox(width: 12),
               // Container cho phần giỏ hàng và nút đặt mua với nền riêng
               Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE9ECEF), // Màu đậm hơn cho phần giỏ hàng
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    children: [
-                      // Icon + nhãn Giỏ hàng hiển thị badge động
-                      InkWell(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const CartScreen()),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(6),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Stack(
-                              clipBehavior: Clip.none,
+                child: ListenableBuilder(
+                  listenable: _cart,
+                  builder: (context, child) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE9ECEF), // Màu đậm hơn cho phần giỏ hàng
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Row(
+                        children: [
+                          // Icon + nhãn Giỏ hàng hiển thị badge động
+                          InkWell(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const CartScreen()),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
-                                  Icons.shopping_cart_outlined,
-                                  color: Colors.grey,
-                                  size: 20,
-                                ),
-                                Positioned(
-                                  top: -4,
-                                  right: -6,
-                                  child: Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    const Icon(
+                                      Icons.shopping_cart_outlined,
+                                      color: Colors.grey,
+                                      size: 20,
                                     ),
-                                    child: Center(
-                                      child: Text(
-                                        _cart.itemCount.toString(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                    Positioned(
+                                      top: -4,
+                                      right: -6,
+                                      child: Container(
+                                        width: 16,
+                                        height: 16,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            _cart.itemCount.toString(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'Giỏ hàng',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 10,
+                                    height: 1.0,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            const Text(
-                              'Giỏ hàng',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 10,
-                                height: 1.0,
-                                fontWeight: FontWeight.w500,
+                          ),
+                          const SizedBox(width: 8),
+                          // Nút đặt mua chiếm phần còn lại, sát lề phải
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const CartScreen()),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                elevation: 0, // Bỏ shadow để hòa hợp với container
+                              ),
+                              child: Text(
+                                'Đặt mua (${_cart.selectedItemCount})\n${FormatUtils.formatCurrency(_cart.selectedTotalPrice)}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, height: 1.1),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Nút đặt mua chiếm phần còn lại, sát lề phải
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const CartScreen()),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            elevation: 0, // Bỏ shadow để hòa hợp với container
                           ),
-                          child: Text(
-                            'Đặt mua (${_cart.selectedItemCount})\n${FormatUtils.formatCurrency(_cart.selectedTotalPrice)}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, height: 1.1),
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -207,6 +228,7 @@ class _RootShellBottomBarState extends State<RootShellBottomBar> {
   }
 
   void _onCartChanged() {
+    print('🛒 RootShell Cart changed - Item count: ${_cart.itemCount}, Selected count: ${_cart.selectedItemCount}, Total: ${_cart.selectedTotalPrice}');
     if (mounted) setState(() {});
   }
 

@@ -136,7 +136,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
       final result = await _affiliateService.getProducts(
         userId: _currentUserId,
         page: _currentPage,
-        limit: 20,
+        limit: 50, // Tăng từ 20 lên 50
         search: _searchQuery.isEmpty ? null : _searchQuery,
         sortBy: _sortBy,
         onlyFollowing: _onlyFollowed,

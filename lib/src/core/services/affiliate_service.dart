@@ -82,7 +82,7 @@ class AffiliateService {
   Future<Map<String, dynamic>?> getProducts({
     int? userId,
     int page = 1,
-    int limit = 20,
+    int limit = 50, // Tăng từ 20 lên 50
     String? search,
     String? sortBy,
     bool onlyFollowing = false,

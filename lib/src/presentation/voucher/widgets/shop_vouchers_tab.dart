@@ -17,7 +17,7 @@ class _ShopVouchersTabState extends State<ShopVouchersTab> {
   bool _isLoading = true;
   String? _error;
   int _currentPage = 1;
-  final int _limit = 5;
+  final int _limit = 20; // Tăng từ 5 lên 20
   bool _hasMore = true;
   String? _selectedShopId;
 

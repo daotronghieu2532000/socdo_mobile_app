@@ -20,30 +20,31 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final ApiService _apiService = ApiService();
   final cart_service.CartService _cartService = cart_service.CartService();
-  
+
   SearchResult? _searchResult;
   bool _isSearching = false;
   String _currentKeyword = '';
   int _currentPage = 1;
   final int _itemsPerPage = 50; // Tăng từ 10 lên 50
-  
+
   // Lọc & sắp xếp
-  String _sort = 'relevance'; // relevance | price-asc | price-desc | rating-desc | sold-desc
+  String _sort =
+      'relevance'; // relevance | price-asc | price-desc | rating-desc | sold-desc
   bool _onlyFreeship = false;
   bool _onlyInStock = false;
   bool _onlyHasVoucher = false;
   RangeValues _priceRange = const RangeValues(0, 20000000);
   String? _selectedCategory; // theo tên danh mục từ API
-  
+
   // Lịch sử tìm kiếm
   final List<String> _searchHistory = [
     'điện thoại',
     'laptop',
     'tai nghe',
     'sữa tươi',
-    'mỹ phẩm',
   ];
 
   // Danh sách danh mục
@@ -54,14 +55,21 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
     _loadCategories();
   }
 
   Future<void> _loadCategories() async {
     if (_categoriesLoaded) return;
-    
+
     try {
-      final categories = await _apiService.getCategories();
+      // Call API để lấy danh mục cha (type=parents) và chỉ lấy 4 danh mục đầu tiên
+      final categories = await _apiService.getCategoriesList(
+        type: 'parents',
+        limit: 4,
+        includeChildren: false,
+        includeProductsCount: true,
+      );
       if (categories != null && mounted) {
         setState(() {
           _categories = categories;
@@ -70,17 +78,32 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     } catch (e) {
       print('❌ Lỗi khi tải danh mục: $e');
+      // Nếu API fail, vẫn set loaded = true để không retry liên tục
+      if (mounted) {
+        setState(() {
+          _categoriesLoaded = true;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
     // Có thể thêm debounce logic ở đây
+  }
+
+  void _onScroll() {
+    // Infinite scroll logic
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
   }
 
   Future<void> _performSearch(String keyword, {bool isLoadMore = false}) async {
@@ -98,6 +121,14 @@ class _SearchScreenState extends State<SearchScreen> {
       if (!isLoadMore) {
         _currentKeyword = keyword;
         _currentPage = 1;
+        // Reset scroll position khi search mới
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
       }
     });
 
@@ -111,15 +142,19 @@ class _SearchScreenState extends State<SearchScreen> {
 
       if (result != null && mounted) {
         final searchResult = SearchResult.fromJson(result);
-        
-        print('🔍 Search result: ${searchResult.products.length} products, total: ${searchResult.pagination.total}');
-        
+
+        print(
+          '🔍 Search result: ${searchResult.products.length} products, total: ${searchResult.pagination.total}',
+        );
+
         setState(() {
           if (isLoadMore && _searchResult != null) {
             // Thêm sản phẩm mới vào danh sách hiện tại
-            final existingProducts = List<SearchProduct>.from(_searchResult!.products);
+            final existingProducts = List<SearchProduct>.from(
+              _searchResult!.products,
+            );
             existingProducts.addAll(searchResult.products);
-            
+
             _searchResult = SearchResult(
               success: searchResult.success,
               products: existingProducts,
@@ -138,7 +173,7 @@ class _SearchScreenState extends State<SearchScreen> {
         // Thêm vào lịch sử tìm kiếm
         if (!_searchHistory.contains(keyword)) {
           _searchHistory.insert(0, keyword);
-          if (_searchHistory.length > 10) {
+          if (_searchHistory.length > 4) {
             _searchHistory.removeLast();
           }
         }
@@ -148,9 +183,9 @@ class _SearchScreenState extends State<SearchScreen> {
         setState(() {
           _isSearching = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tìm kiếm: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi tìm kiếm: $e')));
       }
     }
   }
@@ -165,9 +200,10 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _loadMore() {
-    if (_searchResult != null && 
-        _searchResult!.pagination.hasNext && 
-        !_isSearching) {
+    if (_searchResult != null &&
+        _searchResult!.pagination.hasNext &&
+        !_isSearching &&
+        _currentKeyword.isNotEmpty) {
       _performSearch(_currentKeyword, isLoadMore: true);
     }
   }
@@ -197,27 +233,27 @@ class _SearchScreenState extends State<SearchScreen> {
                         const Icon(Icons.search, color: Colors.grey),
                         const SizedBox(width: 8),
                         Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Tìm kiếm sản phẩm, thương hiệu,...',
-                border: InputBorder.none,
-                hintStyle: TextStyle(color: Colors.grey),
-              ),
-              onSubmitted: _onSearchSubmitted,
-              autofocus: true,
-              textInputAction: TextInputAction.search,
-              keyboardType: TextInputType.text,
-              enableSuggestions: true,
-              autocorrect: true,
-              smartDashesType: SmartDashesType.enabled,
-              smartQuotesType: SmartQuotesType.enabled,
-              textCapitalization: TextCapitalization.none,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-              ),
-            ),
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: const InputDecoration(
+                              hintText: 'Tìm kiếm sản phẩm, thương hiệu,...',
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(color: Colors.grey),
+                            ),
+                            onSubmitted: _onSearchSubmitted,
+                            autofocus: true,
+                            textInputAction: TextInputAction.search,
+                            keyboardType: TextInputType.text,
+                            enableSuggestions: true,
+                            autocorrect: true,
+                            smartDashesType: SmartDashesType.enabled,
+                            smartQuotesType: SmartQuotesType.enabled,
+                            textCapitalization: TextCapitalization.none,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
                         if (_searchController.text.isNotEmpty)
                           GestureDetector(
@@ -228,6 +264,14 @@ class _SearchScreenState extends State<SearchScreen> {
                                 _currentKeyword = '';
                                 _currentPage = 1;
                               });
+                              // Reset scroll position khi clear search
+                              if (_scrollController.hasClients) {
+                                _scrollController.animateTo(
+                                  0,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
+                              }
                             },
                             child: const Icon(Icons.clear, color: Colors.grey),
                           ),
@@ -240,11 +284,17 @@ class _SearchScreenState extends State<SearchScreen> {
                   onPressed: () {
                     // TODO: Implement camera search
                   },
-                  icon: const Icon(Icons.photo_camera_outlined, color: Colors.white),
+                  icon: const Icon(
+                    Icons.photo_camera_outlined,
+                    color: Colors.white,
+                  ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Thoát', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    'Thoát',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
@@ -265,52 +315,54 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchResults() {
     // Kiểm tra nếu không có sản phẩm nào
-    final hasNoResults = _searchResult!.products.isEmpty ||
-                        (_searchResult!.products.length == 1 && 
-                         _searchResult!.products.first.name.isEmpty);
-    
+    final hasNoResults =
+        _searchResult!.products.isEmpty ||
+        (_searchResult!.products.length == 1 &&
+            _searchResult!.products.first.name.isEmpty);
+
     if (hasNoResults) {
       return _buildNoResults();
     }
 
     return Column(
       children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Tìm thấy ${_searchResult!.products.length} kết quả cho "$_currentKeyword"',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+               Text(
+                 'Tìm thấy ${_searchResult!.pagination.total > 0 ? _searchResult!.pagination.total : _searchResult!.products.length} kết quả cho "$_currentKeyword"',
+                 style: const TextStyle(
+                   fontSize: 16,
+                   fontWeight: FontWeight.w600,
+                   color: Colors.grey,
+                 ),
+               ),
+            ],
+          ),
+        ),
         // Bộ lọc nhanh
         _buildFilters(),
         const SizedBox(height: 8),
         Expanded(
           child: ListView.builder(
+            controller: _scrollController,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _getDisplayedProducts().length,
+            itemCount: _getDisplayedProducts().length + (_isSearching ? 1 : 0),
             itemBuilder: (context, index) {
+              // Hiển thị loading indicator ở cuối danh sách khi đang load more
+              if (index == _getDisplayedProducts().length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
               final product = _getDisplayedProducts()[index];
               return SearchProductCardHorizontal(product: product);
             },
           ),
         ),
-        if (_searchResult!.pagination.hasNext) ...[
-          const SizedBox(height: 8),
-          Center(
-            child: _isSearching
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: CircularProgressIndicator(),
-                  )
-                : OutlinedButton(onPressed: _loadMore, child: const Text('Tải thêm')),
-          ),
-          const SizedBox(height: 12),
-        ],
       ],
     );
   }
@@ -356,7 +408,9 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(width: 8),
           ActionChip(
-            label: Text(_selectedCategory == null ? 'Danh mục' : _selectedCategory!),
+            label: Text(
+              _selectedCategory == null ? 'Danh mục' : _selectedCategory!,
+            ),
             onPressed: _showCategoryFilter,
           ),
         ],
@@ -375,7 +429,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // Lấy danh sách sau khi áp dụng lọc/sắp xếp
   List<SearchProduct> _getDisplayedProducts() {
-    List<SearchProduct> items = List<SearchProduct>.from(_searchResult!.products);
+    List<SearchProduct> items = List<SearchProduct>.from(
+      _searchResult!.products,
+    );
     if (_onlyFreeship) {
       items = items.where((p) => p.isFreeship).toList();
     }
@@ -385,9 +441,21 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_onlyHasVoucher) {
       items = items.where((p) => p.hasVoucher).toList();
     }
-    items = items.where((p) => p.price >= _priceRange.start.round() && p.price <= _priceRange.end.round()).toList();
+    items = items
+        .where(
+          (p) =>
+              p.price >= _priceRange.start.round() &&
+              p.price <= _priceRange.end.round(),
+        )
+        .toList();
     if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
-      items = items.where((p) => (p.category).toLowerCase().contains(_selectedCategory!.toLowerCase())).toList();
+      items = items
+          .where(
+            (p) => (p.category).toLowerCase().contains(
+              _selectedCategory!.toLowerCase(),
+            ),
+          )
+          .toList();
     }
     switch (_sort) {
       case 'price-asc':
@@ -412,18 +480,23 @@ class _SearchScreenState extends State<SearchScreen> {
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (_) {
         RangeValues temp = _priceRange;
         return StatefulBuilder(
           builder: (ctx, setM) {
-                return Padding(
-                  padding: const EdgeInsets.all(16),
+            return Padding(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Khoảng giá', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  const Text(
+                    'Khoảng giá',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
                   const SizedBox(height: 12),
                   RangeSlider(
                     min: 0,
@@ -446,9 +519,29 @@ class _SearchScreenState extends State<SearchScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: OutlinedButton(onPressed: () { setState(() { _priceRange = const RangeValues(0, 20000000); }); Navigator.pop(context); }, child: const Text('Đặt lại'))),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _priceRange = const RangeValues(0, 20000000);
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Đặt lại'),
+                        ),
+                      ),
                       const SizedBox(width: 12),
-                      Expanded(child: ElevatedButton(onPressed: () { setState(() { _priceRange = temp; }); Navigator.pop(context); }, child: const Text('Áp dụng'))),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _priceRange = temp;
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Áp dụng'),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -466,11 +559,16 @@ class _SearchScreenState extends State<SearchScreen> {
       context: context,
       backgroundColor: Colors.white,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (_) {
         final cats = _categories.isEmpty
             ? ['Điện tử', 'Gia dụng', 'Thời trang', 'Mỹ phẩm']
-            : _categories.map((e) => (e['cat_tieude'] ?? e['name'] ?? '').toString()).where((e) => e.isNotEmpty).toList();
+            : _categories
+                  .map((e) => (e['cat_tieude'] ?? e['name'] ?? '').toString())
+                  .where((e) => e.isNotEmpty)
+                  .toList();
         String? temp = _selectedCategory;
         return StatefulBuilder(
           builder: (ctx, setM) {
@@ -484,7 +582,13 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Danh mục', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                      const Text(
+                        'Danh mục',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       Expanded(
                         child: SingleChildScrollView(
@@ -492,8 +596,18 @@ class _SearchScreenState extends State<SearchScreen> {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              ChoiceChip(label: const Text('Tất cả'), selected: temp == null, onSelected: (_) => setM(() => temp = null)),
-                              ...cats.map((c) => ChoiceChip(label: Text(c), selected: temp == c, onSelected: (_) => setM(() => temp = c))),
+                              ChoiceChip(
+                                label: const Text('Tất cả'),
+                                selected: temp == null,
+                                onSelected: (_) => setM(() => temp = null),
+                              ),
+                              ...cats.map(
+                                (c) => ChoiceChip(
+                                  label: Text(c),
+                                  selected: temp == c,
+                                  onSelected: (_) => setM(() => temp = c),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -501,27 +615,48 @@ class _SearchScreenState extends State<SearchScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(child: OutlinedButton(onPressed: () { setState(() { _selectedCategory = null; }); Navigator.pop(context); }, child: const Text('Bỏ lọc'))),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedCategory = null;
+                                });
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Bỏ lọc'),
+                            ),
+                          ),
                           const SizedBox(width: 12),
-                          Expanded(child: ElevatedButton(onPressed: () { setState(() { _selectedCategory = temp; }); Navigator.pop(context); }, child: const Text('Áp dụng'))),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedCategory = temp;
+                                });
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Áp dụng'),
+                            ),
+                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
-                    ),
-                  );
-                },
-              );
-            },
+              ),
+            );
+          },
+        );
+      },
     );
   }
-
 
   Widget _buildPlaceholderImage() {
     return Container(
       color: const Color(0xFFF0F0F0),
-      child: const Center(child: Icon(Icons.image_not_supported, size: 40, color: Colors.grey)),
+      child: const Center(
+        child: Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
+      ),
     );
   }
 
@@ -532,22 +667,36 @@ class _SearchScreenState extends State<SearchScreen> {
     return {'rating': '5.0', 'reviews': reviews, 'sold': sold};
   }
 
-  void _navigateToProductDetail(int id, String name, String image, int price, {String? shopId, String? shopName}) {
+  void _navigateToProductDetail(
+    int id,
+    String name,
+    String image,
+    int price, {
+    String? shopId,
+    String? shopName,
+  }) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ProductDetailScreen(
-        productId: id,
-        title: name,
-        image: image,
-        price: price,
-        initialShopId: int.tryParse(shopId ?? ''),
-        initialShopName: shopName,
-      )),
+      MaterialPageRoute(
+        builder: (_) => ProductDetailScreen(
+          productId: id,
+          title: name,
+          image: image,
+          price: price,
+          initialShopId: int.tryParse(shopId ?? ''),
+          initialShopName: shopName,
+        ),
+      ),
     );
   }
 
-  void _showPurchaseDialog(BuildContext context, SearchProduct searchProduct) async {
+  void _showPurchaseDialog(
+    BuildContext context,
+    SearchProduct searchProduct,
+  ) async {
     try {
-      final productDetail = await _apiService.getProductDetail(searchProduct.id);
+      final productDetail = await _apiService.getProductDetail(
+        searchProduct.id,
+      );
       final parentContext = Navigator.of(context).context;
       if (parentContext.mounted) {
         showModalBottomSheet(
@@ -560,40 +709,86 @@ class _SearchScreenState extends State<SearchScreen> {
                 product: productDetail,
                 selectedVariant: productDetail.variants.first,
                 onBuyNow: (variant, quantity) {
-                  _handleBuyNow(parentContext, productDetail, variant, quantity, fallbackShopId: searchProduct.shopId, fallbackShopName: searchProduct.shopName);
-                  Future.delayed(const Duration(milliseconds: 500), () { if (context.mounted) Navigator.of(context).pop(); });
+                  _handleBuyNow(
+                    parentContext,
+                    productDetail,
+                    variant,
+                    quantity,
+                    fallbackShopId: searchProduct.shopId,
+                    fallbackShopName: searchProduct.shopName,
+                  );
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (context.mounted) Navigator.of(context).pop();
+                  });
                 },
                 onAddToCart: (variant, quantity) {
-                  _handleAddToCart(parentContext, productDetail, variant, quantity, fallbackShopId: searchProduct.shopId, fallbackShopName: searchProduct.shopName);
-                  Future.delayed(const Duration(milliseconds: 500), () { if (context.mounted) Navigator.of(context).pop(); });
+                  _handleAddToCart(
+                    parentContext,
+                    productDetail,
+                    variant,
+                    quantity,
+                    fallbackShopId: searchProduct.shopId,
+                    fallbackShopName: searchProduct.shopName,
+                  );
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (context.mounted) Navigator.of(context).pop();
+                  });
                 },
               );
             } else if (productDetail != null) {
               return SimplePurchaseDialog(
                 product: productDetail,
                 onBuyNow: (product, quantity) {
-                  _handleBuyNowSimple(parentContext, product, quantity, fallbackShopId: searchProduct.shopId, fallbackShopName: searchProduct.shopName);
-                  Future.delayed(const Duration(milliseconds: 500), () { if (context.mounted) Navigator.of(context).pop(); });
+                  _handleBuyNowSimple(
+                    parentContext,
+                    product,
+                    quantity,
+                    fallbackShopId: searchProduct.shopId,
+                    fallbackShopName: searchProduct.shopName,
+                  );
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (context.mounted) Navigator.of(context).pop();
+                  });
                 },
                 onAddToCart: (product, quantity) {
-                  _handleAddToCartSimple(parentContext, product, quantity, fallbackShopId: searchProduct.shopId, fallbackShopName: searchProduct.shopName);
-                  Future.delayed(const Duration(milliseconds: 500), () { if (context.mounted) Navigator.of(context).pop(); });
+                  _handleAddToCartSimple(
+                    parentContext,
+                    product,
+                    quantity,
+                    fallbackShopId: searchProduct.shopId,
+                    fallbackShopName: searchProduct.shopName,
+                  );
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (context.mounted) Navigator.of(context).pop();
+                  });
                 },
               );
             } else {
-              return const SizedBox(height: 200, child: Center(child: Text('Không thể tải thông tin sản phẩm')));
+              return const SizedBox(
+                height: 200,
+                child: Center(child: Text('Không thể tải thông tin sản phẩm')),
+              );
             }
           },
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
 
-  void _handleBuyNow(BuildContext context, ProductDetail product, ProductVariant variant, int quantity, {String? fallbackShopId, String? fallbackShopName}) {
+  void _handleBuyNow(
+    BuildContext context,
+    ProductDetail product,
+    ProductVariant variant,
+    int quantity, {
+    String? fallbackShopId,
+    String? fallbackShopName,
+  }) {
     final item = cart_service.CartItem(
       id: product.id,
       name: '${product.name} - ${variant.name}',
@@ -610,10 +805,20 @@ class _SearchScreenState extends State<SearchScreen> {
       isSelected: true,
     );
     _cartService.addItem(item);
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const CheckoutScreen()));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CheckoutScreen()),
+    );
   }
 
-  void _handleAddToCart(BuildContext context, ProductDetail product, ProductVariant variant, int quantity, {String? fallbackShopId, String? fallbackShopName}) {
+  void _handleAddToCart(
+    BuildContext context,
+    ProductDetail product,
+    ProductVariant variant,
+    int quantity, {
+    String? fallbackShopId,
+    String? fallbackShopName,
+  }) {
     final item = cart_service.CartItem(
       id: product.id,
       name: '${product.name} - ${variant.name}',
@@ -630,15 +835,34 @@ class _SearchScreenState extends State<SearchScreen> {
     );
     _cartService.addItem(item);
     final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(SnackBar(
-      content: Text('Đã thêm ${product.name} (${variant.name}) x$quantity vào giỏ hàng'),
-      backgroundColor: Colors.green,
-      duration: const Duration(seconds: 3),
-      action: SnackBarAction(label: 'Xem giỏ hàng', textColor: Colors.white, onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())); }),
-    ));
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Đã thêm ${product.name} (${variant.name}) x$quantity vào giỏ hàng',
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Xem giỏ hàng',
+          textColor: Colors.white,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CartScreen()),
+            );
+          },
+        ),
+      ),
+    );
   }
 
-  void _handleBuyNowSimple(BuildContext context, ProductDetail product, int quantity, {String? fallbackShopId, String? fallbackShopName}) {
+  void _handleBuyNowSimple(
+    BuildContext context,
+    ProductDetail product,
+    int quantity, {
+    String? fallbackShopId,
+    String? fallbackShopName,
+  }) {
     final item = cart_service.CartItem(
       id: product.id,
       name: product.name,
@@ -654,10 +878,19 @@ class _SearchScreenState extends State<SearchScreen> {
       isSelected: true,
     );
     _cartService.addItem(item);
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const CheckoutScreen()));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CheckoutScreen()),
+    );
   }
 
-  void _handleAddToCartSimple(BuildContext context, ProductDetail product, int quantity, {String? fallbackShopId, String? fallbackShopName}) {
+  void _handleAddToCartSimple(
+    BuildContext context,
+    ProductDetail product,
+    int quantity, {
+    String? fallbackShopId,
+    String? fallbackShopName,
+  }) {
     final item = cart_service.CartItem(
       id: product.id,
       name: product.name,
@@ -673,12 +906,23 @@ class _SearchScreenState extends State<SearchScreen> {
     );
     _cartService.addItem(item);
     final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(SnackBar(
-      content: Text('Đã thêm ${product.name} x$quantity vào giỏ hàng'),
-      backgroundColor: Colors.green,
-      duration: const Duration(seconds: 3),
-      action: SnackBarAction(label: 'Xem giỏ hàng', textColor: Colors.white, onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())); }),
-    ));
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text('Đã thêm ${product.name} x$quantity vào giỏ hàng'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Xem giỏ hàng',
+          textColor: Colors.white,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CartScreen()),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildNoResults() {
@@ -686,11 +930,7 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.search_off,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'Không tìm thấy kết quả',
@@ -703,10 +943,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 8),
           Text(
             'Hãy thử tìm kiếm với từ khóa khác',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -717,6 +954,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 _currentKeyword = '';
                 _currentPage = 1;
               });
+              // Reset scroll position khi tìm kiếm lại
+              if (_scrollController.hasClients) {
+                _scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              }
             },
             child: const Text('Tìm kiếm lại'),
           ),
@@ -732,17 +977,17 @@ class _SearchScreenState extends State<SearchScreen> {
         if (_searchHistory.isNotEmpty) ...[
           _SectionTitle(icon: Icons.history, title: 'Lịch sử tìm kiếm'),
           const SizedBox(height: 8),
-          _SearchHistoryList(
-            history: _searchHistory,
-            onTap: _onKeywordTapped,
-          ),
+          _SearchHistoryList(history: _searchHistory, onTap: _onKeywordTapped),
           const SizedBox(height: 16),
         ],
         _SectionTitle(icon: Icons.trending_up, title: 'Từ khóa tìm kiếm nhiều'),
         const SizedBox(height: 8),
         _KeywordGrid(onTap: _onKeywordTapped),
         const SizedBox(height: 16),
-        _SectionTitle(icon: Icons.article_outlined, title: 'Danh mục tìm kiếm nhiều'),
+        _SectionTitle(
+          icon: Icons.article_outlined,
+          title: 'Danh mục tìm kiếm nhiều',
+        ),
         const SizedBox(height: 8),
         _CategoryPairs(categories: _categories, onTap: _onKeywordTapped),
         const SizedBox(height: 24),
@@ -762,7 +1007,10 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Icon(icon, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
       ],
     );
   }
@@ -772,16 +1020,13 @@ class _SearchHistoryList extends StatelessWidget {
   final List<String> history;
   final Function(String) onTap;
 
-  const _SearchHistoryList({
-    required this.history,
-    required this.onTap,
-  });
+  const _SearchHistoryList({required this.history, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    // Chỉ hiển thị 3 item đầu tiên
-    final limitedHistory = history.take(3).toList();
-    
+    // Chỉ hiển thị 4 item đầu tiên
+    final limitedHistory = history.take(4).toList();
+
     return Column(
       children: limitedHistory.map((keyword) {
         return Container(
@@ -789,7 +1034,11 @@ class _SearchHistoryList extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.history, color: Colors.grey),
             title: Text(keyword),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Colors.grey,
+            ),
             onTap: () => onTap(keyword),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -808,18 +1057,11 @@ class _KeywordGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      'điện thoại',
-      'laptop',
-      'tai nghe',
-      'sữa tươi',
-      'mỹ phẩm',
-      'quần áo',
-    ];
-    
+    final items = ['dầu gội', 'nước giặt', 'chảo', 'điện gia dụng'];
+
     // Chỉ hiển thị 4 item đầu tiên
     final limitedItems = items.take(4).toList();
-    
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -830,10 +1072,8 @@ class _KeywordGrid extends StatelessWidget {
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
       ),
-      itemBuilder: (context, i) => _KeywordItem(
-        limitedItems[i],
-        onTap: () => onTap(limitedItems[i]),
-      ),
+      itemBuilder: (context, i) =>
+          _KeywordItem(limitedItems[i], onTap: () => onTap(limitedItems[i])),
     );
   }
 }
@@ -883,20 +1123,23 @@ class _CategoryPairs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (categories.isEmpty) {
-      // Fallback data khi chưa load được categories
+      // Fallback data khi chưa load được categories - chỉ 4 danh mục
       final fallbackRows = const [
         ['Điện thoại & Phụ kiện', 'Thực phẩm & Đồ uống'],
         ['Mỹ phẩm & Chăm sóc da', 'Thời trang & Phụ kiện'],
-        ['Gia dụng & Nội thất', 'Sức khỏe & Y tế'],
       ];
       return Column(
         children: [
           for (final r in fallbackRows)
             Row(
               children: [
-                Expanded(child: _CategoryCell(title: r[0], onTap: () => onTap(r[0]))),
+                Expanded(
+                  child: _CategoryCell(title: r[0], onTap: () => onTap(r[0])),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _CategoryCell(title: r[1], onTap: () => onTap(r[1]))),
+                Expanded(
+                  child: _CategoryCell(title: r[1], onTap: () => onTap(r[1])),
+                ),
               ],
             ),
         ],
@@ -905,7 +1148,7 @@ class _CategoryPairs extends StatelessWidget {
 
     // Chỉ lấy 4 categories đầu tiên
     final limitedCategories = categories.take(4).toList();
-    
+
     // Chia categories thành các cặp
     final List<List<Map<String, dynamic>>> categoryPairs = [];
     for (int i = 0; i < limitedCategories.length; i += 2) {
@@ -921,23 +1164,32 @@ class _CategoryPairs extends StatelessWidget {
         for (final pair in categoryPairs)
           Row(
             children: [
+              Expanded(
+                child: _CategoryCell(
+                  title: pair[0]['cat_tieude'] ?? pair[0]['name'] ?? 'Danh mục',
+                  onTap: () =>
+                      onTap(pair[0]['cat_tieude'] ?? pair[0]['name'] ?? ''),
+                  imageUrl:
+                      pair[0]['cat_minhhoa'] ??
+                      pair[0]['cat_img'] ??
+                      pair[0]['image_url'],
+                ),
+              ),
+              if (pair.length > 1) ...[
+                const SizedBox(width: 12),
                 Expanded(
                   child: _CategoryCell(
-                    title: pair[0]['cat_tieude'] ?? pair[0]['name'] ?? 'Danh mục',
-                    onTap: () => onTap(pair[0]['cat_tieude'] ?? pair[0]['name'] ?? ''),
-                    imageUrl: pair[0]['cat_minhhoa'] ?? pair[0]['cat_img'] ?? pair[0]['image_url'],
+                    title:
+                        pair[1]['cat_tieude'] ?? pair[1]['name'] ?? 'Danh mục',
+                    onTap: () =>
+                        onTap(pair[1]['cat_tieude'] ?? pair[1]['name'] ?? ''),
+                    imageUrl:
+                        pair[1]['cat_minhhoa'] ??
+                        pair[1]['cat_img'] ??
+                        pair[1]['image_url'],
                   ),
                 ),
-                if (pair.length > 1) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _CategoryCell(
-                      title: pair[1]['cat_tieude'] ?? pair[1]['name'] ?? 'Danh mục',
-                      onTap: () => onTap(pair[1]['cat_tieude'] ?? pair[1]['name'] ?? ''),
-                      imageUrl: pair[1]['cat_minhhoa'] ?? pair[1]['cat_img'] ?? pair[1]['image_url'],
-                    ),
-                  ),
-                ],
+              ],
             ],
           ),
       ],
@@ -951,7 +1203,7 @@ class _CategoryCell extends StatelessWidget {
   final String? imageUrl;
 
   const _CategoryCell({
-    required this.title, 
+    required this.title,
     required this.onTap,
     this.imageUrl,
   });
@@ -1001,7 +1253,7 @@ class _CategoryCell extends StatelessWidget {
           fullImageUrl = 'https://socdo.vn/$fullImageUrl';
         }
       }
-      
+
       return Image.network(
         fullImageUrl,
         fit: BoxFit.cover,
@@ -1013,7 +1265,7 @@ class _CategoryCell extends StatelessWidget {
         },
       );
     }
-    
+
     // Fallback icon
     return Container(
       color: Colors.grey[100],
@@ -1021,6 +1273,3 @@ class _CategoryCell extends StatelessWidget {
     );
   }
 }
-
-
-

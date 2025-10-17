@@ -265,7 +265,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.local_shipping, color: Colors.grey),
+              const Icon(Icons.mobile_friendly_rounded, color: Colors.grey),
               const SizedBox(width: 8),
               Text('Phí vận chuyển: ${_shipFee != null ? _formatCurrency(_shipFee!) : 'đang tính...'}'),
             ],
@@ -273,7 +273,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.local_shipping, color: Colors.grey),
+              const Icon(Icons.access_time, color: Colors.grey),
               const SizedBox(width: 8),
               Text('Dự kiến: ${_etaText ?? 'đang tính...'}'),
             ],
@@ -282,7 +282,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
           if (_provider != null)
             Row(
               children: [
-                const Icon(Icons.local_post_office, color: Colors.grey),
+                const Icon(Icons.accessibility_sharp, color: Colors.grey),
                 const SizedBox(width: 8),
                 Text('Đơn vị: ${_provider!}'),
               ],

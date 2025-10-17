@@ -25,6 +25,7 @@ class CategoryProductsScreen extends StatefulWidget {
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   final ApiService _apiService = ApiService();
   final cart_service.CartService _cartService = cart_service.CartService();
+  final ScrollController _scrollController = ScrollController();
   
   List<Map<String, dynamic>> _products = [];
   bool _isLoading = true;
@@ -33,6 +34,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   int _currentPage = 1;
   bool _hasNextPage = false;
   bool _isLoadingMore = false;
+  int _totalProducts = 0;
   String _currentSort = 'relevance'; // relevance | price-asc | price-desc | rating-desc | sold-desc
   bool _onlyFreeship = false;
   bool _onlyInStock = false;
@@ -41,7 +43,22 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Infinite scroll logic
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
   }
 
   Future<void> _loadProducts({bool loadMore = false}) async {
@@ -69,6 +86,9 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         final data = response['data'];
         final rawProducts = List<Map<String, dynamic>>.from(data['products'] ?? []);
         final pagination = data['pagination'] ?? {};
+        
+        // Lưu total products từ pagination
+        _totalProducts = pagination['total_products'] ?? pagination['total'] ?? 0;
 
         // Map API fields to UI expected fields
         final products = rawProducts.map((product) {
@@ -211,7 +231,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           child: Row(
             children: [
               Text(
-                'Tìm thấy ${_products.length} sản phẩm',
+                'Tìm thấy ${_totalProducts > 0 ? _totalProducts : _products.length} sản phẩm',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -222,26 +242,26 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           ),
         ),
         _buildInlineFilters(),
-        // Danh sách sản phẩm
+        // Danh sách sản phẩm với infinite scroll
         Expanded(
           child: ListView.builder(
+            controller: _scrollController,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _filteredSorted().length,
+            itemCount: _filteredSorted().length + (_isLoadingMore ? 1 : 0),
             itemBuilder: (context, index) {
+              // Hiển thị loading indicator ở cuối danh sách khi đang load more
+              if (index == _filteredSorted().length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              
               final product = _filteredSorted()[index];
               return CategoryProductCardHorizontal(product: product);
             },
           ),
         ),
-        if (_hasNextPage) ...[
-          const SizedBox(height: 8),
-          Center(
-            child: _isLoadingMore
-                ? const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: CircularProgressIndicator())
-                : OutlinedButton(onPressed: _loadMore, child: const Text('Tải thêm')),
-          ),
-          const SizedBox(height: 12),
-        ],
       ],
     );
   }

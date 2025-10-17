@@ -19,6 +19,7 @@ class ParentCategoryProductsScreen extends StatefulWidget {
 
 class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScreen> {
   final ApiService _apiService = ApiService();
+  final ScrollController _scrollController = ScrollController();
   
   List<Map<String, dynamic>> _products = [];
   bool _isLoading = true;
@@ -34,7 +35,22 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Infinite scroll logic
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
   }
 
   Future<void> _loadProducts({bool loadMore = false}) async {
@@ -102,7 +118,7 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
           }
           
           _hasNextPage = pagination['has_next'] ?? false;
-          _totalProducts = pagination['total_products'] ?? 0;
+          _totalProducts = pagination['total_products'] ?? pagination['total'] ?? 0;
           _isLoading = false;
           _isLoadingMore = false;
           _hasError = false;
@@ -137,74 +153,78 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
     await _loadProducts();
   }
 
-  Future<void> _loadMoreProducts() async {
+  void _loadMore() {
     if (!_isLoadingMore && _hasNextPage) {
-      setState(() {
-        _isLoadingMore = true;
-      });
+      _loadMoreProducts();
+    }
+  }
+
+  Future<void> _loadMoreProducts() async {
+    setState(() {
+      _isLoadingMore = true;
+    });
       
-      try {
-        // Use the new smart loading method
-        final response = await _apiService.loadMoreProductsFromParentCategory(
-          parentCategoryId: widget.parentCategoryId,
-          alreadyLoadedCategories: _loadedCategories,
-          page: _currentPage + 1,
-          limit: 50, // Tăng từ 10 lên 50
-          sort: _currentSort,
-        );
+    try {
+      // Use the new smart loading method
+      final response = await _apiService.loadMoreProductsFromParentCategory(
+        parentCategoryId: widget.parentCategoryId,
+        alreadyLoadedCategories: _loadedCategories,
+        page: _currentPage + 1,
+        limit: 50, // Tăng từ 10 lên 50
+        sort: _currentSort,
+      );
+      
+      if (response != null && mounted) {
+        final data = response['data'];
+        final rawProducts = List<Map<String, dynamic>>.from(data['products'] ?? []);
+        final pagination = data['pagination'] ?? {};
+        final includedCategories = List<int>.from(data['filters']['included_categories'] ?? []);
         
-        if (response != null && mounted) {
-          final data = response['data'];
-          final rawProducts = List<Map<String, dynamic>>.from(data['products'] ?? []);
-          final pagination = data['pagination'] ?? {};
-          final includedCategories = List<int>.from(data['filters']['included_categories'] ?? []);
-          
-          // Map API fields to UI expected fields
-          final products = rawProducts.map((product) {
-            return {
-              'id': product['id'],
-              'name': product['tieu_de'] ?? 'Sản phẩm',
-              'image': product['minh_hoa'] ?? '',
-              'price': product['gia_moi'] ?? 0,
-              'old_price': product['gia_cu'] ?? 0,
-              'discount_percent': product['discount_percent'] ?? 0,
-              'rating': 5.0,
-              'sold': product['ban'] ?? 0,
-              'view': product['view'] ?? 0,
-              'shop_id': product['shop'] ?? '',
-              'shop_name': 'Shop',
-              'is_freeship': product['isFreeship'] ?? false,
-              'hasVoucher': product['hasVoucher'] ?? false,
-              'badges': product['badges'] ?? [],
-              'link': product['link'] ?? '',
-              'date_post': product['date_post'] ?? '',
-              'kho': product['kho'] ?? 0,
-              'thuong_hieu': product['thuong_hieu'] ?? '',
-              'noi_ban': product['noi_ban'] ?? '',
-              'cat': product['cat'] ?? '',
-              'status': product['status'] ?? 1,
-            };
-          }).toList();
-          
-          setState(() {
-            _products.addAll(products);
-            _currentPage++;
-            _loadedCategories.addAll(includedCategories);
-            _hasNextPage = pagination['has_next'] ?? false;
-            _isLoadingMore = false;
-          });
-        } else {
-          setState(() {
-            _isLoadingMore = false;
-            _hasNextPage = false;
-          });
-        }
-      } catch (e) {
-        print('❌ Lỗi khi load thêm sản phẩm: $e');
+        // Map API fields to UI expected fields
+        final products = rawProducts.map((product) {
+          return {
+            'id': product['id'],
+            'name': product['tieu_de'] ?? 'Sản phẩm',
+            'image': product['minh_hoa'] ?? '',
+            'price': product['gia_moi'] ?? 0,
+            'old_price': product['gia_cu'] ?? 0,
+            'discount_percent': product['discount_percent'] ?? 0,
+            'rating': 5.0,
+            'sold': product['ban'] ?? 0,
+            'view': product['view'] ?? 0,
+            'shop_id': product['shop'] ?? '',
+            'shop_name': 'Shop',
+            'is_freeship': product['isFreeship'] ?? false,
+            'hasVoucher': product['hasVoucher'] ?? false,
+            'badges': product['badges'] ?? [],
+            'link': product['link'] ?? '',
+            'date_post': product['date_post'] ?? '',
+            'kho': product['kho'] ?? 0,
+            'thuong_hieu': product['thuong_hieu'] ?? '',
+            'noi_ban': product['noi_ban'] ?? '',
+            'cat': product['cat'] ?? '',
+            'status': product['status'] ?? 1,
+          };
+        }).toList();
+        
         setState(() {
+          _products.addAll(products);
+          _currentPage++;
+          _loadedCategories.addAll(includedCategories);
+          _hasNextPage = pagination['has_next'] ?? false;
           _isLoadingMore = false;
         });
+      } else {
+        setState(() {
+          _isLoadingMore = false;
+          _hasNextPage = false;
+        });
       }
+    } catch (e) {
+      print('❌ Lỗi khi load thêm sản phẩm: $e');
+      setState(() {
+        _isLoadingMore = false;
+      });
     }
   }
 
@@ -278,7 +298,7 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
                             Row(
                               children: [
                                 Text(
-                                  'Tìm thấy $_totalProducts sản phẩm',
+                                  'Tìm thấy ${_totalProducts > 0 ? _totalProducts : _products.length} sản phẩm',
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 14,
@@ -358,21 +378,15 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
                                 ),
                               )
                             : ListView.builder(
+                                controller: _scrollController,
                                 padding: const EdgeInsets.all(16),
-                                itemCount: _products.length + (_hasNextPage ? 1 : 0),
+                                itemCount: _products.length + (_isLoadingMore ? 1 : 0),
                                 itemBuilder: (context, index) {
                                   if (index == _products.length) {
-                                    // Load more button
-                                    return Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Center(
-                                        child: _isLoadingMore
-                                            ? const CircularProgressIndicator()
-                                            : ElevatedButton(
-                                                onPressed: _loadMoreProducts,
-                                                child: const Text('Tải thêm sản phẩm'),
-                                              ),
-                                      ),
+                                    // Loading indicator for infinite scroll
+                                    return const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 16),
+                                      child: Center(child: CircularProgressIndicator()),
                                     );
                                   }
                                   
