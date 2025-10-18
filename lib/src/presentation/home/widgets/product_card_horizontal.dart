@@ -73,8 +73,8 @@ class ProductCardHorizontal extends StatelessWidget {
                 children: [
                   // Box trái: Ảnh sản phẩm + Label giảm giá
                   Container(
-                    width: 130,
-                    height: 130,
+                    width: 160,
+                    height: 160,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F6FB),
                       borderRadius: BorderRadius.circular(8),
@@ -86,8 +86,8 @@ class ProductCardHorizontal extends StatelessWidget {
                           child: product.imageUrl != null
                               ? Image.network(
                                   product.imageUrl!,
-                                  width: 130,
-                                  height: 130,
+                                  width: 160,
+                                  height: 160,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                                 )
@@ -121,8 +121,8 @@ class ProductCardHorizontal extends StatelessWidget {
                   // Box phải: Thông tin sản phẩm
                   Expanded(
                     child: Container(
-                      height: 140,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      height: 160,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -137,21 +137,36 @@ class ProductCardHorizontal extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  height: 1.0,
+                                  height: 1.1,
                                 ),
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                FormatUtils.formatCurrency(product.price),
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Text(
+                                    FormatUtils.formatCurrency(product.price),
+                                    style: const TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  if (product.oldPrice != null && product.oldPrice! > product.price) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      FormatUtils.formatCurrency(product.oldPrice!),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        decoration: TextDecoration.lineThrough,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               // Hiển thị giá thành viên nếu có
                               if (product.priceThanhvien != null && product.priceThanhvien!.isNotEmpty) ...[
-                                const SizedBox(height: 3),
+                                const SizedBox(height: 4),
                                 Text(
                                   'Giá thành viên: ${product.priceThanhvien}',
                                   style: const TextStyle(
@@ -161,7 +176,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                   ),
                                 ),
                               ],
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   const Icon(Icons.star, size: 14, color: Colors.amber),
@@ -173,23 +188,24 @@ class ProductCardHorizontal extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 3),
-                              // Badges row
-                              if (product.badges != null && product.badges!.isNotEmpty)
-                                ProductBadgesRow(
-                                  badges: product.badges!,
-                                  fontSize: 9,
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                ),
-                              const SizedBox(height: 3),
-                              // Location info
-                              ProductLocationInfo(
-                                locationText: product.locationText,
-                                warehouseName: product.warehouseName,
-                                provinceName: product.provinceName,
-                                fontSize: 10,
+                              const SizedBox(height: 6),
+                              // Badges row từ các icon riêng lẻ từ API
+                              ProductIconsRow(
+                                voucherIcon: product.voucherIcon,
+                                freeshipIcon: product.freeshipIcon,
+                                chinhhangIcon: product.chinhhangIcon,
+                                fontSize: 9,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                               ),
                             ],
+                          ),
+                          // Badge kho ở đáy box
+                          ProductLocationBadge(
+                            locationText: product.locationText,
+                            provinceName: product.provinceName,
+                            fontSize: 9,
+                            iconColor: Colors.black,
+                            textColor: Colors.black,
                           ),
                         ],
                       ),

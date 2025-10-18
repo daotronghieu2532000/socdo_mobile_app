@@ -10,6 +10,7 @@ import '../../product/widgets/simple_purchase_dialog.dart';
 import '../../../core/services/cart_service.dart' as cart_service;
 import '../../cart/cart_screen.dart';
 import '../../checkout/checkout_screen.dart';
+import '../../shared/widgets/product_badges.dart';
 
 class SearchProductCardHorizontal extends StatelessWidget {
   final SearchProduct product;
@@ -66,8 +67,8 @@ class SearchProductCardHorizontal extends StatelessWidget {
                 children: [
                   // Box trái: Ảnh sản phẩm + Label giảm giá
                   Container(
-                    width: 130,
-                    height: 130,
+                    width: 160,
+                    height: 160,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F6FB),
                       borderRadius: BorderRadius.circular(8),
@@ -79,8 +80,8 @@ class SearchProductCardHorizontal extends StatelessWidget {
                           child: product.image.isNotEmpty
                               ? Image.network(
                                   product.image,
-                                  width: 130,
-                                  height: 130,
+                                  width: 160,
+                                  height: 160,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                                 )
@@ -114,8 +115,8 @@ class SearchProductCardHorizontal extends StatelessWidget {
                   // Box phải: Thông tin sản phẩm
                   Expanded(
                     child: Container(
-                      height: 130,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      height: 160,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -130,10 +131,10 @@ class SearchProductCardHorizontal extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  height: 1.2,
+                                  height: 1.1,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
                                   Text(
@@ -141,10 +142,10 @@ class SearchProductCardHorizontal extends StatelessWidget {
                                     style: const TextStyle(
                                       color: Colors.red,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                  if (product.oldPrice != null && product.oldPrice! > 0) ...[
+                                  if (product.oldPrice != null && product.oldPrice! > product.price) ...[
                                     const SizedBox(width: 6),
                                     Text(
                                       FormatUtils.formatCurrency(product.oldPrice!),
@@ -157,7 +158,7 @@ class SearchProductCardHorizontal extends StatelessWidget {
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
                                   const Icon(Icons.star, size: 14, color: Colors.amber),
@@ -169,7 +170,25 @@ class SearchProductCardHorizontal extends StatelessWidget {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 6),
+                              // Badges row từ các icon riêng lẻ từ API
+                              ProductIconsRow(
+                                voucherIcon: product.voucherIcon,
+                                freeshipIcon: product.freeshipIcon,
+                                chinhhangIcon: product.chinhhangIcon,
+                                fontSize: 9,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              ),
                             ],
+                          ),
+                          // Badge kho ở đáy box
+                          ProductLocationBadge(
+                            locationText: null,
+                            warehouseName: product.warehouseName,
+                            provinceName: product.provinceName,
+                            fontSize: 9,
+                            iconColor: Colors.black,
+                            textColor: Colors.black,
                           ),
                         ],
                       ),
@@ -214,8 +233,8 @@ class SearchProductCardHorizontal extends StatelessWidget {
 
   Widget _buildPlaceholderImage() {
     return Container(
-      width: 130,
-      height: 130,
+      width: 160,
+      height: 160,
       color: const Color(0xFFF0F0F0),
       child: const Center(
         child: Icon(

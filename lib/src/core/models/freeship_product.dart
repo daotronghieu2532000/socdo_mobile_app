@@ -42,6 +42,13 @@ class FreeShipProduct {
   final String freeShipBadgeColor; // Màu badge
   final int? minOrderValue; // Giá trị đơn tối thiểu
   final int? freeShipDiscountValue; // Giá trị giảm
+  
+  // Thông tin badges từ API (giống ProductSuggest)
+  final String? voucherIcon;
+  final String? freeshipIcon;
+  final String? chinhhangIcon;
+  final String? warehouseName;
+  final String? provinceName;
 
   const FreeShipProduct({
     required this.id,
@@ -64,6 +71,11 @@ class FreeShipProduct {
     this.freeShipBadgeColor = '#4CAF50',
     this.minOrderValue,
     this.freeShipDiscountValue,
+    this.voucherIcon,
+    this.freeshipIcon,
+    this.chinhhangIcon,
+    this.warehouseName,
+    this.provinceName,
   });
 
   factory FreeShipProduct.fromJson(Map<String, dynamic> json) {
@@ -92,6 +104,12 @@ class FreeShipProduct {
       freeShipBadgeColor: shippingInfo?['free_ship_badge_color'] as String? ?? '#4CAF50',
       minOrderValue: shippingInfo?['min_order_value'] as int?,
       freeShipDiscountValue: shippingInfo?['free_ship_discount_value'] as int?,
+      // Parse badges từ API
+      voucherIcon: json['voucher_icon'] as String?,
+      freeshipIcon: json['freeship_icon'] as String?,
+      chinhhangIcon: json['chinhhang_icon'] as String?,
+      warehouseName: json['warehouse_name'] as String?,
+      provinceName: json['province_name'] as String?,
     );
   }
 

@@ -109,7 +109,7 @@ try {
                 $order_by = "ORDER BY sanpham.id DESC";
         }
         
-        // Lấy danh sách sản phẩm với thông tin shop
+        // Lấy danh sách sản phẩm với thông tin shop (sử dụng subquery để lấy transport đầu tiên)
         $products_query = "
             SELECT 
                 sanpham.*,
@@ -125,10 +125,21 @@ try {
                 u.avatar as shop_avatar
             FROM sanpham 
             LEFT JOIN thuong_hieu th ON th.id = sanpham.thuong_hieu
-            LEFT JOIN transport t ON t.user_id = sanpham.shop AND (t.free_ship_all IN (0,1,2,3) OR t.free_ship_discount > 0)
+            LEFT JOIN (
+                SELECT t1.user_id, t1.free_ship_all, t1.free_ship_discount, t1.free_ship_min_order, t1.fee_ship_products, t1.ten_kho, t1.province
+                FROM transport t1
+                WHERE (t1.free_ship_all IN (0,1,2,3) OR t1.free_ship_discount > 0)
+                AND t1.id = (
+                    SELECT MIN(t2.id) 
+                    FROM transport t2 
+                    WHERE t2.user_id = t1.user_id 
+                    AND (t2.free_ship_all IN (0,1,2,3) OR t2.free_ship_discount > 0)
+                )
+            ) t ON t.user_id = sanpham.shop
             LEFT JOIN tinh_moi tm ON t.province = tm.id
             LEFT JOIN user_info u ON u.user_id = sanpham.shop
             $where_clause 
+            GROUP BY sanpham.id
             $order_by 
             LIMIT $offset, $limit
         ";
@@ -198,6 +209,9 @@ try {
             $discount = intval($product['free_ship_discount'] ?? 0);
             $minOrder = intval($product['free_ship_min_order'] ?? 0);
             
+            // Lấy giá sản phẩm để kiểm tra điều kiện min_order
+            $base_price = $product_data['price'];
+            
             // Mode 1: Freeship toàn bộ (100%)
             if ($mode === 1) {
                 $shipping_info['free_ship_type'] = 'full';
@@ -209,8 +223,8 @@ try {
                     $shipping_info['free_ship_details'] = 'Miễn phí ship 100% - Không điều kiện';
                 }
             }
-            // Mode 0: Giảm cố định (VD: -15,000đ)
-            elseif ($mode === 0 && $discount > 0) {
+            // Mode 0: Giảm cố định (VD: -15,000đ) - Cần kiểm tra điều kiện min_order
+            elseif ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
                 $shipping_info['free_ship_type'] = 'fixed';
                 $shipping_info['free_ship_label'] = 'Giảm ' . number_format($discount) . 'đ';
                 $shipping_info['free_ship_badge_color'] = '#2196F3'; // Blue
@@ -220,8 +234,8 @@ try {
                     $shipping_info['free_ship_details'] = 'Giảm ' . number_format($discount) . 'đ phí ship';
                 }
             }
-            // Mode 2: Giảm theo % (VD: -50%)
-            elseif ($mode === 2 && $discount > 0) {
+            // Mode 2: Giảm theo % (VD: -50%) - Cần kiểm tra điều kiện min_order
+            elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
                 $shipping_info['free_ship_type'] = 'percent';
                 $shipping_info['free_ship_label'] = 'Giảm ' . intval($discount) . '% ship';
                 $shipping_info['free_ship_badge_color'] = '#9C27B0'; // Purple
@@ -263,6 +277,13 @@ try {
                 
                 $shipping_info['free_ship_details'] = $hasSupport ? $supportDetail : 'Ưu đãi phí ship cho sản phẩm này';
             }
+            // Mode 0 với discount = 0: Freeship cơ bản
+            elseif ($mode === 0 && $discount == 0) {
+                $shipping_info['free_ship_type'] = 'basic';
+                $shipping_info['free_ship_label'] = 'Freeship';
+                $shipping_info['free_ship_badge_color'] = '#4CAF50'; // Green
+                $shipping_info['free_ship_details'] = 'Miễn phí vận chuyển';
+            }
             
             // Thông tin shop
             $shipping_info['shop_name'] = $product['shop_name'] ?? '';
@@ -270,13 +291,47 @@ try {
             
             $product_data['shipping_info'] = $shipping_info;
             
+            // Xử lý voucher và freeship icons (giống product_suggest.php)
+            $deal_shop = $product['shop'];
+            $voucher_icon = '';
+            $freeship_icon = '';
+            $chinhhang_icon = '';
+            
+            $current_time = time();
+            
+            // Check voucher - Logic chuẩn với hệ thống
+            // Kiểm tra voucher cho sản phẩm cụ thể
+            $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$product_data[id]', sanpham) AND shop = '$deal_shop' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+            if (mysqli_num_rows($check_coupon) > 0) {
+                $voucher_icon = 'Voucher';
+            } else {
+                // Kiểm tra voucher toàn shop
+                $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                if (mysqli_num_rows($check_coupon_all) > 0) {
+                    $voucher_icon = 'Voucher';
+                }
+            }
+            
+            // Freeship icon từ shipping_info
+            $freeship_icon = $shipping_info['free_ship_label'];
+            
+            // Chính hãng (giả định tất cả sản phẩm freeship đều chính hãng)
+            $chinhhang_icon = 'Chính hãng';
+            
+            $product_data['voucher_icon'] = $voucher_icon;
+            $product_data['freeship_icon'] = $freeship_icon;
+            $product_data['chinhhang_icon'] = $chinhhang_icon;
+            
+            // Thông tin kho
+            $product_data['warehouse_name'] = $product['warehouse_name'] ?? '';
+            $product_data['province_name'] = $product['province_name'] ?? '';
+            
             // Tags/Badges
             $badges = array();
             if ($product_data['discount_percent'] > 0) {
                 $badges[] = 'Giảm ' . $product_data['discount_percent'] . '%';
             }
-            $badges[] = 'Freeship';
-            // Bỏ badge "Chính hãng" vì không có trường chinhhang trong DB thực tế
+            // Không thêm "Freeship" vào badges vì đã có freeship_icon riêng
             $product_data['badges'] = $badges;
             
             // Thông tin bổ sung

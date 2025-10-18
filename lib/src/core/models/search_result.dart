@@ -73,6 +73,13 @@ class SearchProduct {
   final String category;
   final bool inStock;
   final bool hasVoucher;
+  
+  // Thông tin badges từ API (giống ProductSuggest)
+  final String? voucherIcon;
+  final String? freeshipIcon;
+  final String? chinhhangIcon;
+  final String? warehouseName;
+  final String? provinceName;
 
   SearchProduct({
     required this.id,
@@ -89,6 +96,11 @@ class SearchProduct {
     required this.category,
     required this.inStock,
     required this.hasVoucher,
+    this.voucherIcon,
+    this.freeshipIcon,
+    this.chinhhangIcon,
+    this.warehouseName,
+    this.provinceName,
   });
 
   factory SearchProduct.fromJson(Map<String, dynamic> json) {
@@ -117,6 +129,12 @@ class SearchProduct {
         if (json['coupon_info'] is Map) return true;
         return false;
       })(),
+      // Parse badges từ API
+      voucherIcon: json['voucher_icon'] as String?,
+      freeshipIcon: json['freeship_icon'] as String?,
+      chinhhangIcon: json['chinhhang_icon'] as String?,
+      warehouseName: json['warehouse_name'] as String?,
+      provinceName: json['province_name'] as String?,
     );
   }
 

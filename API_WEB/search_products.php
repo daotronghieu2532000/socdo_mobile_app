@@ -221,14 +221,14 @@ try {
         $voucher_icon = '';
         $freeship_icon = '';
         
-        // Check voucher
-        $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$id_sp', sanpham) AND shop = '$deal_shop' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+        // Check voucher - Logic chuẩn với hệ thống
+        $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$id_sp', sanpham) AND shop = '$deal_shop' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
         if (mysqli_num_rows($check_coupon) > 0) {
-            $voucher_icon = '<span class="tag-voucher">Voucher</span>';
+            $voucher_icon = 'Voucher';
         } else {
-            $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+            $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
             if (mysqli_num_rows($check_coupon_all) > 0) {
-                $voucher_icon = '<span class="tag-voucher">Voucher</span>';
+                $voucher_icon = 'Voucher';
             }
         }
         
@@ -243,16 +243,19 @@ try {
             $discount = intval($freeship_data['free_ship_discount'] ?? 0);
             $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
             
-            // Mode 0: Giảm cố định (VD: -15,000đ)
-            if ($mode === 0 && $discount > 0) {
+            // Lấy giá sản phẩm để kiểm tra điều kiện min_order
+            $base_price = $row['gia_moi'];
+            
+            // Mode 0: Giảm cố định (VD: -15,000đ) - Cần kiểm tra điều kiện min_order
+            if ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
                 $freeship_label = 'Giảm ' . number_format($discount) . 'đ';
             }
             // Mode 1: Freeship toàn bộ (100%)
             elseif ($mode === 1) {
                 $freeship_label = 'Freeship 100%';
             }
-            // Mode 2: Giảm theo % (VD: -50%)
-            elseif ($mode === 2 && $discount > 0) {
+            // Mode 2: Giảm theo % (VD: -50%) - Cần kiểm tra điều kiện min_order
+            elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
                 $freeship_label = 'Giảm ' . intval($discount) . '% ship';
             }
             // Mode 3: Freeship theo sản phẩm cụ thể
@@ -260,10 +263,10 @@ try {
                 $freeship_label = 'Ưu đãi ship';
             }
             
-            $freeship_icon = '<span class="tag-freeship">' . ($freeship_label ?: 'Freeship') . '</span>';
+            $freeship_icon = $freeship_label ?: 'Freeship';
         }
         
-        $chinhhang_icon = '<span class="tag-chinhhang">Chính hãng</span>';
+        $chinhhang_icon = 'Chính hãng';
         
         // Thêm badges
         $badges = array();
@@ -271,13 +274,18 @@ try {
         if ($row['box_noibat'] == 1) $badges[] = 'Nổi bật';
         if ($row['box_flash'] == 1) $badges[] = 'Flash sale';
         if ($discount_percent > 0) $badges[] = "-$discount_percent%";
-        if (!empty($voucher_icon)) $badges[] = 'Voucher';
-        if (!empty($freeship_icon)) $badges[] = $freeship_label ?: 'Freeship';
-        $badges[] = 'Chính hãng';
+        if (!empty($voucher_icon)) $badges[] = $voucher_icon;
+        if (!empty($freeship_icon)) $badges[] = $freeship_icon;
+        $badges[] = $chinhhang_icon;
         
         $row['badges'] = $badges;
-        $row['voucher_icon'] = $voucher_icon . $freeship_icon; // Kết hợp như hàm gốc
+        $row['voucher_icon'] = $voucher_icon;
+        $row['freeship_icon'] = $freeship_icon;
         $row['chinhhang_icon'] = $chinhhang_icon;
+        
+        // Thông tin kho
+        $row['warehouse_name'] = '';
+        $row['province_name'] = $row['province_name'] ?? 'Thành phố Hà Nội';
         
         // Label sale
         if ($discount_percent > 0) {
