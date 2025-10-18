@@ -50,9 +50,6 @@ if ($method === 'GET') {
     $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
     $limit = isset($_GET['limit']) ? max(1, min(500, intval($_GET['limit']))) : 20;
     $get_all = isset($_GET['all']) && $_GET['all'] == '1';
-    $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-    $sort_by = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'newest';
-    $only_has_link = isset($_GET['only_has_link']) && $_GET['only_has_link'] == '1';
     
     // Validate parameters
     if ($page < 1) $page = 1;
@@ -66,30 +63,8 @@ if ($method === 'GET') {
 
     $offset = ($page - 1) * $limit;
     
-    // Xây dựng WHERE clause cho count và main query
-    $where_conditions = array("f.user_id = '$user_id'");
-    
-    // Lọc theo tìm kiếm
-    if (!empty($search)) {
-        $search_escaped = mysqli_real_escape_string($conn, $search);
-        $where_conditions[] = "(s.tieu_de LIKE '%$search_escaped%' 
-                                OR s.noi_dung LIKE '%$search_escaped%' 
-                                OR s.id = '$search_escaped')";
-    }
-    
-    // Lọc theo có link rút gọn
-    if ($only_has_link) {
-        $where_conditions[] = "r.rut_gon IS NOT NULL AND r.rut_gon != ''";
-    }
-    
-    $where_clause = "WHERE " . implode(" AND ", $where_conditions);
-    
     // Đếm tổng số sản phẩm đang theo dõi
-    $count_query = "SELECT COUNT(DISTINCT f.sp_id) as total 
-                    FROM follow_aff f
-                    LEFT JOIN sanpham s ON f.sp_id = s.id
-                    LEFT JOIN rut_gon_shop r ON (f.sp_id = r.sp_id AND r.user_id = '$user_id' AND r.rut_gon != '')
-                    $where_clause";
+    $count_query = "SELECT COUNT(*) as total FROM follow_aff WHERE user_id = '$user_id'";
     $count_result = mysqli_query($conn, $count_query);
     $total_records = 0;
     if ($count_result) {
@@ -98,33 +73,6 @@ if ($method === 'GET') {
     }
     
     $total_pages = ceil($total_records / $limit);
-    
-    // Xây dựng ORDER BY clause
-    $order_by = "ORDER BY ";
-    switch ($sort_by) {
-        case 'price_asc':
-            $order_by .= "s.gia_moi ASC";
-            break;
-        case 'price_desc':
-            $order_by .= "s.gia_moi DESC";
-            break;
-        case 'commission_asc':
-            $order_by .= "s.gia_moi ASC"; // Sắp xếp theo giá để tính hoa hồng
-            break;
-        case 'commission_desc':
-            $order_by .= "s.gia_moi DESC"; // Sắp xếp theo giá để tính hoa hồng
-            break;
-        case 'clicks_desc':
-            $order_by .= "total_clicks DESC";
-            break;
-        case 'clicks_asc':
-            $order_by .= "total_clicks ASC";
-            break;
-        case 'newest':
-        default:
-            $order_by .= "f.date_post DESC";
-            break;
-    }
     
     // Lấy danh sách sản phẩm đang theo dõi với thông tin tổng hợp
     $followed_query = "SELECT 
@@ -142,9 +90,9 @@ if ($method === 'GET') {
                        FROM follow_aff f
                        LEFT JOIN sanpham s ON f.sp_id = s.id
                        LEFT JOIN rut_gon_shop r ON (f.sp_id = r.sp_id AND r.user_id = '$user_id' AND r.rut_gon != '')
-                       $where_clause
+                       WHERE f.user_id = '$user_id'
                        GROUP BY f.sp_id, f.date_post, s.tieu_de, s.minh_hoa, s.gia_moi, s.gia_cu, s.shop, s.link
-                       $order_by
+                       ORDER BY f.date_post DESC
                        LIMIT $offset, $limit";
     $followed_result = mysqli_query($conn, $followed_query);
     
@@ -277,12 +225,6 @@ if ($method === 'GET') {
                 "per_page" => $limit,
                 "has_next" => $page < $total_pages,
                 "has_prev" => $page > 1
-            ],
-            "filters" => [
-                "search" => $search,
-                "sort_by" => $sort_by,
-                "only_has_link" => $only_has_link,
-                "user_id" => $user_id
             ]
         ]
     ];

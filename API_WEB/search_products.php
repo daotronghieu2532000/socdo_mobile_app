@@ -216,20 +216,68 @@ try {
         $row['avg_rating'] = $avg_rating;
         $row['total_reviews'] = $total_reviews;
         
-        // Sử dụng helper function để thêm badges và location
-        require_once './product_badge_helper.php';
-        $row = addProductBadgesAndLocation($row, $conn);
+        // Xử lý voucher và freeship - theo logic hàm gốc
+        $deal_shop = $row['shop'];
+        $voucher_icon = '';
+        $freeship_icon = '';
         
-        // Tạo badges array cho UI
+        // Check voucher
+        $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$id_sp', sanpham) AND shop = '$deal_shop' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+        if (mysqli_num_rows($check_coupon) > 0) {
+            $voucher_icon = '<span class="tag-voucher">Voucher</span>';
+        } else {
+            $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+            if (mysqli_num_rows($check_coupon_all) > 0) {
+                $voucher_icon = '<span class="tag-voucher">Voucher</span>';
+            }
+        }
+        
+        // Check freeship - Logic chuẩn với 4 mode
+        $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
+        $freeship_result = mysqli_query($conn, $freeship_query);
+        $freeship_label = '';
+        
+        if ($freeship_result && mysqli_num_rows($freeship_result) > 0) {
+            $freeship_data = mysqli_fetch_assoc($freeship_result);
+            $mode = intval($freeship_data['free_ship_all'] ?? 0);
+            $discount = intval($freeship_data['free_ship_discount'] ?? 0);
+            $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
+            
+            // Mode 0: Giảm cố định (VD: -15,000đ)
+            if ($mode === 0 && $discount > 0) {
+                $freeship_label = 'Giảm ' . number_format($discount) . 'đ';
+            }
+            // Mode 1: Freeship toàn bộ (100%)
+            elseif ($mode === 1) {
+                $freeship_label = 'Freeship 100%';
+            }
+            // Mode 2: Giảm theo % (VD: -50%)
+            elseif ($mode === 2 && $discount > 0) {
+                $freeship_label = 'Giảm ' . intval($discount) . '% ship';
+            }
+            // Mode 3: Freeship theo sản phẩm cụ thể
+            elseif ($mode === 3) {
+                $freeship_label = 'Ưu đãi ship';
+            }
+            
+            $freeship_icon = '<span class="tag-freeship">' . ($freeship_label ?: 'Freeship') . '</span>';
+        }
+        
+        $chinhhang_icon = '<span class="tag-chinhhang">Chính hãng</span>';
+        
+        // Thêm badges
         $badges = array();
         if ($row['box_banchay'] == 1) $badges[] = 'Bán chạy';
         if ($row['box_noibat'] == 1) $badges[] = 'Nổi bật';
+        if ($row['box_flash'] == 1) $badges[] = 'Flash sale';
         if ($discount_percent > 0) $badges[] = "-$discount_percent%";
-        if ($row['has_voucher']) $badges[] = 'Voucher';
-        if ($row['has_freeship']) $badges[] = $row['freeship_label'] ?: 'Freeship';
+        if (!empty($voucher_icon)) $badges[] = 'Voucher';
+        if (!empty($freeship_icon)) $badges[] = $freeship_label ?: 'Freeship';
         $badges[] = 'Chính hãng';
         
         $row['badges'] = $badges;
+        $row['voucher_icon'] = $voucher_icon . $freeship_icon; // Kết hợp như hàm gốc
+        $row['chinhhang_icon'] = $chinhhang_icon;
         
         // Label sale
         if ($discount_percent > 0) {

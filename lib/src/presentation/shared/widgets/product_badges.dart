@@ -75,7 +75,7 @@ class ProductBadgesRow extends StatelessWidget {
         } else if (badge == 'Nổi bật' || badge == 'NỔI BẬT') {
           backgroundColor = Colors.indigo;
         } else if (badge == 'Chính hãng') {
-          backgroundColor = Colors.teal;
+          backgroundColor = const Color.fromARGB(255, 0, 140, 255);
         } else {
           backgroundColor = Colors.grey;
         }
@@ -142,6 +142,71 @@ class ProductLocationInfo extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class ProductLocationBadge extends StatelessWidget {
+  final String? locationText;
+  final String? warehouseName;
+  final String? provinceName;
+  final double fontSize;
+  final Color backgroundColor;
+  final Color textColor;
+  final EdgeInsets padding;
+
+  const ProductLocationBadge({
+    super.key,
+    this.locationText,
+    this.warehouseName,
+    this.provinceName,
+    this.fontSize = 9,
+    this.backgroundColor = Colors.grey,
+    this.textColor = Colors.white,
+    this.padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    String displayText = '';
+    
+    if (locationText != null && locationText!.isNotEmpty) {
+      displayText = locationText!;
+    } else if (warehouseName != null && warehouseName!.isNotEmpty) {
+      displayText = warehouseName!;
+    } else if (provinceName != null && provinceName!.isNotEmpty) {
+      displayText = provinceName!;
+    }
+
+    if (displayText.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.location_on,
+            size: fontSize,
+            color: textColor,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            displayText,
+            style: TextStyle(
+              fontSize: fontSize,
+              color: textColor,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }

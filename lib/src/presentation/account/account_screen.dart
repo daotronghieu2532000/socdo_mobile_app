@@ -59,28 +59,9 @@ class AccountScreen extends StatelessWidget {
                   final shouldLogout = await LogoutConfirmationDialog.show(context);
                   
                   if (shouldLogout == true) {
-                    print('🚪 [DEBUG] Bắt đầu quá trình đăng xuất...');
-                    
-                    // Kiểm tra trạng thái trước khi logout
-                    final beforeLogout = await authService.isLoggedIn();
-                    print('🚪 [DEBUG] Trạng thái trước logout: $beforeLogout');
-                    
                     await authService.logout();
-                    print('🚪 [DEBUG] Đã gọi authService.logout()');
-                    
-                    // CRITICAL: Force clear AuthService để đảm bảo logout hoàn toàn
-                    await Future.delayed(const Duration(milliseconds: 100));
-                    authService.forceClear(); // Force clear để đảm bảo
-                    print('🚪 [DEBUG] Đã force clear AuthService');
-                    
-                    // Kiểm tra trạng thái sau khi logout
-                    final afterLogout = await authService.isLoggedIn();
-                    print('🚪 [DEBUG] Trạng thái sau logout: $afterLogout');
-                    
                     // Reset app initialization state
                     AppInitializationService().resetInitialization();
-                    print('🚪 [DEBUG] Đã reset AppInitializationService');
-                    
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -89,17 +70,13 @@ class AccountScreen extends StatelessWidget {
                           duration: Duration(seconds: 2),
                         ),
                       );
-                      print('🚪 [DEBUG] Đã hiển thị thông báo thành công');
-                      
                       // Quay về trang chủ và refresh toàn bộ navigation stack
-                      print('🚪 [DEBUG] Bắt đầu navigation về trang chủ...');
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(
                           builder: (context) => const RootShell(initialIndex: 0),
                         ),
                         (route) => false,
                       );
-                      print('🚪 [DEBUG] Đã hoàn thành navigation');
                     }
                   }
                 } else {

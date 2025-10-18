@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../favorite_products/favorite_products_screen.dart';
 import '../../orders/orders_screen.dart';
+import '../../profile/address_book_screen.dart';
+import '../../voucher/voucher_screen.dart';
 
 class ActionRow extends StatelessWidget {
   final IconData icon;
@@ -32,6 +34,22 @@ class ActionRow extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => const FavoriteProductsScreen(),
+          ),
+        );
+        break;
+      case 'Sổ địa chỉ':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AddressBookScreen(),
+          ),
+        );
+        break;
+      case 'Mã giảm giá':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const VoucherScreen(),
           ),
         );
         break;

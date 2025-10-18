@@ -1298,10 +1298,10 @@ class ApiService {
   /// Lấy danh sách sản phẩm gợi ý
   Future<List<ProductSuggest>?> getProductSuggests({
     int page = 1,
-    int limit = 50, // Tăng từ 10 lên 50
+    int limit = 500, // Tăng từ 10 lên 50
   }) async {
     try {
-      final response = await get('/product_suggest?page=$page&limit=$limit');
+      final response = await get('/product_suggest?type=home_suggest&limit=$limit');
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);

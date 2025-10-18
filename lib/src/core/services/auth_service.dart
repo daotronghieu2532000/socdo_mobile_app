@@ -151,26 +151,20 @@ class AuthService {
 
   /// Lấy thông tin user hiện tại
   Future<User?> getCurrentUser() async {
-    print('👤 [DEBUG] AuthService: getCurrentUser() - _currentUser = ${_currentUser?.name ?? "null"}');
-    
     if (_currentUser != null) {
-      print('👤 [DEBUG] AuthService: Trả về _currentUser từ memory');
       return _currentUser;
     }
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString(_userKey);
-      print('👤 [DEBUG] AuthService: userJson từ SharedPreferences = ${userJson != null ? "có data" : "null"}');
       
       if (userJson != null) {
         final userData = jsonDecode(userJson) as Map<String, dynamic>;
         _currentUser = User.fromJson(userData);
-        print('👤 [DEBUG] AuthService: Đã parse user từ SharedPreferences: ${_currentUser?.name ?? "null"}');
         return _currentUser;
       }
       
-      print('👤 [DEBUG] AuthService: Không có user data trong SharedPreferences');
       return null;
     } catch (e) {
       print('❌ Lỗi khi lấy user: $e');
@@ -180,13 +174,10 @@ class AuthService {
 
   /// Kiểm tra user đã đăng nhập chưa
   Future<bool> isLoggedIn() async {
-    print('🔍 [DEBUG] AuthService: Kiểm tra isLoggedIn...');
     try {
       final user = await getCurrentUser();
-      final result = user != null;
-      print('🔍 [DEBUG] AuthService: isLoggedIn = $result (user = ${user?.name ?? "null"})');
       // Chỉ cần kiểm tra có user data hay không, không kiểm tra thời gian hết hạn
-      return result;
+      return user != null;
     } catch (e) {
       print('❌ Lỗi kiểm tra đăng nhập: $e');
       return false;
@@ -195,43 +186,22 @@ class AuthService {
 
   /// Đăng xuất
   Future<void> logout() async {
-    print('🔐 [DEBUG] AuthService: Bắt đầu logout...');
     try {
       final prefs = await SharedPreferences.getInstance();
-      print('🔐 [DEBUG] AuthService: Đã lấy SharedPreferences');
-      
       await prefs.remove(_userKey);
-      print('🔐 [DEBUG] AuthService: Đã xóa _userKey');
-      
       await prefs.remove(_loginTimeKey); // Xóa luôn để clean up
-      print('🔐 [DEBUG] AuthService: Đã xóa _loginTimeKey');
       
-      // CRITICAL: Clear user data TRƯỚC KHI thông báo listeners
       _currentUser = null;
-      print('🔐 [DEBUG] AuthService: Đã set _currentUser = null');
-      
       print('✅ Đã đăng xuất và xóa thông tin user');
       
       // Thông báo cho các listener về việc thay đổi trạng thái
-      print('🔐 [DEBUG] AuthService: Bắt đầu thông báo cho listeners...');
       _notifyAuthStateChanged();
-      print('🔐 [DEBUG] AuthService: Hoàn thành thông báo cho listeners');
-      
-      // CRITICAL: Đảm bảo user data không được restore từ cache
-      await Future.delayed(const Duration(milliseconds: 50));
-      if (_currentUser != null) {
-        print('🔐 [DEBUG] AuthService: WARNING - _currentUser đã được restore, force clear lại');
-        _currentUser = null;
-      }
-      
     } catch (e) {
       print('❌ Lỗi khi đăng xuất: $e');
       // Vẫn đảm bảo clear local state ngay cả khi có lỗi
       _currentUser = null;
-      print('🔐 [DEBUG] AuthService: Set _currentUser = null (trong catch)');
       _notifyAuthStateChanged();
     }
-    print('🔐 [DEBUG] AuthService: Hoàn thành logout');
   }
 
   /// Thêm listener cho sự thay đổi trạng thái đăng nhập
@@ -246,14 +216,11 @@ class AuthService {
 
   /// Thông báo cho tất cả listener về sự thay đổi trạng thái
   void _notifyAuthStateChanged() {
-    print('🔔 [DEBUG] AuthService: Thông báo cho ${_onAuthStateChanged.length} listener(s)');
-    for (int i = 0; i < _onAuthStateChanged.length; i++) {
+    for (final listener in _onAuthStateChanged) {
       try {
-        print('🔔 [DEBUG] AuthService: Gọi listener #$i');
-        _onAuthStateChanged[i]();
-        print('🔔 [DEBUG] AuthService: Listener #$i đã được gọi thành công');
+        listener();
       } catch (e) {
-        print('❌ Lỗi trong auth state listener #$i: $e');
+        print('❌ Lỗi trong auth state listener: $e');
       }
     }
   }
@@ -290,13 +257,5 @@ class AuthService {
   /// Lấy số dư hiển thị
   String getFormattedBalance(User user) {
     return '${user.userMoney.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} VND';
-  }
-
-  /// Force clear toàn bộ AuthService (dùng khi logout)
-  void forceClear() {
-    print('🧹 [DEBUG] AuthService: Force clear toàn bộ AuthService');
-    _currentUser = null;
-    _onAuthStateChanged.clear();
-    print('🧹 [DEBUG] AuthService: Đã force clear _currentUser và listeners');
   }
 }

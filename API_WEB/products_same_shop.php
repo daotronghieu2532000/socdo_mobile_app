@@ -179,10 +179,6 @@ try {
         $products = array();
         
         while ($product = mysqli_fetch_assoc($products_result)) {
-            // Sử dụng helper function để thêm badges và location
-            require_once './product_badge_helper.php';
-            $product = addProductBadgesAndLocation($product, $conn);
-            
             // Format dữ liệu sản phẩm
             $product_data = array();
             $product_data['id'] = intval($product['id']);
@@ -219,20 +215,79 @@ try {
             // Tạo URL sản phẩm
             $product_data['product_url'] = 'https://socdo.vn/san-pham/' . $product_data['id'] . '/' . $product_data['slug'] . '.html';
             
-            // Thông tin từ helper function
-            $product_data['has_voucher'] = $product['has_voucher'];
-            $product_data['has_freeship'] = $product['has_freeship'];
-            $product_data['freeship_type'] = $product['freeship_type'];
-            $product_data['freeship_label'] = $product['freeship_label'];
-            $product_data['location_text'] = $product['location_text'];
+            // Thông tin voucher
+            $voucher_info = array();
+            $voucher_info['has_voucher'] = false;
+            $voucher_info['voucher_details'] = '';
             
-            // Tạo badges
+            $current_time = time();
+            
+            // Kiểm tra voucher cho sản phẩm cụ thể
+            $check_coupon = mysqli_query($conn, "SELECT id, ma, loai, giam FROM coupon WHERE FIND_IN_SET('{$product['id']}', sanpham) AND shop = '$shop_id' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+            if ($check_coupon && mysqli_num_rows($check_coupon) > 0) {
+                $voucher_data = mysqli_fetch_assoc($check_coupon);
+                $voucher_info['has_voucher'] = true;
+                $voucher_info['voucher_details'] = 'Voucher ' . $voucher_data['ma'];
+                if ($voucher_data['loai'] == 'tru') {
+                    $voucher_info['voucher_details'] .= ' - Giảm ' . number_format($voucher_data['giam']) . 'đ';
+                } else {
+                    $voucher_info['voucher_details'] .= ' - Giảm ' . $voucher_data['giam'] . '%';
+                }
+            } else {
+                // Kiểm tra voucher cho toàn shop
+                $check_coupon_all = mysqli_query($conn, "SELECT id, ma, loai, giam FROM coupon WHERE shop = '$shop_id' AND kieu = 'all' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                if ($check_coupon_all && mysqli_num_rows($check_coupon_all) > 0) {
+                    $voucher_data = mysqli_fetch_assoc($check_coupon_all);
+                    $voucher_info['has_voucher'] = true;
+                    $voucher_info['voucher_details'] = 'Voucher shop ' . $voucher_data['ma'];
+                    if ($voucher_data['loai'] == 'tru') {
+                        $voucher_info['voucher_details'] .= ' - Giảm ' . number_format($voucher_data['giam']) . 'đ';
+                    } else {
+                        $voucher_info['voucher_details'] .= ' - Giảm ' . $voucher_data['giam'] . '%';
+                    }
+                }
+            }
+            
+            $product_data['voucher_info'] = $voucher_info;
+            
+            // Thông tin ship
+            $shipping_info = array();
+            $shipping_info['has_free_shipping'] = false;
+            $shipping_info['free_ship_details'] = '';
+            
+            $check_freeship = mysqli_query($conn, "SELECT id, free_ship_all, free_ship_discount, free_ship_min_order FROM transport WHERE user_id = '$shop_id' AND (free_ship_all = 1 OR free_ship_discount > 0) LIMIT 1");
+            if ($check_freeship && mysqli_num_rows($check_freeship) > 0) {
+                $ship_data = mysqli_fetch_assoc($check_freeship);
+                $shipping_info['has_free_shipping'] = true;
+                
+                if ($ship_data['free_ship_all'] == 1) {
+                    $shipping_info['free_ship_details'] = 'Miễn phí ship hoàn toàn';
+                } elseif ($ship_data['free_ship_all'] == 2) {
+                    $shipping_info['free_ship_details'] = 'Hỗ trợ ship ' . $ship_data['free_ship_discount'] . '%';
+                } elseif ($ship_data['free_ship_discount'] > 0) {
+                    $shipping_info['free_ship_details'] = 'Hỗ trợ ship ' . number_format($ship_data['free_ship_discount']) . 'đ';
+                }
+                
+                $shipping_info['min_order_for_free_ship'] = intval($ship_data['free_ship_min_order']);
+            }
+            
+            $product_data['shipping_info'] = $shipping_info;
+            
+            // Tags/Badges
             $badges = array();
-            if ($product_data['discount_percent'] > 0) $badges[] = "-{$product_data['discount_percent']}%";
-            if ($product['has_voucher']) $badges[] = 'Voucher';
-            if ($product['has_freeship']) $badges[] = $product['freeship_label'] ?: 'Freeship';
-            if ($product['box_flash'] == 1) $badges[] = 'Flash Sale';
-            $badges[] = 'Chính hãng';
+            if ($product_data['discount_percent'] > 0) {
+                $badges[] = 'Giảm ' . $product_data['discount_percent'] . '%';
+            }
+            if ($voucher_info['has_voucher']) {
+                $badges[] = 'Voucher';
+            }
+            if ($shipping_info['has_free_shipping']) {
+                $badges[] = 'Freeship';
+            }
+            // Bỏ badge "Chính hãng" vì không có trường chinhhang trong DB thực tế
+            if ($product['box_flash'] == 1) {
+                $badges[] = 'Flash Sale';
+            }
             $product_data['badges'] = $badges;
             
             // Thông tin bổ sung

@@ -125,35 +125,41 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         print('📊 Pagination: $pagination');
         
         // Lưu total products từ pagination
-        _totalProducts = pagination['total_products'] ?? pagination['total'] ?? 0;
+        _totalProducts = _safeParseInt(pagination['total_products']) ?? _safeParseInt(pagination['total']) ?? 0;
 
         // Map API fields to UI expected fields
         final products = rawProducts.map((product) {
-          final mappedProduct = {
-            'id': _safeParseInt(product['id']),
-            'name': product['tieu_de']?.toString() ?? 'Sản phẩm',
-            'image': product['minh_hoa']?.toString() ?? '',
-            'price': _safeParseInt(product['gia_moi']),
-            'old_price': _safeParseInt(product['gia_cu']),
-            'discount_percent': _safeParseInt(product['discount_percent']),
-            'rating': 5.0, // Default rating
-            'sold': _safeParseInt(product['ban']),
-            'view': _safeParseInt(product['view']),
-            'shop_id': product['shop']?.toString() ?? '',
-            'shop_name': product['shop_name']?.toString() ?? 'Shop',
-            'is_freeship': _safeParseBool(product['isFreeship']),
-            'hasVoucher': _safeParseBool(product['hasVoucher']),
-            'badges': product['badges'] ?? [],
-            'link': product['link']?.toString() ?? '',
-            'date_post': product['date_post']?.toString() ?? '',
-            'kho': _safeParseInt(product['kho']),
-            'thuong_hieu': product['thuong_hieu']?.toString() ?? '',
-            'noi_ban': product['noi_ban']?.toString() ?? '',
-            'cat': product['cat']?.toString() ?? '',
-            'status': product['status'] != null ? _safeParseInt(product['status']) : 1,
-          };
-          print('🔍 Mapped product: ${mappedProduct['name']} - Price: ${mappedProduct['price']} - Image: ${mappedProduct['image']}');
-          return mappedProduct;
+          try {
+            final mappedProduct = {
+              'id': _safeParseInt(product['id']),
+              'name': product['tieu_de']?.toString() ?? 'Sản phẩm',
+              'image': product['minh_hoa']?.toString() ?? '',
+              'price': _safeParseInt(product['gia_moi']),
+              'old_price': _safeParseInt(product['gia_cu']),
+              'discount_percent': _safeParseInt(product['discount_percent']),
+              'rating': 5.0, // Default rating
+              'sold': _safeParseInt(product['ban']),
+              'view': _safeParseInt(product['view']),
+              'shop_id': product['shop']?.toString() ?? '',
+              'shop_name': product['shop_name']?.toString() ?? 'Shop',
+              'is_freeship': _safeParseBool(product['isFreeship']),
+              'hasVoucher': _safeParseBool(product['hasVoucher']),
+              'badges': product['badges'] ?? [],
+              'link': product['link']?.toString() ?? '',
+              'date_post': product['date_post']?.toString() ?? '',
+              'kho': _safeParseInt(product['kho']),
+              'thuong_hieu': product['thuong_hieu']?.toString() ?? '',
+              'noi_ban': product['noi_ban']?.toString() ?? '',
+              'cat': product['cat']?.toString() ?? '',
+              'status': product['status'] != null ? _safeParseInt(product['status']) : 1,
+            };
+            print('🔍 Mapped product: ${mappedProduct['name']} - Price: ${mappedProduct['price']} - Image: ${mappedProduct['image']}');
+            return mappedProduct;
+          } catch (e) {
+            print('❌ Error mapping product: $e');
+            print('❌ Product data: $product');
+            rethrow;
+          }
         }).toList();
 
         setState(() {
@@ -165,7 +171,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             _currentPage = 1;
           }
           
-          _hasNextPage = pagination['has_next'] ?? false;
+          _hasNextPage = _safeParseBool(pagination['has_next']) ?? false;
           _isLoading = false;
           _isLoadingMore = false;
           _hasError = false;

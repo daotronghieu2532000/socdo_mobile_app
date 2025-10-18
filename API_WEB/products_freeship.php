@@ -147,10 +147,6 @@ try {
         $products = array();
         
         while ($product = mysqli_fetch_assoc($products_result)) {
-            // Sử dụng helper function để thêm badges và location
-            require_once './product_badge_helper.php';
-            $product = addProductBadgesAndLocation($product, $conn);
-            
             // Format dữ liệu sản phẩm
             $product_data = array();
             $product_data['id'] = intval($product['id']);
@@ -187,20 +183,113 @@ try {
             // Tạo URL sản phẩm
             $product_data['product_url'] = 'https://socdo.vn/san-pham/' . $product_data['id'] . '/' . $product_data['slug'] . '.html';
             
-            // Thông tin ship từ helper function
-            $product_data['has_voucher'] = $product['has_voucher'];
-            $product_data['has_freeship'] = $product['has_freeship'];
-            $product_data['freeship_type'] = $product['freeship_type'];
-            $product_data['freeship_label'] = $product['freeship_label'];
-            $product_data['location_text'] = $product['location_text'];
+            // Thông tin ship 0đ - Chi tiết theo 4 mode
+            $shipping_info = array();
+            $shipping_info['has_free_shipping'] = true;
+            $shipping_info['free_ship_mode'] = intval($product['free_ship_all'] ?? 0);
+            $shipping_info['free_ship_discount_value'] = intval($product['free_ship_discount'] ?? 0);
+            $shipping_info['min_order_value'] = intval($product['free_ship_min_order'] ?? 0);
+            $shipping_info['free_ship_type'] = 'unknown';
+            $shipping_info['free_ship_label'] = '';
+            $shipping_info['free_ship_details'] = '';
+            $shipping_info['free_ship_badge_color'] = '#4CAF50'; // Green default
             
-            // Tạo badges
+            $mode = intval($product['free_ship_all'] ?? 0);
+            $discount = intval($product['free_ship_discount'] ?? 0);
+            $minOrder = intval($product['free_ship_min_order'] ?? 0);
+            
+            // Mode 1: Freeship toàn bộ (100%)
+            if ($mode === 1) {
+                $shipping_info['free_ship_type'] = 'full';
+                $shipping_info['free_ship_label'] = 'Freeship 100%';
+                $shipping_info['free_ship_badge_color'] = '#FF5722'; // Red-Orange
+                if ($minOrder > 0) {
+                    $shipping_info['free_ship_details'] = 'Miễn phí ship 100% cho đơn từ ' . number_format($minOrder) . 'đ';
+                } else {
+                    $shipping_info['free_ship_details'] = 'Miễn phí ship 100% - Không điều kiện';
+                }
+            }
+            // Mode 0: Giảm cố định (VD: -15,000đ)
+            elseif ($mode === 0 && $discount > 0) {
+                $shipping_info['free_ship_type'] = 'fixed';
+                $shipping_info['free_ship_label'] = 'Giảm ' . number_format($discount) . 'đ';
+                $shipping_info['free_ship_badge_color'] = '#2196F3'; // Blue
+                if ($minOrder > 0) {
+                    $shipping_info['free_ship_details'] = 'Giảm ' . number_format($discount) . 'đ phí ship cho đơn từ ' . number_format($minOrder) . 'đ';
+                } else {
+                    $shipping_info['free_ship_details'] = 'Giảm ' . number_format($discount) . 'đ phí ship';
+                }
+            }
+            // Mode 2: Giảm theo % (VD: -50%)
+            elseif ($mode === 2 && $discount > 0) {
+                $shipping_info['free_ship_type'] = 'percent';
+                $shipping_info['free_ship_label'] = 'Giảm ' . intval($discount) . '% ship';
+                $shipping_info['free_ship_badge_color'] = '#9C27B0'; // Purple
+                if ($minOrder > 0) {
+                    $shipping_info['free_ship_details'] = 'Giảm ' . intval($discount) . '% phí ship cho đơn từ ' . number_format($minOrder) . 'đ';
+                } else {
+                    $shipping_info['free_ship_details'] = 'Giảm ' . intval($discount) . '% phí ship';
+                }
+            }
+            // Mode 3: Freeship theo sản phẩm cụ thể
+            elseif ($mode === 3) {
+                $shipping_info['free_ship_type'] = 'per_product';
+                $shipping_info['free_ship_label'] = 'Ưu đãi ship';
+                $shipping_info['free_ship_badge_color'] = '#FF9800'; // Orange
+                
+                // Parse fee_ship_products để xem sản phẩm này có trong danh sách không
+                $feeShipProducts = json_decode($product['fee_ship_products'] ?? '[]', true);
+                $productId = intval($product['id']);
+                $hasSupport = false;
+                $supportDetail = '';
+                
+                if (is_array($feeShipProducts)) {
+                    foreach ($feeShipProducts as $cfg) {
+                        if (intval($cfg['sp_id'] ?? 0) === $productId) {
+                            $hasSupport = true;
+                            $stype = $cfg['ship_type'] ?? 'vnd';
+                            $val = floatval($cfg['ship_support'] ?? 0);
+                            if ($stype === 'percent') {
+                                $supportDetail = 'Giảm ' . intval($val) . '% phí ship';
+                                $shipping_info['free_ship_label'] = 'Giảm ' . intval($val) . '% ship';
+                            } else {
+                                $supportDetail = 'Giảm ' . number_format($val) . 'đ phí ship';
+                                $shipping_info['free_ship_label'] = 'Giảm ' . number_format($val) . 'đ';
+                            }
+                            break;
+                        }
+                    }
+                }
+                
+                $shipping_info['free_ship_details'] = $hasSupport ? $supportDetail : 'Ưu đãi phí ship cho sản phẩm này';
+            }
+            
+            // Thông tin shop
+            $shipping_info['shop_name'] = $product['shop_name'] ?? '';
+            $shipping_info['shop_avatar'] = !empty($product['shop_avatar']) ? 'https://socdo.vn/' . $product['shop_avatar'] : '';
+            
+            $product_data['shipping_info'] = $shipping_info;
+            
+            // Tags/Badges
             $badges = array();
-            if ($product_data['discount_percent'] > 0) $badges[] = "-{$product_data['discount_percent']}%";
-            if ($product['has_voucher']) $badges[] = 'Voucher';
-            if ($product['has_freeship']) $badges[] = $product['freeship_label'] ?: 'Freeship';
-            $badges[] = 'Chính hãng';
+            if ($product_data['discount_percent'] > 0) {
+                $badges[] = 'Giảm ' . $product_data['discount_percent'] . '%';
+            }
+            $badges[] = 'Freeship';
+            // Bỏ badge "Chính hãng" vì không có trường chinhhang trong DB thực tế
             $product_data['badges'] = $badges;
+            
+            // Thông tin bổ sung
+            $product_data['is_authentic'] = 0; // Không có trường chinhhang trong DB thực tế
+            $product_data['is_featured'] = intval($product['box_noibat']);
+            $product_data['is_trending'] = 0; // Không có trường xu_huong trong DB thực tế
+            $product_data['is_flash_sale'] = intval($product['box_flash']);
+            $product_data['created_at'] = intval($product['date_post']);
+            $product_data['updated_at'] = intval($product['date_post']); // Không có trường date_update trong DB thực tế
+            
+            // Format giá
+            $product_data['price_formatted'] = number_format($product_data['price'], 0, ',', '.') . ' ₫';
+            $product_data['old_price_formatted'] = $product_data['old_price'] > 0 ? number_format($product_data['old_price'], 0, ',', '.') . ' ₫' : '';
             
             $products[] = $product_data;
         }

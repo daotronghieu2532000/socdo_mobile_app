@@ -85,16 +85,55 @@ class _OrdersScreenState extends State<OrdersScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Đơn hàng của tôi'),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: false,
-          tabs: [
-            _OrderTab(icon: Icons.receipt_long, label: 'Chờ xác nhận', count: _counts[0]),
-            _OrderTab(icon: Icons.store_mall_directory, label: 'Chờ lấy hàng', count: _counts[1]),
-            _OrderTab(icon: Icons.local_shipping, label: 'Chờ giao hàng', count: _counts[2]),
-            _OrderTab(icon: Icons.reviews, label: 'Đánh giá', count: _counts[3]),
-            _OrderTab(icon: Icons.cancel, label: 'Đã hủy', count: _counts[4]),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(80),
+            child: Container(
+              height: 80,
+              child: Stack(
+                children: [
+                  TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    indicatorPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    tabs: [
+                      _OrderTab(icon: Icons.receipt_long, label: 'Chờ xác nhận', count: _counts[0]),
+                      _OrderTab(icon: Icons.store_mall_directory, label: 'Chờ lấy hàng', count: _counts[1]),
+                      _OrderTab(icon: Icons.local_shipping, label: 'Chờ giao hàng', count: _counts[2]),
+                      _OrderTab(icon: Icons.reviews, label: 'Đánh giá', count: _counts[3]),
+                      _OrderTab(icon: Icons.cancel, label: 'Đã hủy', count: _counts[4]),
+                    ],
+                  ),
+                  // Gradient fade effect để chỉ ra có thể cuộn
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 30,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.white.withOpacity(0.0),
+                            Colors.white.withOpacity(0.8),
+                          ],
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ),
       ),
       body: _userId == null
@@ -124,35 +163,49 @@ class _OrderTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasCount = count != null && count! > 0;
     return Tab(
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Icon(icon, size: 20),
-          if (hasCount)
-            Positioned(
-              right: -6,
-              top: -6,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  (count! > 99) ? '99+' : '$count',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
+      height: 70,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, size: 24),
+                if (hasCount)
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        (count! > 99) ? '99+' : '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
-      text: label,
     );
   }
 }
@@ -349,7 +402,7 @@ class _OrdersListState extends State<_OrdersList> {
                 children: [
                   const Text('Tổng số tiền: ', style: TextStyle(fontSize: 12, color: Color(0xFF6C757D))),
                   Text(
-                    o['tongtien_formatted'] ?? '',
+                    _formatPrice(o['tongtien_formatted'] ?? ''),
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFFF6B35)),
                   ),
                   const Spacer(),
@@ -363,7 +416,7 @@ class _OrdersListState extends State<_OrdersList> {
                   children: [
                     const Text('Phí vận chuyển: ', style: TextStyle(fontSize: 12, color: Color(0xFF6C757D))),
                     Text(
-                      o['phi_ship_formatted'] ?? '',
+                      _formatPrice(o['phi_ship_formatted'] ?? ''),
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1976D2)),
                     ),
                     const Spacer(),
@@ -386,7 +439,7 @@ class _OrdersListState extends State<_OrdersList> {
                       const Icon(Icons.local_offer, size: 14, color: Color(0xFF9C27B0)),
                       const SizedBox(width: 4),
                       Text(
-                        'Đã áp voucher: -${o['voucher_tmdt_formatted'] ?? ''}',
+                        'Đã áp voucher: -${_formatPrice(o['voucher_tmdt_formatted'] ?? '')}',
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9C27B0)),
                       ),
                     ],
@@ -512,6 +565,11 @@ class _OrdersListState extends State<_OrdersList> {
       buf.write(s[i]);
     }
     return buf.toString();
+  }
+
+  // Helper function to format price from comma to dot
+  String _formatPrice(String priceText) {
+    return priceText.replaceAll(',', '.');
   }
 
   Color _statusColor(int? status) {

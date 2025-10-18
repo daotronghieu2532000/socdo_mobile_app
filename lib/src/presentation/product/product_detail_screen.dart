@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
-import 'dart:math';
 import 'product_description_screen.dart';
 import 'widgets/bottom_actions.dart';
 import 'widgets/variant_selection_dialog.dart';
@@ -16,6 +15,7 @@ import 'widgets/description_text.dart';
 // import 'widgets/similar_product_card.dart'; // Đã thay thế bằng RelatedProductCard
 import 'widgets/related_product_card_horizontal.dart';
 import 'widgets/same_shop_product_card_horizontal.dart';
+import 'widgets/product_carousel.dart';
 import '../../core/utils/format_utils.dart';
 import '../../core/services/api_service.dart';
 import '../../core/models/product_detail.dart';
@@ -368,29 +368,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // Helper function to generate fake rating and sold data
-  Map<String, dynamic> _generateFakeDataForSameShop(String priceStr) {
-    final random = Random();
-    
-    // Parse price to check if it's expensive (>= 1,000,000)
-    final price = int.tryParse(priceStr.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-    final isExpensive = price >= 1000000;
-    
-    // Generate fake data based on price
-    final reviews = isExpensive 
-        ? random.nextInt(21) // 0-20 for expensive products
-        : random.nextInt(100); // 0-99 for normal products
-    
-    final sold = isExpensive
-        ? random.nextInt(21) // 0-20 for expensive products
-        : random.nextInt(99) + 2; // 2-100 for normal products
-    
-    return {
-      'rating': '5.0',
-      'reviews': reviews,
-      'sold': sold,
-    };
-  }
 
 
   Widget _buildImageCarousel(ProductDetail? product, String fallbackImage) {
@@ -804,26 +781,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   const SizedBox(height: 2), // Giảm từ 8 xuống 2
                   if (_isLoadingSameShop)
                     const SizedBox(
-                    height: 240,
+                      height: 200,
                       child: Center(child: CircularProgressIndicator()),
                     )
                   else if (_sameShopProducts.isNotEmpty) ...[
-                    const Text(
-                      'Sản phẩm cùng gian hàng',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ListView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: _sameShopProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = _sameShopProducts[index];
+                    ProductCarousel(
+                      title: 'Sản phẩm cùng gian hàng',
+                      height: 160,
+                      itemWidth: 280,
+                      children: _sameShopProducts.map((product) {
                         return SameShopProductCardHorizontal(product: product);
-                      },
+                      }).toList(),
                     ),
                   ] else
                     const SizedBox(
@@ -834,7 +802,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           style: TextStyle(color: Colors.grey),
                         ),
                       ),
-                  ),
+                    ),
                   const SizedBox(height: 8), // Giảm từ 16 xuống 8
                   // Hiển thị đặc điểm nổi bật nếu có
                   if (product?.highlights?.isNotEmpty == true) ...[
@@ -1000,22 +968,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     )
                   else if (_relatedProducts.isNotEmpty) ...[
-                    const Text(
-                      'Sản phẩm liên quan',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ListView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: _relatedProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = _relatedProducts[index];
+                    ProductCarousel(
+                      title: 'Sản phẩm liên quan',
+                      height: 160,
+                      itemWidth: 280,
+                      children: _relatedProducts.map((product) {
                         return RelatedProductCardHorizontal(product: product);
-                      },
+                      }).toList(),
                     ),
                   ] else
                     const SizedBox.shrink(), // Ẩn nếu không có dữ liệu

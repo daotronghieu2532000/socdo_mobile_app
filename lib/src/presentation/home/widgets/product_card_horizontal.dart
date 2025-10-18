@@ -121,8 +121,8 @@ class ProductCardHorizontal extends StatelessWidget {
                   // Box phải: Thông tin sản phẩm
                   Expanded(
                     child: Container(
-                      height: 130,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      height: 140,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -137,34 +137,31 @@ class ProductCardHorizontal extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  height: 1.2,
+                                  height: 1.0,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Text(
-                                    FormatUtils.formatCurrency(product.price),
-                                    style: const TextStyle(
-                                      color: Colors.red,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  if (product.oldPrice != null && product.oldPrice! > product.price) ...[
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      FormatUtils.formatCurrency(product.oldPrice!),
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                        decoration: TextDecoration.lineThrough,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ],
+                              const SizedBox(height: 6),
+                              Text(
+                                FormatUtils.formatCurrency(product.price),
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
-                              const SizedBox(height: 8),
+                              // Hiển thị giá thành viên nếu có
+                              if (product.priceThanhvien != null && product.priceThanhvien!.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Giá thành viên: ${product.priceThanhvien}',
+                                  style: const TextStyle(
+                                    color: Colors.blue,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
                                   const Icon(Icons.star, size: 14, color: Colors.amber),
@@ -176,7 +173,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 3),
                               // Badges row
                               if (product.badges != null && product.badges!.isNotEmpty)
                                 ProductBadgesRow(
@@ -184,7 +181,7 @@ class ProductCardHorizontal extends StatelessWidget {
                                   fontSize: 9,
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                 ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 3),
                               // Location info
                               ProductLocationInfo(
                                 locationText: product.locationText,

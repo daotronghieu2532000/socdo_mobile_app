@@ -44,6 +44,11 @@ class ProductSuggest {
   final String? locationText;
   final String? warehouseName;
   final String? provinceName;
+  final String? voucherIcon;
+  final String? freeshipIcon;
+  final String? chinhhangIcon;
+  final String? starHtml;
+  final String? priceThanhvien;
 
   const ProductSuggest({
     required this.id,
@@ -70,6 +75,11 @@ class ProductSuggest {
     this.locationText,
     this.warehouseName,
     this.provinceName,
+    this.voucherIcon,
+    this.freeshipIcon,
+    this.chinhhangIcon,
+    this.starHtml,
+    this.priceThanhvien,
   });
 
   factory ProductSuggest.fromJson(Map<String, dynamic> json) {
@@ -98,14 +108,14 @@ class ProductSuggest {
       price: safeParseInt(json['price']) ?? safeParseInt(json['gia_moi']) ?? safeParseInt(json['sale_price']) ?? safeParseInt(json['current_price']) ?? 0,
       oldPrice: safeParseInt(json['old_price']) ?? safeParseInt(json['gia_cu']) ?? safeParseInt(json['original_price']) ?? safeParseInt(json['list_price']),
       discount: safeParseDouble(json['discount']) ?? safeParseDouble(json['discount_percent']),
-      stock: safeParseInt(json['stock']) ?? safeParseInt(json['quantity']) ?? safeParseInt(json['available_stock']),
+      stock: safeParseInt(json['stock']) ?? safeParseInt(json['quantity']) ?? safeParseInt(json['available_stock']) ?? safeParseInt(json['kho']),
       description: json['description'] as String? ?? json['noi_bat'] as String? ?? json['desc'] as String?,
-      brand: json['brand'] as String? ?? json['brand_name'] as String?,
+      brand: json['brand'] as String? ?? json['brand_name'] as String? ?? json['thuong_hieu'] as String?,
       category: json['category'] as String? ?? json['cat']?.toString() ?? json['category_name'] as String?,
       rating: safeParseDouble(json['rating']) ?? safeParseDouble(json['average_rating']) ?? safeParseDouble(json['avg_rating']),
-      sold: safeParseInt(json['sold']) ?? safeParseInt(json['sold_count']) ?? safeParseInt(json['quantity_sold']),
+      sold: safeParseInt(json['sold']) ?? safeParseInt(json['sold_count']) ?? safeParseInt(json['quantity_sold']) ?? safeParseInt(json['ban']),
       totalReviews: safeParseInt(json['total_reviews']) ?? safeParseInt(json['reviews_count']),
-      shopId: json['shop_id']?.toString(),
+      shopId: json['shop_id']?.toString() ?? json['shop']?.toString(),
       shopName: json['shop_name'] as String?,
       isFreeship: json['is_freeship'] as bool? ?? json['free_shipping'] as bool? ?? false,
       isRecommended: json['is_recommended'] as bool? ?? json['recommended'] as bool? ?? false,
@@ -115,6 +125,11 @@ class ProductSuggest {
       locationText: json['location_text'] as String?,
       warehouseName: json['warehouse_name'] as String?,
       provinceName: json['province_name'] as String?,
+      voucherIcon: json['voucher_icon'] as String?,
+      freeshipIcon: json['freeship_icon'] as String?,
+      chinhhangIcon: json['chinhhang_icon'] as String?,
+      starHtml: json['star_html'] as String?,
+      priceThanhvien: json['price_thanhvien'] as String?,
     );
   }
 
@@ -144,6 +159,11 @@ class ProductSuggest {
       'location_text': locationText,
       'warehouse_name': warehouseName,
       'province_name': provinceName,
+      'voucher_icon': voucherIcon,
+      'freeship_icon': freeshipIcon,
+      'chinhhang_icon': chinhhangIcon,
+      'star_html': starHtml,
+      'price_thanhvien': priceThanhvien,
     };
   }
 
@@ -172,6 +192,11 @@ class ProductSuggest {
     String? locationText,
     String? warehouseName,
     String? provinceName,
+    String? voucherIcon,
+    String? freeshipIcon,
+    String? chinhhangIcon,
+    String? starHtml,
+    String? priceThanhvien,
   }) {
     return ProductSuggest(
       id: id ?? this.id,
@@ -198,6 +223,11 @@ class ProductSuggest {
       locationText: locationText ?? this.locationText,
       warehouseName: warehouseName ?? this.warehouseName,
       provinceName: provinceName ?? this.provinceName,
+      voucherIcon: voucherIcon ?? this.voucherIcon,
+      freeshipIcon: freeshipIcon ?? this.freeshipIcon,
+      chinhhangIcon: chinhhangIcon ?? this.chinhhangIcon,
+      starHtml: starHtml ?? this.starHtml,
+      priceThanhvien: priceThanhvien ?? this.priceThanhvien,
     );
   }
 

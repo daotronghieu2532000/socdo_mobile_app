@@ -42,8 +42,12 @@ if ($method === 'GET') {
     $limit = isset($_GET['limit']) ? max(1, min(500, intval($_GET['limit']))) : 20;
     $get_all = isset($_GET['all']) && $_GET['all'] == '1';
     $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-    $sort_by = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'newest';
-    $only_following = isset($_GET['only_following']) && $_GET['only_following'] == '1';
+    $category = isset($_GET['category']) ? intval($_GET['category']) : 0;
+    $brand = isset($_GET['brand']) ? intval($_GET['brand']) : 0;
+    $min_price = isset($_GET['min_price']) ? intval($_GET['min_price']) : 0;
+    $max_price = isset($_GET['max_price']) ? intval($_GET['max_price']) : 0;
+    $sort_by = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'newest'; // newest, price_asc, price_desc, commission_asc, commission_desc
+    $commission_min = isset($_GET['commission_min']) ? floatval($_GET['commission_min']) : 0;
     
     // Validate parameters
     if ($page < 1) $page = 1;
@@ -60,12 +64,30 @@ if ($method === 'GET') {
     // Xây dựng WHERE clause
     $where_conditions = array("sanpham.status = 1");
     
-    // Lọc theo tìm kiếm
+    // Lọc theo tìm kiếm (tìm theo tên, mô tả, ID)
     if (!empty($search)) {
         $search_escaped = mysqli_real_escape_string($conn, $search);
         $where_conditions[] = "(sanpham.tieu_de LIKE '%$search_escaped%' 
                                 OR sanpham.noi_dung LIKE '%$search_escaped%' 
                                 OR sanpham.id = '$search_escaped')";
+    }
+    
+    // Lọc theo danh mục
+    if ($category > 0) {
+        $where_conditions[] = "FIND_IN_SET('$category', sanpham.cat) > 0";
+    }
+    
+    // Lọc theo thương hiệu
+    if ($brand > 0) {
+        $where_conditions[] = "sanpham.thuong_hieu = $brand";
+    }
+    
+    // Lọc theo giá
+    if ($min_price > 0) {
+        $where_conditions[] = "sanpham.gia_moi >= $min_price";
+    }
+    if ($max_price > 0) {
+        $where_conditions[] = "sanpham.gia_moi <= $max_price";
     }
     
     // Chỉ lấy sản phẩm có chương trình affiliate active
@@ -76,14 +98,6 @@ if ($method === 'GET') {
         AND aff.date_start <= $current_time 
         AND aff.date_end >= $current_time
     )";
-    
-    // Lọc theo sản phẩm đang theo dõi (nếu có user_id)
-    if ($only_following && $user_id > 0) {
-        $where_conditions[] = "EXISTS (
-            SELECT 1 FROM follow_aff fa 
-            WHERE fa.sp_id = sanpham.id AND fa.user_id = $user_id
-        )";
-    }
     
     $where_clause = "WHERE " . implode(" AND ", $where_conditions);
     
@@ -96,11 +110,17 @@ if ($method === 'GET') {
         case 'price_desc':
             $order_by .= "sanpham.gia_moi DESC";
             break;
-        case 'commission_asc':
-            $order_by .= "sanpham.gia_moi ASC"; // Sắp xếp theo giá để tính hoa hồng
+        case 'name_asc':
+            $order_by .= "sanpham.tieu_de ASC";
             break;
-        case 'commission_desc':
-            $order_by .= "sanpham.gia_moi DESC"; // Sắp xếp theo giá để tính hoa hồng
+        case 'name_desc':
+            $order_by .= "sanpham.tieu_de DESC";
+            break;
+        case 'popular':
+            $order_by .= "sanpham.luot_mua DESC";
+            break;
+        case 'discount':
+            $order_by .= "(CASE WHEN sanpham.gia_cu > 0 THEN ((sanpham.gia_cu - sanpham.gia_moi) / sanpham.gia_cu * 100) ELSE 0 END) DESC";
             break;
         case 'newest':
         default:
@@ -265,8 +285,12 @@ if ($method === 'GET') {
             ],
             "filters" => [
                 "search" => $search,
+                "category" => $category,
+                "brand" => $brand,
+                "min_price" => $min_price,
+                "max_price" => $max_price,
                 "sort_by" => $sort_by,
-                "only_following" => $only_following,
+                "commission_min" => $commission_min,
                 "user_id" => $user_id
             ]
         ]

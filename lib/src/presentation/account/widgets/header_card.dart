@@ -52,17 +52,8 @@ class _HeaderCardState extends State<HeaderCard> {
   }
 
   Future<void> _loadUserInfo() async {
-    print('👤 [DEBUG] HeaderCard: Bắt đầu load user info...');
     try {
       final user = await _authService.getCurrentUser();
-      print('👤 [DEBUG] HeaderCard: getCurrentUser() = ${user?.name ?? "null"}');
-      
-      // CRITICAL: Kiểm tra mounted trước khi setState
-      if (!mounted) {
-        print('👤 [DEBUG] HeaderCard: Widget đã dispose, bỏ qua setState');
-        return;
-      }
-      
       if (user != null) {
         // Thử lấy thông tin mới nhất từ API user_profile
         try {
@@ -97,25 +88,18 @@ class _HeaderCardState extends State<HeaderCard> {
           }
         } catch (_) {}
       }
-      if (mounted) {
-        setState(() {
-          _currentUser = user;
-          _isLoading = false;
-        });
-        print('👤 [DEBUG] HeaderCard: Set _currentUser = ${user?.name ?? "null"}');
-        _loadCounts();
-        _startPolling();
-      }
+      setState(() {
+        _currentUser = user;
+        _isLoading = false;
+      });
+      _loadCounts();
+      _startPolling();
     } catch (e) {
-      print('👤 [DEBUG] HeaderCard: Lỗi khi load user info: $e');
-      if (mounted) {
-        setState(() {
-          _currentUser = null;
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _currentUser = null;
+        _isLoading = false;
+      });
     }
-    print('👤 [DEBUG] HeaderCard: Hoàn thành load user info');
   }
 
   Future<void> _loadCounts() async {
@@ -257,34 +241,112 @@ class _HeaderCardState extends State<HeaderCard> {
           //   ),
           // ),
           // const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              StatusItem(
-                icon: Icons.receipt_long,
-                label: 'Chờ xác nhận',
-                count: _counts['cho_xac_nhan'] ?? 0,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 0))),
-              ),
-              StatusItem(
-                icon: Icons.store_mall_directory,
-                label: 'Chờ lấy hàng',
-                count: _counts['cho_lay_hang'] ?? 0,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 1))),
-              ),
-              StatusItem(
-                icon: Icons.local_shipping,
-                label: 'Chờ giao hàng',
-                count: _counts['cho_giao_hang'] ?? 0,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 2))),
-              ),
-              StatusItem(
-                icon: Icons.reviews,
-                label: 'Đánh giá',
-                count: _counts['da_huy_tra'] ?? 0,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 3))),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Kiểm tra chiều rộng màn hình
+              final screenWidth = MediaQuery.of(context).size.width;
+              final canFitAll = screenWidth >= 380; // Ngưỡng để hiển thị đầy đủ 4 mục
+              
+              if (canFitAll) {
+                // Hiển thị đầy đủ 4 mục như ban đầu
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    StatusItem(
+                      icon: Icons.receipt_long,
+                      label: 'Chờ xác nhận',
+                      count: _counts['cho_xac_nhan'] ?? 0,
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 0))),
+                    ),
+                    StatusItem(
+                      icon: Icons.store_mall_directory,
+                      label: 'Chờ lấy hàng',
+                      count: _counts['cho_lay_hang'] ?? 0,
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 1))),
+                    ),
+                    StatusItem(
+                      icon: Icons.local_shipping,
+                      label: 'Chờ giao hàng',
+                      count: _counts['cho_giao_hang'] ?? 0,
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 2))),
+                    ),
+                    StatusItem(
+                      icon: Icons.reviews,
+                      label: 'Đánh giá',
+                      count: _counts['da_huy_tra'] ?? 0,
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 3))),
+                    ),
+                  ],
+                );
+              } else {
+                // Cuộn ngang cho màn hình nhỏ
+                return Stack(
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          StatusItem(
+                            icon: Icons.receipt_long,
+                            label: 'Chờ xác nhận',
+                            count: _counts['cho_xac_nhan'] ?? 0,
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 0))),
+                          ),
+                          const SizedBox(width: 12),
+                          StatusItem(
+                            icon: Icons.store_mall_directory,
+                            label: 'Chờ lấy hàng',
+                            count: _counts['cho_lay_hang'] ?? 0,
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 1))),
+                          ),
+                          const SizedBox(width: 12),
+                          StatusItem(
+                            icon: Icons.local_shipping,
+                            label: 'Chờ giao hàng',
+                            count: _counts['cho_giao_hang'] ?? 0,
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 2))),
+                          ),
+                          const SizedBox(width: 12),
+                          StatusItem(
+                            icon: Icons.reviews,
+                            label: 'Đánh giá',
+                            count: _counts['da_huy_tra'] ?? 0,
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 3))),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                      ),
+                    ),
+                    // Gradient fade effect để chỉ ra có thể cuộn
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 30,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Colors.white.withOpacity(0.0),
+                              Colors.white.withOpacity(0.8),
+                            ],
+                          ),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+            },
           )
         ],
       ),

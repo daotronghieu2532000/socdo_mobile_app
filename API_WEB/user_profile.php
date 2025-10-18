@@ -190,31 +190,21 @@ function handle_upload_avatar() {
         return;
     }
     $ext = $allowed[$file['type']];
-    
-    // Sửa đường dẫn upload đúng
-    $uploadDir = '/home/socdo.vn/public_html/uploads/avatars/';
-    if (!is_dir($uploadDir)) { 
-        mkdir($uploadDir, 0777, true); 
-    }
-    
+    $uploadDir = __DIR__ . '/uploads/avatars/';
+    if (!is_dir($uploadDir)) { mkdir($uploadDir, 0777, true); }
     $filename = 'u' . $user_id . '_' . time() . '.' . $ext;
     $target = $uploadDir . $filename;
-    
     if (!move_uploaded_file($file['tmp_name'], $target)) {
         http_response_code(500);
         echo json_encode(["success" => false, "message" => "Lưu file thất bại"]);
         return;
     }
-    
-    // Đường dẫn trả về đúng để frontend có thể truy cập
     $relativePath = '/uploads/avatars/' . $filename;
-    
     $stmt = $conn->prepare("UPDATE user_info SET avatar = ?, date_update = ? WHERE user_id = ?");
     $now = time();
     $stmt->bind_param('sii', $relativePath, $now, $user_id);
     $ok = $stmt->execute();
     $stmt->close();
-    
     if ($ok) {
         http_response_code(200);
         echo json_encode(['success' => true, 'message' => 'Cập nhật avatar thành công', 'data' => ['avatar' => $relativePath]]);

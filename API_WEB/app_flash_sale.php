@@ -266,27 +266,68 @@ try {
                     }
                 }
                 
-                // Sử dụng helper function để thêm badges và location
+                // Kiểm tra voucher và freeship theo logic chuẩn
                 if (isset($product['id']) && $product['id'] > 0) {
-                    require_once './product_badge_helper.php';
-                    
+                    $current_time = time();
                     $deal_shop = 1; // Default shop for flash sale
-                    $product['shop'] = $deal_shop;
                     
-                    // Thêm badges và location info
-                    $product = addProductBadgesAndLocation($product, $conn);
+                    // Check voucher - Logic chuẩn
+                    $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('{$product['id']}', sanpham) AND shop = '$deal_shop' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                    $has_voucher = false;
+                    if (mysqli_num_rows($check_coupon) > 0) {
+                        $has_voucher = true;
+                    } else {
+                        $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                        if (mysqli_num_rows($check_coupon_all) > 0) {
+                            $has_voucher = true;
+                        }
+                    }
                     
-                    // Tạo badges array cho UI
+                    // Check freeship - Logic chuẩn với 4 mode
+                    $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
+                    $freeship_result = mysqli_query($conn, $freeship_query);
+                    $has_freeship = false;
+                    $freeship_label = '';
+                    
+                    if ($freeship_result && mysqli_num_rows($freeship_result) > 0) {
+                        $freeship_data = mysqli_fetch_assoc($freeship_result);
+                        $mode = intval($freeship_data['free_ship_all'] ?? 0);
+                        $discount = intval($freeship_data['free_ship_discount'] ?? 0);
+                        $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
+                        
+                        $has_freeship = true;
+                        
+                        // Mode 0: Giảm cố định (VD: -15,000đ)
+                        if ($mode === 0 && $discount > 0) {
+                            $freeship_label = 'Giảm ' . number_format($discount) . 'đ';
+                        }
+                        // Mode 1: Freeship toàn bộ (100%)
+                        elseif ($mode === 1) {
+                            $freeship_label = 'Freeship 100%';
+                        }
+                        // Mode 2: Giảm theo % (VD: -50%)
+                        elseif ($mode === 2 && $discount > 0) {
+                            $freeship_label = 'Giảm ' . intval($discount) . '% ship';
+                        }
+                        // Mode 3: Freeship theo sản phẩm cụ thể
+                        elseif ($mode === 3) {
+                            $freeship_label = 'Ưu đãi ship';
+                        }
+                    }
+                    
+                    // Tạo badges
                     $badges = [];
                     if ($product['oldPrice'] > $product['price'] && $product['oldPrice'] > 0) {
                         $discount_percent = ceil((($product['oldPrice'] - $product['price']) / $product['oldPrice']) * 100);
                         $badges[] = "-$discount_percent%";
                     }
-                    if ($product['has_voucher']) $badges[] = 'Voucher';
-                    if ($product['has_freeship']) $badges[] = $product['freeship_label'] ?: 'Freeship';
+                    if ($has_voucher) $badges[] = 'Voucher';
+                    if ($has_freeship) $badges[] = $freeship_label ?: 'Freeship';
                     $badges[] = 'Chính hãng';
                     
                     $product['badges'] = $badges;
+                    $product['hasVoucher'] = $has_voucher;
+                    $product['isFreeship'] = $has_freeship;
                 }
                 
                 if (!empty($product['id'])) {

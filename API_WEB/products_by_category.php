@@ -139,9 +139,53 @@ try {
                 $discount_percent = round((($product['gia_cu'] - $product['gia_moi']) / $product['gia_cu']) * 100);
             }
             
-            // Sử dụng helper function để thêm badges và location
-            require_once './product_badge_helper.php';
-            $product = addProductBadgesAndLocation($product, $conn);
+            // Kiểm tra voucher và freeship theo logic chuẩn
+            $current_time = time();
+            $deal_shop = $product['shop'];
+            
+            // Check voucher - Logic chuẩn
+            $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('{$product['id']}', sanpham) AND shop = '$deal_shop' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+            $has_voucher = false;
+            if (mysqli_num_rows($check_coupon) > 0) {
+                $has_voucher = true;
+            } else {
+                $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                if (mysqli_num_rows($check_coupon_all) > 0) {
+                    $has_voucher = true;
+                }
+            }
+            
+            // Check freeship - Logic chuẩn với 4 mode
+            $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
+            $freeship_result = mysqli_query($conn, $freeship_query);
+            $is_freeship = false;
+            $freeship_label = '';
+            
+            if ($freeship_result && mysqli_num_rows($freeship_result) > 0) {
+                $freeship_data = mysqli_fetch_assoc($freeship_result);
+                $mode = intval($freeship_data['free_ship_all'] ?? 0);
+                $discount = intval($freeship_data['free_ship_discount'] ?? 0);
+                $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
+                
+                $is_freeship = true;
+                
+                // Mode 0: Giảm cố định (VD: -15,000đ)
+                if ($mode === 0 && $discount > 0) {
+                    $freeship_label = 'Giảm ' . number_format($discount) . 'đ';
+                }
+                // Mode 1: Freeship toàn bộ (100%)
+                elseif ($mode === 1) {
+                    $freeship_label = 'Freeship 100%';
+                }
+                // Mode 2: Giảm theo % (VD: -50%)
+                elseif ($mode === 2 && $discount > 0) {
+                    $freeship_label = 'Giảm ' . intval($discount) . '% ship';
+                }
+                // Mode 3: Freeship theo sản phẩm cụ thể
+                elseif ($mode === 3) {
+                    $freeship_label = 'Ưu đãi ship';
+                }
+            }
             
             // Format dữ liệu sản phẩm
             $product_data = array(
@@ -166,13 +210,12 @@ try {
                 'box_flash' => intval($product['box_flash']),
                 'warehouse_name' => $product['warehouse_name'],
                 'province_name' => $product['province_name'],
-                'hasVoucher' => $product['has_voucher'],
-                'isFreeship' => $product['has_freeship'],
-                'location_text' => $product['location_text'],
+                'hasVoucher' => $has_voucher,
+                'isFreeship' => $is_freeship,
                 'badges' => array(),
             );
             
-            // Tạo badges array cho UI
+            // Tạo badges
             $badges = array();
             
             // Discount badge
@@ -196,13 +239,13 @@ try {
             }
             
             // Voucher badge
-            if ($product['has_voucher']) {
+            if ($has_voucher) {
                 $badges[] = "Voucher";
             }
             
             // Freeship badge
-            if ($product['has_freeship']) {
-                $badges[] = $product['freeship_label'] ?: "Freeship";
+            if ($is_freeship) {
+                $badges[] = $freeship_label ?: "Freeship";
             }
             
             // Chính hãng badge
