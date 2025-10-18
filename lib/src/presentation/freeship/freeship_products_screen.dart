@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
 import '../../core/models/freeship_product.dart';
-import '../../core/models/product_detail.dart';
-import '../product/product_detail_screen.dart';
-import '../product/widgets/variant_selection_dialog.dart';
-import '../product/widgets/simple_purchase_dialog.dart';
-import '../../core/services/cart_service.dart' as cart_service;
-import '../cart/cart_screen.dart';
-import '../checkout/checkout_screen.dart';
 import '../root_shell.dart';
 import 'widgets/freeship_product_card_horizontal.dart';
 
@@ -20,10 +13,14 @@ class FreeShipProductsScreen extends StatefulWidget {
 
 class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
   final ApiService _apiService = ApiService();
-  final cart_service.CartService _cartService = cart_service.CartService();
   List<FreeShipProduct> _products = [];
   bool _isLoading = true;
   String? _error;
+
+  // Lọc & sắp xếp
+  String _currentSort = 'relevance'; // relevance | price-asc | price-desc | rating-desc | sold-desc
+  bool _onlyHasVoucher = false;
+  bool _showFilters = false;
 
   @override
   void initState() {
@@ -63,21 +60,28 @@ class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text(
-          'FreeShip',
+          'Miễn phí ship',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Color(0xFF333333),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
           ),
         ),
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        centerTitle: false,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF333333)),
             onPressed: _loadProducts,
-            icon: const Icon(Icons.refresh),
           ),
         ],
       ),
@@ -92,11 +96,11 @@ class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.red),
+            CircularProgressIndicator(color: Color(0xFF4CAF50)),
             SizedBox(height: 16),
             Text(
               'Đang tải sản phẩm miễn phí ship...',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
             ),
           ],
         ),
@@ -111,19 +115,19 @@ class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
             const Icon(
               Icons.error_outline,
               size: 64,
-              color: Colors.grey,
+              color: Color(0xFF666666),
             ),
             const SizedBox(height: 16),
             Text(
               _error!,
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: const TextStyle(fontSize: 16, color: Color(0xFF666666)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadProducts,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: const Color(0xFF4CAF50),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Thử lại'),
@@ -141,12 +145,12 @@ class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
             Icon(
               Icons.local_shipping,
               size: 64,
-              color: Colors.grey,
+              color: Color(0xFF666666),
             ),
             SizedBox(height: 16),
             Text(
               'Hiện tại không có sản phẩm miễn phí ship nào',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -154,363 +158,242 @@ class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
       );
     }
 
-    return CustomScrollView(
-      slivers: [
-        // Header banner
-        SliverToBoxAdapter(
-          child: Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Colors.red, Color(0xFFFF6B6B)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.red.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+    final displayedProducts = _getDisplayedProducts();
+
+    return Column(
+      children: [
+        // Header với số kết quả và nút lọc
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFF0F0F0), width: 1),
             ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.local_shipping,
-                  color: Colors.white,
-                  size: 32,
+          ),
+          child: Row(
+            children: [
+              Text(
+                'Tìm thấy ${displayedProducts.length} sản phẩm',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF666666),
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showFilters = !_showFilters;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _showFilters ? const Color(0xFF4CAF50) : const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Miễn phí vận chuyển',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Icon(
+                        Icons.tune,
+                        size: 16,
+                        color: _showFilters ? Colors.white : const Color(0xFF666666),
                       ),
+                      const SizedBox(width: 4),
                       Text(
-                        '${_products.length} sản phẩm',
+                        'Lọc',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 14,
+                          fontSize: 12,
+                          color: _showFilters ? Colors.white : const Color(0xFF666666),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        
-        // Products list
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final product = _products[index];
-                return FreeShipProductCardHorizontal(product: product);
-              },
-              childCount: _products.length,
-            ),
+
+        // Panel lọc
+        if (_showFilters) _buildFilterPanel(),
+
+        // Danh sách sản phẩm
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: displayedProducts.length,
+            itemBuilder: (context, index) {
+              final product = displayedProducts[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: FreeShipProductCardHorizontal(product: product),
+              );
+            },
           ),
-        ),
-        
-        // Bottom padding
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 80),
         ),
       ],
     );
   }
 
+  // Lấy danh sách sản phẩm đã lọc và sắp xếp
+  List<FreeShipProduct> _getDisplayedProducts() {
+    List<FreeShipProduct> filtered = List.from(_products);
 
-  Widget _buildPlaceholderImage() {
+    // Lọc theo điều kiện
+    if (_onlyHasVoucher) {
+      filtered = filtered.where((product) {
+        // Kiểm tra cả boolean và icon voucher
+        return product.voucherIcon != null && product.voucherIcon!.isNotEmpty;
+      }).toList();
+    }
+
+    // Sắp xếp
+    switch (_currentSort) {
+      case 'price-asc':
+        filtered.sort((a, b) => a.price.compareTo(b.price));
+        break;
+      case 'price-desc':
+        filtered.sort((a, b) => b.price.compareTo(a.price));
+        break;
+      case 'rating-desc':
+        filtered.sort((a, b) {
+          final ratingA = a.rating ?? 0.0;
+          final ratingB = b.rating ?? 0.0;
+          return ratingB.compareTo(ratingA);
+        });
+        break;
+      case 'sold-desc':
+        filtered.sort((a, b) {
+          final soldA = a.sold ?? 0;
+          final soldB = b.sold ?? 0;
+          return soldB.compareTo(soldA);
+        });
+        break;
+      case 'relevance':
+      default:
+        // Giữ nguyên thứ tự từ API
+        break;
+    }
+
+    return filtered;
+  }
+
+  // Panel lọc
+  Widget _buildFilterPanel() {
     return Container(
-      color: const Color(0xFFF0F0F0),
-      child: const Center(
-        child: Icon(
-          Icons.image_not_supported,
-          size: 40,
-          color: Colors.grey,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFF0F0F0), width: 1),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildSortChip('relevance', 'Phù hợp', Icons.sort),
+            const SizedBox(width: 8),
+            _buildSortChip('price-asc', 'Giá tăng', Icons.keyboard_arrow_up),
+            const SizedBox(width: 8),
+            _buildSortChip('price-desc', 'Giá giảm', Icons.keyboard_arrow_down),
+            const SizedBox(width: 8),
+            _buildSortChip('rating-desc', 'Đánh giá', Icons.star),
+            const SizedBox(width: 8),
+            _buildSortChip('sold-desc', 'Bán chạy', Icons.trending_up),
+            const SizedBox(width: 8),
+            _buildFilterChip('hasVoucher', 'Có voucher', Icons.local_offer, _onlyHasVoucher),
+          ],
         ),
       ),
     );
   }
 
-  Map<String, dynamic> _fakeMeta(int price) {
-    final base = price % 97;
-    final reviews = 20 + (base % 80);
-    final sold = 30 + (base % 120);
-    return {'rating': '5.0', 'reviews': reviews, 'sold': sold};
-  }
-
-  // Helper to parse color from hex string
-  Color _parseColor(String hexColor) {
-    try {
-      final hex = hexColor.replaceAll('#', '');
-      if (hex.length == 6) {
-        return Color(int.parse('FF$hex', radix: 16));
-      }
-      return Colors.green; // Default
-    } catch (e) {
-      return Colors.green;
-    }
-  }
-
-  // Hiển thị dialog mua hàng (y hệt logic homepage)
-  void _showPurchaseDialog(BuildContext context, FreeShipProduct product) async {
-    try {
-      // Lấy thông tin chi tiết sản phẩm
-      final productDetail = await _apiService.getProductDetail(product.id);
-      
-      // Sử dụng context từ parent để tránh vấn đề context hierarchy
-      final parentContext = Navigator.of(context).context;
-      
-      if (parentContext.mounted) {
-        showModalBottomSheet(
-          context: parentContext,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) {
-            // Nếu có biến thể, hiển thị dialog chọn biến thể
-            if (productDetail != null && productDetail.variants.isNotEmpty) {
-              return VariantSelectionDialog(
-                product: productDetail,
-                selectedVariant: productDetail.variants.first,
-                onBuyNow: (variant, quantity) {
-                  // Thực hiện logic trước, để dialog tự đóng sau
-                  _handleBuyNow(parentContext, productDetail, variant, quantity);
-                  
-                  // Delay một chút rồi đóng dialog
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  });
-                },
-                onAddToCart: (variant, quantity) {
-                  // Thực hiện logic trước, để dialog tự đóng sau
-                  _handleAddToCart(parentContext, productDetail, variant, quantity);
-                  
-                  // Delay một chút rồi đóng dialog
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  });
-                },
-              );
-            } else if (productDetail != null) {
-              return SimplePurchaseDialog(
-                product: productDetail,
-                onBuyNow: (product, quantity) {
-                  // Thực hiện logic trước, để dialog tự đóng sau
-                  _handleBuyNowSimple(parentContext, product, quantity);
-                  
-                  // Delay một chút rồi đóng dialog
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  });
-                },
-                onAddToCart: (product, quantity) {
-                  // Thực hiện logic trước, để dialog tự đóng sau
-                  _handleAddToCartSimple(parentContext, product, quantity);
-                  
-                  // Delay một chút rồi đóng dialog
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  });
-                },
-              );
-            } else {
-              return const SizedBox(
-                height: 200,
-                child: Center(
-                  child: Text('Không thể tải thông tin sản phẩm'),
-                ),
-              );
-            }
-          },
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: $e'),
-            backgroundColor: Colors.red,
+  // Chip sắp xếp
+  Widget _buildSortChip(String value, String label, IconData icon) {
+    final isSelected = _currentSort == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _currentSort = value;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF4CAF50) : const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF4CAF50) : const Color(0xFFE0E0E0),
+            width: 1,
           ),
-        );
-      }
-    }
-  }
-
-  // Xử lý MUA NGAY cho sản phẩm có biến thể
-  void _handleBuyNow(BuildContext context, ProductDetail product, ProductVariant variant, int quantity) {
-    final cartItem = cart_service.CartItem(
-      id: product.id,
-      name: '${product.name} - ${variant.name}',
-      image: product.imageUrl,
-      price: variant.price,
-      oldPrice: variant.oldPrice,
-      quantity: quantity,
-      variant: variant.name,
-      shopId: int.tryParse(product.shopId ?? '0') ?? 0,
-      shopName: product.shopNameFromInfo.isNotEmpty ? product.shopNameFromInfo : 'Unknown Shop',
-      addedAt: DateTime.now(),
-      isSelected: true,
-    );
-    
-    _cartService.addItem(cartItem);
-    
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CheckoutScreen(),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : const Color(0xFF666666),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isSelected ? Colors.white : const Color(0xFF666666),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // Xử lý THÊM VÀO GIỎ cho sản phẩm có biến thể
-  void _handleAddToCart(BuildContext context, ProductDetail product, ProductVariant variant, int quantity) {
-    final cartItem = cart_service.CartItem(
-      id: product.id,
-      name: '${product.name} - ${variant.name}',
-      image: product.imageUrl,
-      price: variant.price,
-      oldPrice: variant.oldPrice,
-      quantity: quantity,
-      variant: variant.name,
-      shopId: int.tryParse(product.shopId ?? '0') ?? 0,
-      shopName: product.shopNameFromInfo.isNotEmpty ? product.shopNameFromInfo : 'Unknown Shop',
-      addedAt: DateTime.now(),
-    );
-    
-    _cartService.addItem(cartItem);
-    
-    // Hiển thị thông báo sử dụng ScaffoldMessenger.maybeOf
-    try {
-      final scaffoldMessenger = ScaffoldMessenger.maybeOf(context);
-      if (scaffoldMessenger != null) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('Đã thêm ${product.name} (${variant.name}) x$quantity vào giỏ hàng'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'Xem giỏ hàng',
-              textColor: Colors.white,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CartScreen(),
-                  ),
-                );
-              },
-            ),
+  // Chip lọc
+  Widget _buildFilterChip(String type, String label, IconData icon, bool isActive) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (type == 'hasVoucher') {
+            _onlyHasVoucher = !_onlyHasVoucher;
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF4CAF50) : const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? const Color(0xFF4CAF50) : const Color(0xFFE0E0E0),
+            width: 1,
           ),
-        );
-      }
-    } catch (e) {
-      // Silent fail
-    }
-  }
-
-  // Xử lý MUA NGAY cho sản phẩm không có biến thể
-  void _handleBuyNowSimple(BuildContext context, ProductDetail product, int quantity) {
-    final cartItem = cart_service.CartItem(
-      id: product.id,
-      name: product.name,
-      image: product.imageUrl,
-      price: product.price,
-      oldPrice: product.oldPrice,
-      quantity: quantity,
-      shopId: int.tryParse(product.shopId ?? '0') ?? 0,
-      shopName: product.shopNameFromInfo.isNotEmpty ? product.shopNameFromInfo : 'Unknown Shop',
-      addedAt: DateTime.now(),
-      isSelected: true,
-    );
-    
-    _cartService.addItem(cartItem);
-    
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CheckoutScreen(),
-      ),
-    );
-  }
-
-  // Xử lý THÊM VÀO GIỎ cho sản phẩm không có biến thể
-  void _handleAddToCartSimple(BuildContext context, ProductDetail product, int quantity) {
-    final cartItem = cart_service.CartItem(
-      id: product.id,
-      name: product.name,
-      image: product.imageUrl,
-      price: product.price,
-      oldPrice: product.oldPrice,
-      quantity: quantity,
-      shopId: int.tryParse(product.shopId ?? '0') ?? 0,
-      shopName: product.shopNameFromInfo.isNotEmpty ? product.shopNameFromInfo : 'Unknown Shop',
-      addedAt: DateTime.now(),
-    );
-    
-    _cartService.addItem(cartItem);
-    
-    // Hiển thị thông báo sử dụng ScaffoldMessenger.maybeOf
-    try {
-      final scaffoldMessenger = ScaffoldMessenger.maybeOf(context);
-      if (scaffoldMessenger != null) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('Đã thêm ${product.name} x$quantity vào giỏ hàng'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'Xem giỏ hàng',
-              textColor: Colors.white,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CartScreen(),
-                  ),
-                );
-              },
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isActive ? Colors.white : const Color(0xFF666666),
             ),
-          ),
-        );
-      }
-    } catch (e) {
-      // Silent fail
-    }
-  }
-
-  
-
-  void _navigateToProductDetail(FreeShipProduct product) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProductDetailScreen(
-          productId: product.id,
-          title: product.name,
-          image: product.image ?? 'lib/src/core/assets/images/product_1.png',
-          price: product.price,
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isActive ? Colors.white : const Color(0xFF666666),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );

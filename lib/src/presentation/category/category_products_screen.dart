@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
-import '../../core/models/product_detail.dart';
-import '../product/widgets/variant_selection_dialog.dart';
-import '../product/product_detail_screen.dart';
-import '../product/widgets/simple_purchase_dialog.dart';
-import '../../core/services/cart_service.dart' as cart_service;
-import '../checkout/checkout_screen.dart';
 import 'widgets/category_product_card_horizontal.dart';
 
 class CategoryProductsScreen extends StatefulWidget {
@@ -24,7 +18,6 @@ class CategoryProductsScreen extends StatefulWidget {
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   final ApiService _apiService = ApiService();
-  final cart_service.CartService _cartService = cart_service.CartService();
   final ScrollController _scrollController = ScrollController();
   
   List<Map<String, dynamic>> _products = [];
@@ -39,6 +32,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   bool _onlyFreeship = false;
   bool _onlyInStock = false;
   bool _onlyHasVoucher = false;
+  bool _showFilters = false;
 
   @override
   void initState() {
@@ -70,14 +64,6 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     return 0;
   }
 
-  // Helper method để parse double an toàn từ String hoặc num
-  double _safeParseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
 
   // Helper method để parse bool an toàn
   bool _safeParseBool(dynamic value) {
@@ -125,7 +111,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         print('📊 Pagination: $pagination');
         
         // Lưu total products từ pagination
-        _totalProducts = _safeParseInt(pagination['total_products']) ?? _safeParseInt(pagination['total']) ?? 0;
+        _totalProducts = _safeParseInt(pagination['total_products']) != 0 ? _safeParseInt(pagination['total_products']) : (_safeParseInt(pagination['total']) != 0 ? _safeParseInt(pagination['total']) : 0);
 
         // Map API fields to UI expected fields
         final products = rawProducts.map((product) {
@@ -176,7 +162,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             _currentPage = 1;
           }
           
-          _hasNextPage = _safeParseBool(pagination['has_next']) ?? false;
+          _hasNextPage = _safeParseBool(pagination['has_next']) != false ? _safeParseBool(pagination['has_next']) : false;
           _isLoading = false;
           _isLoadingMore = false;
           _hasError = false;
@@ -218,11 +204,81 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.categoryName),
-        actions: [
-          IconButton(icon: const Icon(Icons.tune), onPressed: _showFilters),
-        ],
+      backgroundColor: Colors.grey[50],
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: SafeArea(
+          bottom: false,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Row(
+              children: [
+                // Back button
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 18,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Title
+                Expanded(
+                  child: Text(
+                    widget.categoryName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Filter button
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _showFilters = !_showFilters;
+                    });
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _showFilters ? Theme.of(context).colorScheme.primary : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.tune,
+                      size: 18,
+                      color: _showFilters ? Colors.white : Colors.grey[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: _buildBody(),
     );
@@ -273,24 +329,66 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
 
     return Column(
       children: [
-        // Hiển thị số lượng sản phẩm
+        // Header với số kết quả và icon lọc
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+            ),
+          ),
           child: Row(
             children: [
-              Text(
-                'Tìm thấy ${_totalProducts > 0 ? _totalProducts : _products.length} sản phẩm',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
+              Expanded(
+                child: Text(
+                  'Tìm thấy ${_totalProducts > 0 ? _totalProducts : _products.length} sản phẩm',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF666666),
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showFilters = !_showFilters;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _showFilters ? Theme.of(context).colorScheme.primary : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.tune,
+                        size: 16,
+                        color: _showFilters ? Colors.white : Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Lọc',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: _showFilters ? Colors.white : Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        _buildInlineFilters(),
-        // Danh sách sản phẩm với infinite scroll
+        // Panel lọc
+        if (_showFilters) _buildFilterPanel(),
+        // Danh sách sản phẩm
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
@@ -315,187 +413,170 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   }
 
 
-  void _openDetail(int id, String name, String image, int price, {Map<String, dynamic>? rawProduct}) {
-    final shop = _extractShop(rawProduct);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProductDetailScreen(
-          productId: id,
-          title: name,
-          image: image,
-          price: price,
-          initialShopId: int.tryParse(shop.item1 ?? ''),
-          initialShopName: shop.item2,
+
+
+
+  // Build panel lọc mới
+  Widget _buildFilterPanel() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Sắp xếp
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Sắp xếp',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                _buildSortChip('Phù hợp', 'relevance', Icons.trending_up),
+                const SizedBox(width: 8),
+                _buildSortChip('Giá tăng', 'price-asc', Icons.keyboard_arrow_up),
+                const SizedBox(width: 8),
+                _buildSortChip('Giá giảm', 'price-desc', Icons.keyboard_arrow_down),
+                const SizedBox(width: 8),
+                _buildSortChip('Đánh giá', 'rating-desc', Icons.star),
+                const SizedBox(width: 8),
+                _buildSortChip('Bán chạy', 'sold-desc', Icons.local_fire_department),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Lọc nhanh
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Lọc nhanh',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                _buildFilterChip('Freeship', _onlyFreeship, Icons.local_shipping, () {
+                  setState(() => _onlyFreeship = !_onlyFreeship);
+                }),
+                const SizedBox(width: 8),
+                _buildFilterChip('Còn hàng', _onlyInStock, Icons.check_circle, () {
+                  setState(() => _onlyInStock = !_onlyInStock);
+                }),
+                const SizedBox(width: 8),
+                _buildFilterChip('Có voucher', _onlyHasVoucher, Icons.local_offer, () {
+                  setState(() => _onlyHasVoucher = !_onlyHasVoucher);
+                }),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortChip(String label, String value, IconData icon) {
+    final bool selected = _currentSort == value;
+    return GestureDetector(
+      onTap: () => _onSortChanged(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? Theme.of(context).colorScheme.primary : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+          border: selected ? null : Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: selected ? Colors.white : Colors.grey[600],
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: selected ? Colors.white : Colors.grey[700],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  void _showPurchaseDialog(BuildContext context, int productId, String name, String image, {Map<String, dynamic>? rawProduct}) async {
-    final detail = await _apiService.getProductDetail(productId);
-    if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        if (detail != null && detail.variants.isNotEmpty) {
-          return VariantSelectionDialog(
-            product: detail,
-            selectedVariant: detail.variants.first,
-            onBuyNow: (v, q) {
-              Navigator.pop(ctx);
-              Future.delayed(const Duration(milliseconds: 150), () {
-                _handleBuyNow(detail, v, q, fallback: rawProduct);
-              });
-            },
-            onAddToCart: (v, q) { _handleAddToCart(detail, v, q, fallback: rawProduct); Navigator.pop(ctx); },
-          );
-        } else if (detail != null) {
-          return SimplePurchaseDialog(
-            product: detail,
-            onBuyNow: (p, q) {
-              Navigator.pop(ctx);
-              Future.delayed(const Duration(milliseconds: 150), () {
-                _handleBuyNowSimple(p, q, fallback: rawProduct);
-              });
-            },
-            onAddToCart: (p, q) { _handleAddToCartSimple(p, q, fallback: rawProduct); Navigator.pop(ctx); },
-          );
-        }
-        return const SizedBox(height: 200, child: Center(child: Text('Không thể tải thông tin sản phẩm')));
-      },
-    );
-  }
-
-  /// Trả về cặp (shopId, shopName) từ bản ghi API
-  ({String? item1, String? item2}) _extractShop(Map<String, dynamic>? p) {
-    final id = p?['shop_id']?.toString() ?? p?['shop']?.toString() ?? p?['user_id']?.toString();
-    final name = p?['shop_name']?.toString() ?? p?['ten_shop']?.toString();
-    return (item1: id, item2: name);
-  }
-
-  /// Ưu tiên lấy shop từ ProductDetail; nếu thiếu dùng fallback từ bản ghi danh mục
-  ({String id, String name}) _resolveShop(ProductDetail d, {Map<String, dynamic>? fb}) {
-    String? id = d.shopId ?? d.shopInfo?['user_id']?.toString();
-    String? name = d.shopNameFromInfo.isNotEmpty ? d.shopNameFromInfo : (d.shopName ?? d.shopInfo?['name']?.toString());
-    final f = _extractShop(fb);
-    id ??= f.item1;
-    name ??= f.item2;
-    id ??= '0';
-    name ??= 'Sóc Đỏ';
-    // Debug
-    // ignore: avoid_print
-    print('🛍️ resolveShop → id=$id, name=$name (detail.shopId=${d.shopId}, d.shopName=${d.shopName}, fromInfo=${d.shopNameFromInfo}, fb=${f.item1}/${f.item2})');
-    return (id: id, name: name);
-  }
-
-  void _handleBuyNow(ProductDetail product, ProductVariant variant, int quantity, {Map<String, dynamic>? fallback}) {
-    final shop = _resolveShop(product, fb: fallback);
-    final item = cart_service.CartItem(
-      id: product.id,
-      name: '${product.name} - ${variant.name}',
-      image: product.imageUrl,
-      price: variant.price,
-      oldPrice: variant.oldPrice,
-      quantity: quantity,
-      variant: variant.name,
-      shopId: int.tryParse(shop.id) ?? 0,
-      shopName: shop.name,
-      addedAt: DateTime.now(),
-      isSelected: true,
-    );
-    _cartService.addItem(item);
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutScreen()));
-  }
-
-  void _handleAddToCart(ProductDetail product, ProductVariant variant, int quantity, {Map<String, dynamic>? fallback}) {
-    final shop = _resolveShop(product, fb: fallback);
-    final item = cart_service.CartItem(
-      id: product.id,
-      name: '${product.name} - ${variant.name}',
-      image: product.imageUrl,
-      price: variant.price,
-      oldPrice: variant.oldPrice,
-      quantity: quantity,
-      variant: variant.name,
-      shopId: int.tryParse(shop.id) ?? 0,
-      shopName: shop.name,
-      addedAt: DateTime.now(),
-    );
-    _cartService.addItem(item);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(SnackBar(content: Text('Đã thêm ${product.name} (${variant.name}) x$quantity vào giỏ hàng'), backgroundColor: Colors.green));
-  }
-
-  void _handleBuyNowSimple(ProductDetail product, int quantity, {Map<String, dynamic>? fallback}) {
-    final shop = _resolveShop(product, fb: fallback);
-    final item = cart_service.CartItem(
-      id: product.id,
-      name: product.name,
-      image: product.imageUrl,
-      price: product.price,
-      oldPrice: product.oldPrice,
-      quantity: quantity,
-      shopId: int.tryParse(shop.id) ?? 0,
-      shopName: shop.name,
-      addedAt: DateTime.now(),
-      isSelected: true,
-    );
-    _cartService.addItem(item);
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutScreen()));
-  }
-
-  void _handleAddToCartSimple(ProductDetail product, int quantity, {Map<String, dynamic>? fallback}) {
-    final shop = _resolveShop(product, fb: fallback);
-    final item = cart_service.CartItem(
-      id: product.id,
-      name: product.name,
-      image: product.imageUrl,
-      price: product.price,
-      oldPrice: product.oldPrice,
-      quantity: quantity,
-      shopId: int.tryParse(shop.id) ?? 0,
-      shopName: shop.name,
-      addedAt: DateTime.now(),
-    );
-    _cartService.addItem(item);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(SnackBar(content: Text('Đã thêm ${product.name} x$quantity vào giỏ hàng'), backgroundColor: Colors.green));
-  }
-
-  // Inline filter chips similar to search
-  Widget _buildInlineFilters() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          ChoiceChip(label: const Text('Phù hợp'), selected: _currentSort == 'relevance', onSelected: (_) => _onSortChanged('relevance')),
-          const SizedBox(width: 8),
-          ChoiceChip(label: const Text('Giá ↑'), selected: _currentSort == 'price-asc', onSelected: (_) => _onSortChanged('price-asc')),
-          const SizedBox(width: 8),
-          ChoiceChip(label: const Text('Giá ↓'), selected: _currentSort == 'price-desc', onSelected: (_) => _onSortChanged('price-desc')),
-          const SizedBox(width: 8),
-          ChoiceChip(label: const Text('Đánh giá'), selected: _currentSort == 'rating-desc', onSelected: (_) => _onSortChanged('rating-desc')),
-          const SizedBox(width: 8),
-          ChoiceChip(label: const Text('Đã bán'), selected: _currentSort == 'sold-desc', onSelected: (_) => _onSortChanged('sold-desc')),
-          const SizedBox(width: 8),
-          FilterChip(selected: _onlyFreeship, label: const Text('Freeship'), onSelected: (v) => setState(() => _onlyFreeship = v)),
-          const SizedBox(width: 8),
-          FilterChip(selected: _onlyInStock, label: const Text('Còn hàng'), onSelected: (v) => setState(() => _onlyInStock = v)),
-          const SizedBox(width: 8),
-          FilterChip(selected: _onlyHasVoucher, label: const Text('Có voucher'), onSelected: (v) => setState(() => _onlyHasVoucher = v)),
-        ],
+  Widget _buildFilterChip(String label, bool selected, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? Theme.of(context).colorScheme.primary : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+          border: selected ? null : Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: selected ? Colors.white : Colors.grey[600],
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: selected ? Colors.white : Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   List<Map<String, dynamic>> _filteredSorted() {
     List<Map<String, dynamic>> items = List<Map<String, dynamic>>.from(_products);
+    
+    // Lọc theo freeship - kiểm tra cả is_freeship và freeship_icon
     if (_onlyFreeship) {
-      items = items.where((p) => (p['is_freeship'] == true) || (p['free_shipping'] == true)).toList();
+      items = items.where((p) => 
+        (p['is_freeship'] == true) || 
+        (p['free_shipping'] == true) ||
+        (p['freeship_icon'] != null && p['freeship_icon'].toString().isNotEmpty)
+      ).toList();
     }
+    
+    // Lọc theo còn hàng
     if (_onlyInStock) {
       items = items.where((p) {
         final s = p['kho'] ?? p['stock'] ?? p['so_luong'];
@@ -504,21 +585,31 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         return si == null ? true : si > 0;
       }).toList();
     }
+    
+    // Lọc theo có voucher - kiểm tra cả hasVoucher và voucher_icon
     if (_onlyHasVoucher) {
-      items = items.where((p) => p['has_coupon'] == true || p['coupon'] != null || p['coupon_info'] != null).toList();
+      items = items.where((p) => 
+        (p['hasVoucher'] == true) ||
+        (p['has_coupon'] == true) || 
+        (p['coupon'] != null) || 
+        (p['coupon_info'] != null) ||
+        (p['voucher_icon'] != null && p['voucher_icon'].toString().isNotEmpty)
+      ).toList();
     }
+    
+    // Sắp xếp
     switch (_currentSort) {
       case 'price-asc':
-        items.sort((a, b) => (a['gia_moi'] ?? 0).compareTo(b['gia_moi'] ?? 0));
+        items.sort((a, b) => (a['price'] ?? 0).compareTo(b['price'] ?? 0));
         break;
       case 'price-desc':
-        items.sort((a, b) => (b['gia_moi'] ?? 0).compareTo(a['gia_moi'] ?? 0));
+        items.sort((a, b) => (b['price'] ?? 0).compareTo(a['price'] ?? 0));
         break;
       case 'rating-desc':
         items.sort((a, b) => ((b['rating'] ?? 0) as num).compareTo((a['rating'] ?? 0) as num));
         break;
       case 'sold-desc':
-        items.sort((a, b) => ((b['ban'] ?? 0) as num).compareTo((a['ban'] ?? 0) as num));
+        items.sort((a, b) => ((b['sold'] ?? 0) as num).compareTo((a['sold'] ?? 0) as num));
         break;
       default:
         break;
@@ -526,36 +617,4 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     return items;
   }
 
-  void _showFilters() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Bộ lọc nhanh', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              const SizedBox(height: 12),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                FilterChip(selected: _onlyFreeship, label: const Text('Freeship'), onSelected: (v) => setState(() => _onlyFreeship = v)),
-                FilterChip(selected: _onlyInStock, label: const Text('Còn hàng'), onSelected: (v) => setState(() => _onlyInStock = v)),
-                FilterChip(selected: _onlyHasVoucher, label: const Text('Có voucher'), onSelected: (v) => setState(() => _onlyHasVoucher = v)),
-              ]),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng'))),
-                const SizedBox(width: 12),
-                Expanded(child: ElevatedButton(onPressed: () { setState(() {}); Navigator.pop(context); }, child: const Text('Áp dụng'))),
-              ])
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

@@ -48,13 +48,13 @@ class CategoryProductCardHorizontal extends StatelessWidget {
     final discountPercent = product['discount_percent'] ?? 0;
     
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -62,30 +62,30 @@ class CategoryProductCardHorizontal extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () => _navigateToProductDetail(context),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
                   // Box trái: Ảnh sản phẩm + Label giảm giá
                   Container(
-                    width: 150,
-                    height: 150,
+                    width: 140,
+                    height: 140,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF4F6FB),
-                      borderRadius: BorderRadius.circular(8),
+                      color: const Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Stack(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           child: image.isNotEmpty
                               ? Image.network(
                                   image,
-                                  width: 150,
-                                  height: 150,
+                                  width: 140,
+                                  height: 140,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                                 )
@@ -94,16 +94,16 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                         // Discount badge
                         if (discountPercent > 0)
                           Positioned(
-                            top: 4,
-                            right: 4,
+                            top: 6,
+                            right: 6,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
                                 color: Colors.red,
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                '$discountPercent%',
+                                '-$discountPercent%',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -119,8 +119,8 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                   // Box phải: Thông tin sản phẩm
                   Expanded(
                     child: Container(
-                      height: 150,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      height: 140,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -135,10 +135,11 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  height: 1.1,
+                                  height: 1.2,
+                                  color: Color(0xFF333333),
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Text(
@@ -146,11 +147,11 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                                     style: const TextStyle(
                                       color: Colors.red,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                                      fontSize: 15,
                                     ),
                                   ),
                                   if (oldPrice > 0 && oldPrice > price) ...[
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 8),
                                     Text(
                                       FormatUtils.formatCurrency(oldPrice),
                                       style: const TextStyle(
@@ -162,19 +163,19 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   const Icon(Icons.star, size: 14, color: Colors.amber),
                                   const SizedBox(width: 2),
                                   Text(
                                     '${fakeData['rating']} (${fakeData['reviews']}) | Đã bán ${fakeData['sold']}',
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               // Badges row từ các icon riêng lẻ từ API
                               ProductIconsRow(
                                 voucherIcon: product['voucher_icon'] as String?,
@@ -203,16 +204,16 @@ class CategoryProductCardHorizontal extends StatelessWidget {
             ),
             // Icon giỏ hàng được position
             Positioned(
-              bottom: 8,
-              right: 8,
+              bottom: 12,
+              right: 12,
               child: GestureDetector(
                 onTap: () => _showPurchaseDialog(context),
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: Colors.red,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.red.withOpacity(0.3),
@@ -223,7 +224,7 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.add_shopping_cart,
-                    size: 22,
+                    size: 20,
                     color: Colors.white,
                   ),
                 ),
@@ -237,8 +238,8 @@ class CategoryProductCardHorizontal extends StatelessWidget {
 
   Widget _buildPlaceholderImage() {
     return Container(
-      width: 150,
-      height: 150,
+      width: 140,
+      height: 140,
       color: const Color(0xFFF0F0F0),
       child: const Center(
         child: Icon(

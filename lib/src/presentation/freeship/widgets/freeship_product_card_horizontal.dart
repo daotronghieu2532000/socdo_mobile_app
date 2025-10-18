@@ -204,7 +204,7 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
                           // Badge kho ở đáy box
                           ProductLocationBadge(
                             locationText: null,
-                            warehouseName: product.warehouseName,
+                            // warehouseName: product.warehouseName,
                             provinceName: product.provinceName,
                             fontSize: 9,
                             iconColor: Colors.black,
