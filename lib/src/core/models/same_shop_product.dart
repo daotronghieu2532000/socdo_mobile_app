@@ -24,6 +24,13 @@ class SameShopProduct {
   final int updatedAt;
   final String priceFormatted;
   final String oldPriceFormatted;
+  
+  // Thông tin badges từ API (giống ProductSuggest)
+  final String? voucherIcon;
+  final String? freeshipIcon;
+  final String? chinhhangIcon;
+  final String? warehouseName;
+  final String? provinceName;
 
   const SameShopProduct({
     required this.id,
@@ -51,6 +58,11 @@ class SameShopProduct {
     required this.updatedAt,
     required this.priceFormatted,
     required this.oldPriceFormatted,
+    this.voucherIcon,
+    this.freeshipIcon,
+    this.chinhhangIcon,
+    this.warehouseName,
+    this.provinceName,
   });
 
   factory SameShopProduct.fromJson(Map<String, dynamic> json) {
@@ -121,6 +133,12 @@ class SameShopProduct {
       updatedAt: safeParseInt(json['updated_at']),
       priceFormatted: json['price_formatted'] as String? ?? '',
       oldPriceFormatted: json['old_price_formatted'] as String? ?? '',
+      // Parse badges từ API
+      voucherIcon: json['voucher_icon'] as String?,
+      freeshipIcon: json['freeship_icon'] as String?,
+      chinhhangIcon: json['chinhhang_icon'] as String?,
+      warehouseName: json['warehouse_name'] as String?,
+      provinceName: json['province_name'] as String?,
     );
   }
 
@@ -151,6 +169,11 @@ class SameShopProduct {
       'updated_at': updatedAt,
       'price_formatted': priceFormatted,
       'old_price_formatted': oldPriceFormatted,
+      'voucher_icon': voucherIcon,
+      'freeship_icon': freeshipIcon,
+      'chinhhang_icon': chinhhangIcon,
+      'warehouse_name': warehouseName,
+      'province_name': provinceName,
     };
   }
 

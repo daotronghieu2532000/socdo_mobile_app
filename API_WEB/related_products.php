@@ -257,15 +257,15 @@ if ($method === 'GET') {
         $current_time = time();
         $deal_shop = $product['shop'];
         
-        // Check voucher - Logic chuẩn
-        $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$sp_id', sanpham) AND shop = '$deal_shop' AND '$current_time' BETWEEN start AND expired LIMIT 1");
-        $has_voucher = false;
+        // Check voucher - Logic chuẩn với hệ thống
+        $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$sp_id', sanpham) AND shop = '$deal_shop' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+        $voucher_icon = '';
         if (mysqli_num_rows($check_coupon) > 0) {
-            $has_voucher = true;
+            $voucher_icon = 'Voucher';
         } else {
-            $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+            $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
             if (mysqli_num_rows($check_coupon_all) > 0) {
-                $has_voucher = true;
+                $voucher_icon = 'Voucher';
             }
         }
         
@@ -281,25 +281,33 @@ if ($method === 'GET') {
             $discount = intval($freeship_data['free_ship_discount'] ?? 0);
             $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
             
-            $has_free_ship = true;
+            // Lấy giá sản phẩm để kiểm tra điều kiện min_order
+            $base_price = $gia_moi;
             
-            // Mode 0: Giảm cố định (VD: -15,000đ)
-            if ($mode === 0 && $discount > 0) {
+            // Mode 0: Giảm cố định (VD: -15,000đ) - Cần kiểm tra điều kiện min_order
+            if ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
                 $freeship_label = 'Giảm ' . number_format($discount) . 'đ';
             }
             // Mode 1: Freeship toàn bộ (100%)
             elseif ($mode === 1) {
                 $freeship_label = 'Freeship 100%';
             }
-            // Mode 2: Giảm theo % (VD: -50%)
-            elseif ($mode === 2 && $discount > 0) {
+            // Mode 2: Giảm theo % (VD: -50%) - Cần kiểm tra điều kiện min_order
+            elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
                 $freeship_label = 'Giảm ' . intval($discount) . '% ship';
             }
             // Mode 3: Freeship theo sản phẩm cụ thể
             elseif ($mode === 3) {
                 $freeship_label = 'Ưu đãi ship';
             }
+            // Mode 0 với discount = 0: Freeship cơ bản
+            elseif ($mode === 0 && $discount == 0) {
+                $freeship_label = 'Freeship';
+            }
         }
+        
+        $freeship_icon = $freeship_label ?: '';
+        $chinhhang_icon = 'Chính hãng';
         
         // Format image URL
         $image_url = $product['minh_hoa'];
@@ -315,16 +323,16 @@ if ($method === 'GET') {
         if ($is_flash) {
             $badges[] = 'Flash Sale';
         }
-        if ($has_voucher) {
-            $badges[] = 'Voucher';
+        if (!empty($voucher_icon)) {
+            $badges[] = $voucher_icon;
         }
-        if ($has_free_ship) {
-            $badges[] = $freeship_label ?: 'Freeship';
+        if (!empty($freeship_icon)) {
+            $badges[] = $freeship_icon;
         }
         if ($product['box_noibat'] == 1) {
             $badges[] = 'Nổi bật';
         }
-        $badges[] = 'Chính hãng';
+        $badges[] = $chinhhang_icon;
         
         $products[] = [
             'id' => intval($sp_id),
@@ -344,9 +352,12 @@ if ($method === 'GET') {
             'total_sold' => intval($product['ban']),
             'total_views' => intval($product['view']),
             'is_flash_sale' => $is_flash,
-            'has_free_shipping' => $has_free_ship,
-            'hasVoucher' => $has_voucher,
-            'isFreeship' => $has_free_ship,
+            'has_free_shipping' => !empty($freeship_icon),
+            'voucher_icon' => $voucher_icon,
+            'freeship_icon' => $freeship_icon,
+            'chinhhang_icon' => $chinhhang_icon,
+            'warehouse_name' => $product['warehouse_name'] ?? '',
+            'province_name' => $product['province_name'] ?? '',
             'badges' => $badges,
             'product_url' => 'https://socdo.vn/product/' . $product['link'] . '.html',
             'price_formatted' => number_format($gia_moi) . 'đ',

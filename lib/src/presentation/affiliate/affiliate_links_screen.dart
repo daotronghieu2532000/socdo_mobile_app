@@ -534,7 +534,8 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
 
   // Share dialog (giống bên sản phẩm)
   void _showShareDialogForLink(AffiliateLink link) {
-    final affiliateUrl = link.fullLink.isNotEmpty ? link.fullLink : link.shortLink;
+    // Prefer short link to avoid Cloudflare issues, fallback to full link
+    final affiliateUrl = link.shortLink.isNotEmpty ? link.shortLink : link.fullLink;
     final shareText = _buildShareTextForLink(link);
     showModalBottomSheet(
       context: context,
@@ -558,12 +559,20 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _shareIconButton(Icons.facebook, 'Facebook', () {
-                    final fb = 'https://www.facebook.com/sharer/sharer.php?u=${Uri.encodeComponent(affiliateUrl)}&quote=${Uri.encodeComponent(shareText)}';
-                    launchUrl(Uri.parse(fb), mode: LaunchMode.externalApplication);
+                    // Try Facebook app intent first, fallback to system share
+                    final facebookAppUrl = 'fb://facewebmodal/f?href=${Uri.encodeComponent(affiliateUrl)}';
+                    launchUrl(Uri.parse(facebookAppUrl), mode: LaunchMode.externalApplication).catchError((_) {
+                      Share.share('$shareText\n\n$affiliateUrl', subject: link.productTitle);
+                      return false;
+                    });
                   }),
                   _shareIconButton(Icons.chat_bubble_outline, 'Zalo', () {
-                    final zalo = 'https://zalo.me/share?url=${Uri.encodeComponent(affiliateUrl)}&text=${Uri.encodeComponent(shareText)}';
-                    launchUrl(Uri.parse(zalo), mode: LaunchMode.externalApplication);
+                    // Try Zalo app intent first, fallback to system share
+                    final zaloAppUrl = 'zalo://share?url=${Uri.encodeComponent(affiliateUrl)}&text=${Uri.encodeComponent(shareText)}';
+                    launchUrl(Uri.parse(zaloAppUrl), mode: LaunchMode.externalApplication).catchError((_) {
+                      Share.share('$shareText\n\n$affiliateUrl', subject: link.productTitle);
+                      return false;
+                    });
                   }),
                   _shareIconButton(Icons.share, 'Khác', () {
                     Share.share('$shareText\n\n$affiliateUrl', subject: link.productTitle);

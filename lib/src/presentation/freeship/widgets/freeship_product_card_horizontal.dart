@@ -67,8 +67,8 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
                 children: [
                   // Box trái: Ảnh sản phẩm + Label giảm giá
                   Container(
-                    width: 160,
-                    height: 160,
+                    width: 150,
+                    height: 150,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F6FB),
                       borderRadius: BorderRadius.circular(8),
@@ -80,8 +80,8 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
                           child: product.imageUrl != null
                               ? Image.network(
                                   product.imageUrl!,
-                                  width: 160,
-                                  height: 160,
+                                  width: 150,
+                                  height: 150,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                                 )
@@ -135,7 +135,7 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
                   // Box phải: Thông tin sản phẩm
                   Expanded(
                     child: Container(
-                      height: 160,
+                      height: 150,
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,8 +253,8 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
 
   Widget _buildPlaceholderImage() {
     return Container(
-      width: 160,
-      height: 160,
+      width: 150,
+      height: 150,
       color: const Color(0xFFF0F0F0),
       child: const Center(
         child: Icon(

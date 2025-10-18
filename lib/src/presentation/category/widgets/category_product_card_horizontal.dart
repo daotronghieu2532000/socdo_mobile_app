@@ -8,6 +8,7 @@ import '../../product/widgets/variant_selection_dialog.dart';
 import '../../product/widgets/simple_purchase_dialog.dart';
 import '../../../core/services/cart_service.dart' as cart_service;
 import '../../checkout/checkout_screen.dart';
+import '../../shared/widgets/product_badges.dart';
 
 class CategoryProductCardHorizontal extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -70,8 +71,8 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                 children: [
                   // Box trái: Ảnh sản phẩm + Label giảm giá
                   Container(
-                    width: 130,
-                    height: 130,
+                    width: 150,
+                    height: 150,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F6FB),
                       borderRadius: BorderRadius.circular(8),
@@ -83,8 +84,8 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                           child: image.isNotEmpty
                               ? Image.network(
                                   image,
-                                  width: 130,
-                                  height: 130,
+                                  width: 150,
+                                  height: 150,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                                 )
@@ -118,8 +119,8 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                   // Box phải: Thông tin sản phẩm
                   Expanded(
                     child: Container(
-                      height: 130,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      height: 150,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -134,10 +135,10 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  height: 1.2,
+                                  height: 1.1,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
                                   Text(
@@ -145,10 +146,10 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                                     style: const TextStyle(
                                       color: Colors.red,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                  if (oldPrice > 0) ...[
+                                  if (oldPrice > 0 && oldPrice > price) ...[
                                     const SizedBox(width: 6),
                                     Text(
                                       FormatUtils.formatCurrency(oldPrice),
@@ -161,7 +162,7 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
                                   const Icon(Icons.star, size: 14, color: Colors.amber),
@@ -173,7 +174,25 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 6),
+                              // Badges row từ các icon riêng lẻ từ API
+                              ProductIconsRow(
+                                voucherIcon: product['voucher_icon'] as String?,
+                                freeshipIcon: product['freeship_icon'] as String?,
+                                chinhhangIcon: product['chinhhang_icon'] as String?,
+                                fontSize: 9,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              ),
                             ],
+                          ),
+                          // Badge kho ở đáy box
+                          ProductLocationBadge(
+                            locationText: null,
+                            warehouseName: product['warehouse_name'] as String?,
+                            provinceName: product['province_name'] as String?,
+                            fontSize: 9,
+                            iconColor: Colors.black,
+                            textColor: Colors.black,
                           ),
                         ],
                       ),
@@ -218,8 +237,8 @@ class CategoryProductCardHorizontal extends StatelessWidget {
 
   Widget _buildPlaceholderImage() {
     return Container(
-      width: 130,
-      height: 130,
+      width: 150,
+      height: 150,
       color: const Color(0xFFF0F0F0),
       child: const Center(
         child: Icon(

@@ -21,6 +21,13 @@ class RelatedProduct {
   final String productUrl;
   final String priceFormatted;
   final String oldPriceFormatted;
+  
+  // Thông tin badges từ API (giống ProductSuggest)
+  final String? voucherIcon;
+  final String? freeshipIcon;
+  final String? chinhhangIcon;
+  final String? warehouseName;
+  final String? provinceName;
 
   RelatedProduct({
     required this.id,
@@ -45,6 +52,11 @@ class RelatedProduct {
     required this.productUrl,
     required this.priceFormatted,
     required this.oldPriceFormatted,
+    this.voucherIcon,
+    this.freeshipIcon,
+    this.chinhhangIcon,
+    this.warehouseName,
+    this.provinceName,
   });
 
   factory RelatedProduct.fromJson(Map<String, dynamic> json) {
@@ -71,6 +83,12 @@ class RelatedProduct {
       productUrl: json['product_url'] ?? '',
       priceFormatted: json['price_formatted'] ?? '',
       oldPriceFormatted: json['old_price_formatted'] ?? '',
+      // Parse badges từ API
+      voucherIcon: json['voucher_icon'] as String?,
+      freeshipIcon: json['freeship_icon'] as String?,
+      chinhhangIcon: json['chinhhang_icon'] as String?,
+      warehouseName: json['warehouse_name'] as String?,
+      provinceName: json['province_name'] as String?,
     );
   }
 
@@ -98,6 +116,11 @@ class RelatedProduct {
       'product_url': productUrl,
       'price_formatted': priceFormatted,
       'old_price_formatted': oldPriceFormatted,
+      'voucher_icon': voucherIcon,
+      'freeship_icon': freeshipIcon,
+      'chinhhang_icon': chinhhangIcon,
+      'warehouse_name': warehouseName,
+      'province_name': provinceName,
     };
   }
 }

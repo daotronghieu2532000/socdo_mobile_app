@@ -222,54 +222,64 @@ try {
             
             $current_time = time();
             
-            // Kiểm tra voucher cho sản phẩm cụ thể
-            $check_coupon = mysqli_query($conn, "SELECT id, ma, loai, giam FROM coupon WHERE FIND_IN_SET('{$product['id']}', sanpham) AND shop = '$shop_id' AND '$current_time' BETWEEN start AND expired LIMIT 1");
-            if ($check_coupon && mysqli_num_rows($check_coupon) > 0) {
-                $voucher_data = mysqli_fetch_assoc($check_coupon);
-                $voucher_info['has_voucher'] = true;
-                $voucher_info['voucher_details'] = 'Voucher ' . $voucher_data['ma'];
-                if ($voucher_data['loai'] == 'tru') {
-                    $voucher_info['voucher_details'] .= ' - Giảm ' . number_format($voucher_data['giam']) . 'đ';
-                } else {
-                    $voucher_info['voucher_details'] .= ' - Giảm ' . $voucher_data['giam'] . '%';
-                }
+            // Kiểm tra voucher cho sản phẩm cụ thể - Logic chuẩn với hệ thống
+            $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('{$product['id']}', sanpham) AND shop = '$shop_id' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+            $voucher_icon = '';
+            if (mysqli_num_rows($check_coupon) > 0) {
+                $voucher_icon = 'Voucher';
             } else {
                 // Kiểm tra voucher cho toàn shop
-                $check_coupon_all = mysqli_query($conn, "SELECT id, ma, loai, giam FROM coupon WHERE shop = '$shop_id' AND kieu = 'all' AND '$current_time' BETWEEN start AND expired LIMIT 1");
-                if ($check_coupon_all && mysqli_num_rows($check_coupon_all) > 0) {
-                    $voucher_data = mysqli_fetch_assoc($check_coupon_all);
-                    $voucher_info['has_voucher'] = true;
-                    $voucher_info['voucher_details'] = 'Voucher shop ' . $voucher_data['ma'];
-                    if ($voucher_data['loai'] == 'tru') {
-                        $voucher_info['voucher_details'] .= ' - Giảm ' . number_format($voucher_data['giam']) . 'đ';
-                    } else {
-                        $voucher_info['voucher_details'] .= ' - Giảm ' . $voucher_data['giam'] . '%';
-                    }
+                $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$shop_id' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                if (mysqli_num_rows($check_coupon_all) > 0) {
+                    $voucher_icon = 'Voucher';
                 }
             }
             
             $product_data['voucher_info'] = $voucher_info;
             
-            // Thông tin ship
+            // Thông tin ship - Logic chuẩn với 4 mode
             $shipping_info = array();
             $shipping_info['has_free_shipping'] = false;
             $shipping_info['free_ship_details'] = '';
             
-            $check_freeship = mysqli_query($conn, "SELECT id, free_ship_all, free_ship_discount, free_ship_min_order FROM transport WHERE user_id = '$shop_id' AND (free_ship_all = 1 OR free_ship_discount > 0) LIMIT 1");
+            $check_freeship = mysqli_query($conn, "SELECT id, free_ship_all, free_ship_discount, free_ship_min_order FROM transport WHERE user_id = '$shop_id' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1");
+            $freeship_icon = '';
             if ($check_freeship && mysqli_num_rows($check_freeship) > 0) {
                 $ship_data = mysqli_fetch_assoc($check_freeship);
-                $shipping_info['has_free_shipping'] = true;
+                $mode = intval($ship_data['free_ship_all'] ?? 0);
+                $discount = intval($ship_data['free_ship_discount'] ?? 0);
+                $minOrder = intval($ship_data['free_ship_min_order'] ?? 0);
                 
-                if ($ship_data['free_ship_all'] == 1) {
-                    $shipping_info['free_ship_details'] = 'Miễn phí ship hoàn toàn';
-                } elseif ($ship_data['free_ship_all'] == 2) {
-                    $shipping_info['free_ship_details'] = 'Hỗ trợ ship ' . $ship_data['free_ship_discount'] . '%';
-                } elseif ($ship_data['free_ship_discount'] > 0) {
-                    $shipping_info['free_ship_details'] = 'Hỗ trợ ship ' . number_format($ship_data['free_ship_discount']) . 'đ';
+                // Lấy giá sản phẩm để kiểm tra điều kiện min_order
+                $base_price = $product_data['price'];
+                
+                // Mode 0: Giảm cố định (VD: -15,000đ) - Cần kiểm tra điều kiện min_order
+                if ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
+                    $freeship_icon = 'Giảm ' . number_format($discount) . 'đ';
+                }
+                // Mode 1: Freeship toàn bộ (100%)
+                elseif ($mode === 1) {
+                    $freeship_icon = 'Freeship 100%';
+                }
+                // Mode 2: Giảm theo % (VD: -50%) - Cần kiểm tra điều kiện min_order
+                elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
+                    $freeship_icon = 'Giảm ' . intval($discount) . '% ship';
+                }
+                // Mode 3: Freeship theo sản phẩm cụ thể
+                elseif ($mode === 3) {
+                    $freeship_icon = 'Ưu đãi ship';
+                }
+                // Mode 0 với discount = 0: Freeship cơ bản
+                elseif ($mode === 0 && $discount == 0) {
+                    $freeship_icon = 'Freeship';
                 }
                 
-                $shipping_info['min_order_for_free_ship'] = intval($ship_data['free_ship_min_order']);
+                $shipping_info['has_free_shipping'] = !empty($freeship_icon);
+                $shipping_info['free_ship_details'] = $freeship_icon;
+                $shipping_info['min_order_for_free_ship'] = $minOrder;
             }
+            
+            $chinhhang_icon = 'Chính hãng';
             
             $product_data['shipping_info'] = $shipping_info;
             
@@ -278,17 +288,24 @@ try {
             if ($product_data['discount_percent'] > 0) {
                 $badges[] = 'Giảm ' . $product_data['discount_percent'] . '%';
             }
-            if ($voucher_info['has_voucher']) {
-                $badges[] = 'Voucher';
+            if (!empty($voucher_icon)) {
+                $badges[] = $voucher_icon;
             }
-            if ($shipping_info['has_free_shipping']) {
-                $badges[] = 'Freeship';
+            if (!empty($freeship_icon)) {
+                $badges[] = $freeship_icon;
             }
-            // Bỏ badge "Chính hãng" vì không có trường chinhhang trong DB thực tế
             if ($product['box_flash'] == 1) {
                 $badges[] = 'Flash Sale';
             }
+            $badges[] = $chinhhang_icon;
             $product_data['badges'] = $badges;
+            
+            // Thêm các field mới
+            $product_data['voucher_icon'] = $voucher_icon;
+            $product_data['freeship_icon'] = $freeship_icon;
+            $product_data['chinhhang_icon'] = $chinhhang_icon;
+            $product_data['warehouse_name'] = $product['warehouse_name'] ?? '';
+            $product_data['province_name'] = $product['province_name'] ?? '';
             
             // Thông tin bổ sung
             $product_data['is_authentic'] = 0; // Không có trường chinhhang trong DB thực tế

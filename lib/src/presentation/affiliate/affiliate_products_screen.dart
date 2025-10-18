@@ -899,20 +899,26 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
 
   void _shareToFacebook(AffiliateProduct product) {
     final shareText = _buildShareText(product);
-    final shareUrl = _buildAffiliateUrl(product); // always keep utm_source_shop
+    // Use short link if available to avoid Cloudflare issues, otherwise use long URL
+    final shareUrl = product.hasLink ? product.shortLink! : _buildAffiliateUrl(product);
     
-    // Facebook sharing URL
-    final facebookUrl = 'https://www.facebook.com/sharer/sharer.php?u=${Uri.encodeComponent(shareUrl)}&quote=${Uri.encodeComponent(shareText)}';
-    _launchUrl(facebookUrl);
+    // Try Facebook app intent first, fallback to system share
+    final facebookAppUrl = 'fb://facewebmodal/f?href=${Uri.encodeComponent(shareUrl)}';
+    _launchUrl(facebookAppUrl).catchError((_) {
+      // Fallback to system share if Facebook app not available
+      Share.share('$shareText\n\n$shareUrl', subject: product.title);
+    });
   }
 
   void _shareToZalo(AffiliateProduct product) {
     final shareText = _buildShareText(product);
-    final shareUrl = _buildAffiliateUrl(product); // always keep utm_source_shop
+    // Use short link if available to avoid Cloudflare issues, otherwise use long URL
+    final shareUrl = product.hasLink ? product.shortLink! : _buildAffiliateUrl(product);
     
-    // Prefer mobile share endpoint; fallback to system share sheet
-    final zaloUrl = 'https://zalo.me/share?url=${Uri.encodeComponent(shareUrl)}&text=${Uri.encodeComponent(shareText)}';
-    _launchUrl(zaloUrl).catchError((_) {
+    // Try Zalo app intent first, fallback to system share
+    final zaloAppUrl = 'zalo://share?url=${Uri.encodeComponent(shareUrl)}&text=${Uri.encodeComponent(shareText)}';
+    _launchUrl(zaloAppUrl).catchError((_) {
+      // Fallback to system share if Zalo app not available
       Share.share('$shareText\n\n$shareUrl', subject: product.title);
     });
   }

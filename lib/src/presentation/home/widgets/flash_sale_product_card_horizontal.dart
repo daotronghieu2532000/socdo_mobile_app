@@ -10,6 +10,7 @@ import '../../../core/models/flash_sale_product.dart';
 import '../../../core/models/product_detail.dart';
 import '../../../core/services/cart_service.dart';
 import '../../../core/services/api_service.dart';
+import '../../shared/widgets/product_badges.dart';
 
 class FlashSaleProductCardHorizontal extends StatelessWidget {
   final FlashSaleProduct product;
@@ -70,8 +71,8 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
                 children: [
                   // Box trái: Ảnh sản phẩm + Label giảm giá
                   Container(
-                    width: 130,
-                    height: 130,
+                    width: 160,
+                    height: 160,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F6FB),
                       borderRadius: BorderRadius.circular(8),
@@ -83,8 +84,8 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
                           child: product.imageUrl != null
                               ? Image.network(
                                   product.imageUrl!,
-                                  width: 130,
-                                  height: 130,
+                                  width: 160,
+                                  height: 160,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                                 )
@@ -147,8 +148,8 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
                   // Box phải: Thông tin sản phẩm
                   Expanded(
                     child: Container(
-                      height: 130,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      height: 160,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -163,10 +164,10 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  height: 1.2,
+                                  height: 1.1,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
                                   Text(
@@ -174,7 +175,7 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
                                     style: const TextStyle(
                                       color: Colors.red,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      fontSize: 14,
                                     ),
                                   ),
                                   if (product.oldPrice != null && product.oldPrice! > product.price) ...[
@@ -190,7 +191,7 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               // Progress bar showing stock status
                               if (product.stock != null && product.stock! > 0 && product.sold != null && product.sold! > 0)
                                 Column(
@@ -229,7 +230,7 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               // Countdown text
                               Text(
                                 countdownText,
@@ -239,7 +240,25 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              const SizedBox(height: 6),
+                              // Badges row - Flash Sale luôn có Flash Sale badge
+                              ProductIconsRow(
+                                voucherIcon: null, // Flash Sale không có voucher riêng
+                                freeshipIcon: null, // Flash Sale không có freeship riêng
+                                chinhhangIcon: 'Chính hãng', // Flash Sale luôn chính hãng
+                                fontSize: 9,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              ),
                             ],
+                          ),
+                          // Badge kho ở đáy box - Flash Sale không có thông tin kho cụ thể
+                          ProductLocationBadge(
+                            locationText: null,
+                            warehouseName: null,
+                            provinceName: null,
+                            fontSize: 9,
+                            iconColor: Colors.black,
+                            textColor: Colors.black,
                           ),
                         ],
                       ),
@@ -284,8 +303,8 @@ class FlashSaleProductCardHorizontal extends StatelessWidget {
 
   Widget _buildPlaceholderImage() {
     return Container(
-      width: 130,
-      height: 130,
+      width: 160,
+      height: 160,
       color: const Color(0xFFF0F0F0),
       child: const Center(
         child: Icon(
