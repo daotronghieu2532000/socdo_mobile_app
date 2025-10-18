@@ -824,14 +824,14 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> with TickerProviderSt
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Timeline: ${deal.timeline ?? 'N/A'}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
+                      // const SizedBox(height: 4),
+                      // Text(
+                      //   'Timeline: ${deal.timeline ?? 'N/A'}',
+                      //   style: TextStyle(
+                      //     fontSize: 12,
+                      //     color: Colors.grey[600],
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),

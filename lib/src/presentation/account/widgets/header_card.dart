@@ -52,8 +52,17 @@ class _HeaderCardState extends State<HeaderCard> {
   }
 
   Future<void> _loadUserInfo() async {
+    print('👤 [DEBUG] HeaderCard: Bắt đầu load user info...');
     try {
       final user = await _authService.getCurrentUser();
+      print('👤 [DEBUG] HeaderCard: getCurrentUser() = ${user?.name ?? "null"}');
+      
+      // CRITICAL: Kiểm tra mounted trước khi setState
+      if (!mounted) {
+        print('👤 [DEBUG] HeaderCard: Widget đã dispose, bỏ qua setState');
+        return;
+      }
+      
       if (user != null) {
         // Thử lấy thông tin mới nhất từ API user_profile
         try {
@@ -88,18 +97,25 @@ class _HeaderCardState extends State<HeaderCard> {
           }
         } catch (_) {}
       }
-      setState(() {
-        _currentUser = user;
-        _isLoading = false;
-      });
-      _loadCounts();
-      _startPolling();
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _isLoading = false;
+        });
+        print('👤 [DEBUG] HeaderCard: Set _currentUser = ${user?.name ?? "null"}');
+        _loadCounts();
+        _startPolling();
+      }
     } catch (e) {
-      setState(() {
-        _currentUser = null;
-        _isLoading = false;
-      });
+      print('👤 [DEBUG] HeaderCard: Lỗi khi load user info: $e');
+      if (mounted) {
+        setState(() {
+          _currentUser = null;
+          _isLoading = false;
+        });
+      }
     }
+    print('👤 [DEBUG] HeaderCard: Hoàn thành load user info');
   }
 
   Future<void> _loadCounts() async {

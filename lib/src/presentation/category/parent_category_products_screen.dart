@@ -53,6 +53,35 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
     }
   }
 
+  // Helper method để parse int an toàn từ String hoặc int
+  int _safeParseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    if (value is double) return value.toInt();
+    return 0;
+  }
+
+  // Helper method để parse double an toàn từ String hoặc num
+  double _safeParseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  // Helper method để parse bool an toàn
+  bool _safeParseBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is String) {
+      return value.toLowerCase() == 'true' || value == '1';
+    }
+    if (value is int) return value == 1;
+    return false;
+  }
+
   Future<void> _loadProducts({bool loadMore = false}) async {
     if (!loadMore) {
       setState(() {
@@ -74,31 +103,39 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
         final data = response['data'];
         final rawProducts = List<Map<String, dynamic>>.from(data['products'] ?? []);
         final pagination = data['pagination'] ?? {};
+        
+        // Debug log để kiểm tra API response
+        print('🔍 Parent Category Products API Response:');
+        print('📊 Raw products count: ${rawProducts.length}');
+        if (rawProducts.isNotEmpty) {
+          print('📊 First product sample: ${rawProducts.first}');
+        }
+        print('📊 Pagination: $pagination');
 
         // Map API fields to UI expected fields
         final products = rawProducts.map((product) {
           final mappedProduct = {
-            'id': product['id'],
-            'name': product['tieu_de'] ?? 'Sản phẩm',
-            'image': product['minh_hoa'] ?? '',
-            'price': product['gia_moi'] ?? 0,
-            'old_price': product['gia_cu'] ?? 0,
-            'discount_percent': product['discount_percent'] ?? 0,
+            'id': _safeParseInt(product['id']),
+            'name': product['tieu_de']?.toString() ?? 'Sản phẩm',
+            'image': product['minh_hoa']?.toString() ?? '',
+            'price': _safeParseInt(product['gia_moi']),
+            'old_price': _safeParseInt(product['gia_cu']),
+            'discount_percent': _safeParseInt(product['discount_percent']),
             'rating': 5.0, // Default rating
-            'sold': product['ban'] ?? 0,
-            'view': product['view'] ?? 0,
-            'shop_id': product['shop'] ?? '',
-            'shop_name': 'Shop', // Default shop name
-            'is_freeship': product['isFreeship'] ?? false,
-            'hasVoucher': product['hasVoucher'] ?? false,
+            'sold': _safeParseInt(product['ban']),
+            'view': _safeParseInt(product['view']),
+            'shop_id': product['shop']?.toString() ?? '',
+            'shop_name': product['shop_name']?.toString() ?? 'Shop',
+            'is_freeship': _safeParseBool(product['isFreeship']),
+            'hasVoucher': _safeParseBool(product['hasVoucher']),
             'badges': product['badges'] ?? [],
-            'link': product['link'] ?? '',
-            'date_post': product['date_post'] ?? '',
-            'kho': product['kho'] ?? 0,
-            'thuong_hieu': product['thuong_hieu'] ?? '',
-            'noi_ban': product['noi_ban'] ?? '',
-            'cat': product['cat'] ?? '',
-            'status': product['status'] ?? 1,
+            'link': product['link']?.toString() ?? '',
+            'date_post': product['date_post']?.toString() ?? '',
+            'kho': _safeParseInt(product['kho']),
+            'thuong_hieu': product['thuong_hieu']?.toString() ?? '',
+            'noi_ban': product['noi_ban']?.toString() ?? '',
+            'cat': product['cat']?.toString() ?? '',
+            'status': product['status'] != null ? _safeParseInt(product['status']) : 1,
           };
           return mappedProduct;
         }).toList();
@@ -183,27 +220,27 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
         // Map API fields to UI expected fields
         final products = rawProducts.map((product) {
           return {
-            'id': product['id'],
-            'name': product['tieu_de'] ?? 'Sản phẩm',
-            'image': product['minh_hoa'] ?? '',
-            'price': product['gia_moi'] ?? 0,
-            'old_price': product['gia_cu'] ?? 0,
-            'discount_percent': product['discount_percent'] ?? 0,
+            'id': _safeParseInt(product['id']),
+            'name': product['tieu_de']?.toString() ?? 'Sản phẩm',
+            'image': product['minh_hoa']?.toString() ?? '',
+            'price': _safeParseInt(product['gia_moi']),
+            'old_price': _safeParseInt(product['gia_cu']),
+            'discount_percent': _safeParseInt(product['discount_percent']),
             'rating': 5.0,
-            'sold': product['ban'] ?? 0,
-            'view': product['view'] ?? 0,
-            'shop_id': product['shop'] ?? '',
-            'shop_name': 'Shop',
-            'is_freeship': product['isFreeship'] ?? false,
-            'hasVoucher': product['hasVoucher'] ?? false,
+            'sold': _safeParseInt(product['ban']),
+            'view': _safeParseInt(product['view']),
+            'shop_id': product['shop']?.toString() ?? '',
+            'shop_name': product['shop_name']?.toString() ?? 'Shop',
+            'is_freeship': _safeParseBool(product['isFreeship']),
+            'hasVoucher': _safeParseBool(product['hasVoucher']),
             'badges': product['badges'] ?? [],
-            'link': product['link'] ?? '',
-            'date_post': product['date_post'] ?? '',
-            'kho': product['kho'] ?? 0,
-            'thuong_hieu': product['thuong_hieu'] ?? '',
-            'noi_ban': product['noi_ban'] ?? '',
-            'cat': product['cat'] ?? '',
-            'status': product['status'] ?? 1,
+            'link': product['link']?.toString() ?? '',
+            'date_post': product['date_post']?.toString() ?? '',
+            'kho': _safeParseInt(product['kho']),
+            'thuong_hieu': product['thuong_hieu']?.toString() ?? '',
+            'noi_ban': product['noi_ban']?.toString() ?? '',
+            'cat': product['cat']?.toString() ?? '',
+            'status': product['status'] != null ? _safeParseInt(product['status']) : 1,
           };
         }).toList();
         

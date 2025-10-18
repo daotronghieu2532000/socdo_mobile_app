@@ -210,7 +210,7 @@ class _CartScreenState extends State<CartScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Bạn có chắc muốn xóa ${selectedCount} sản phẩm đã chọn?',
+                            'Bạn có chắc muốn xóa $selectedCount sản phẩm đã chọn?',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey[600],

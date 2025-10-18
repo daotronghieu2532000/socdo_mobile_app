@@ -37,16 +37,21 @@ class _HomeAppBarState extends State<HomeAppBar> {
   }
 
   Future<void> _checkLoginStatus() async {
+    print('🏠 [DEBUG] HomeAppBar: Bắt đầu kiểm tra trạng thái đăng nhập...');
     try {
       final isLoggedIn = await _authService.isLoggedIn();
+      print('🏠 [DEBUG] HomeAppBar: isLoggedIn = $isLoggedIn');
+      
       if (isLoggedIn) {
         final user = await _authService.getCurrentUser();
+        print('🏠 [DEBUG] HomeAppBar: User = ${user?.name ?? "null"}');
         setState(() {
           _currentUser = user;
           _isLoading = false;
         });
         _loadUnread();
       } else {
+        print('🏠 [DEBUG] HomeAppBar: Không có user, set _currentUser = null');
         setState(() {
           _currentUser = null;
           _isLoading = false;
@@ -54,11 +59,13 @@ class _HomeAppBarState extends State<HomeAppBar> {
         setState(() => _unread = 0);
       }
     } catch (e) {
+      print('🏠 [DEBUG] HomeAppBar: Lỗi khi kiểm tra đăng nhập: $e');
       setState(() {
         _currentUser = null;
         _isLoading = false;
       });
     }
+    print('🏠 [DEBUG] HomeAppBar: Hoàn thành kiểm tra trạng thái đăng nhập');
   }
 
   Future<void> _loadUnread() async {

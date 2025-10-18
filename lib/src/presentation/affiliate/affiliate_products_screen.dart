@@ -1284,7 +1284,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
                   _loadProducts(refresh: true);
                 },
               );
-            }).toList(),
+            }),
             
             const SizedBox(height: 20),
           ],

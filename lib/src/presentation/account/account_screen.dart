@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'widgets/header_card.dart';
 import 'widgets/section_header.dart';
 import 'widgets/action_list.dart';
+import 'widgets/logout_confirmation_dialog.dart';
 import 'models/action_item.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/app_initialization_service.dart';
 import '../root_shell.dart';
 
 class AccountScreen extends StatelessWidget {
@@ -54,31 +56,31 @@ class AccountScreen extends StatelessWidget {
                 
                 if (isLoggedIn) {
                   // Show confirmation dialog
-                  final shouldLogout = await showDialog<bool>(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Text('Đăng xuất'),
-                        content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Hủy'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text(
-                              'Đăng xuất',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  );
+                  final shouldLogout = await LogoutConfirmationDialog.show(context);
                   
                   if (shouldLogout == true) {
+                    print('🚪 [DEBUG] Bắt đầu quá trình đăng xuất...');
+                    
+                    // Kiểm tra trạng thái trước khi logout
+                    final beforeLogout = await authService.isLoggedIn();
+                    print('🚪 [DEBUG] Trạng thái trước logout: $beforeLogout');
+                    
                     await authService.logout();
+                    print('🚪 [DEBUG] Đã gọi authService.logout()');
+                    
+                    // CRITICAL: Force clear AuthService để đảm bảo logout hoàn toàn
+                    await Future.delayed(const Duration(milliseconds: 100));
+                    authService.forceClear(); // Force clear để đảm bảo
+                    print('🚪 [DEBUG] Đã force clear AuthService');
+                    
+                    // Kiểm tra trạng thái sau khi logout
+                    final afterLogout = await authService.isLoggedIn();
+                    print('🚪 [DEBUG] Trạng thái sau logout: $afterLogout');
+                    
+                    // Reset app initialization state
+                    AppInitializationService().resetInitialization();
+                    print('🚪 [DEBUG] Đã reset AppInitializationService');
+                    
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -87,7 +89,17 @@ class AccountScreen extends StatelessWidget {
                           duration: Duration(seconds: 2),
                         ),
                       );
-                      Navigator.of(context).pop();
+                      print('🚪 [DEBUG] Đã hiển thị thông báo thành công');
+                      
+                      // Quay về trang chủ và refresh toàn bộ navigation stack
+                      print('🚪 [DEBUG] Bắt đầu navigation về trang chủ...');
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (context) => const RootShell(initialIndex: 0),
+                        ),
+                        (route) => false,
+                      );
+                      print('🚪 [DEBUG] Đã hoàn thành navigation');
                     }
                   }
                 } else {
