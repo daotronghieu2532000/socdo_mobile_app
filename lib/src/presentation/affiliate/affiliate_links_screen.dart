@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 import '../../core/services/affiliate_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/models/affiliate_link.dart';
@@ -534,8 +536,7 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
 
   // Share dialog (giống bên sản phẩm)
   void _showShareDialogForLink(AffiliateLink link) {
-    // Prefer short link to avoid Cloudflare issues, fallback to full link
-    final affiliateUrl = link.shortLink.isNotEmpty ? link.shortLink : link.fullLink;
+    final affiliateUrl = link.fullLink.isNotEmpty ? link.fullLink : link.shortLink;
     final shareText = _buildShareTextForLink(link);
     showModalBottomSheet(
       context: context,
@@ -555,29 +556,10 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
                 child: Text('Chia sẻ sản phẩm', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _shareIconButton(Icons.facebook, 'Facebook', () {
-                    // Try Facebook app intent first, fallback to system share
-                    final facebookAppUrl = 'fb://facewebmodal/f?href=${Uri.encodeComponent(affiliateUrl)}';
-                    launchUrl(Uri.parse(facebookAppUrl), mode: LaunchMode.externalApplication).catchError((_) {
-                      Share.share('$shareText\n\n$affiliateUrl', subject: link.productTitle);
-                      return false;
-                    });
-                  }),
-                  _shareIconButton(Icons.chat_bubble_outline, 'Zalo', () {
-                    // Try Zalo app intent first, fallback to system share
-                    final zaloAppUrl = 'zalo://share?url=${Uri.encodeComponent(affiliateUrl)}&text=${Uri.encodeComponent(shareText)}';
-                    launchUrl(Uri.parse(zaloAppUrl), mode: LaunchMode.externalApplication).catchError((_) {
-                      Share.share('$shareText\n\n$affiliateUrl', subject: link.productTitle);
-                      return false;
-                    });
-                  }),
-                  _shareIconButton(Icons.share, 'Khác', () {
-                    Share.share('$shareText\n\n$affiliateUrl', subject: link.productTitle);
-                  }),
-                ],
+              Center(
+                child: _shareIconButton(Icons.share, 'Chia sẻ', () {
+                  _shareWithImage(link, shareText, affiliateUrl);
+                }),
               )
             ],
           ),
@@ -612,7 +594,16 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
     final price = FormatUtils.formatCurrency(link.productPrice.toInt());
     final old = link.oldPrice > link.productPrice ? ' (Giảm ${link.discountPercent}%)' : '';
     final commissionText = _commissionRangeText(link);
-    return '🔥 ${link.productTitle}$old\n💰 Giá: $price\n$commissionText\n\n👉 Mua ngay để nhận ưu đãi tốt nhất!';
+    final oldPriceText = link.oldPrice > link.productPrice 
+        ? '\n💸 Giá gốc: ${FormatUtils.formatCurrency(link.oldPrice.toInt())}'
+        : '';
+    
+    // Add more context about the product
+    final statsText = link.clicks > 0 || link.orders > 0 
+        ? '\n📊 Thống kê: ${link.clicks} clicks, ${link.orders} đơn hàng'
+        : '';
+    
+    return '🔥 ${link.productTitle}$old\n💰 Giá: $price$oldPriceText\n$commissionText$statsText\n\n👉 Mua ngay để nhận ưu đãi tốt nhất!\n\n📱 Tải app Socdo để mua hàng với giá tốt nhất!';
   }
 
   // Commission range badge and text (reuse logic like products)
@@ -649,6 +640,146 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
       if (c.type == 'phantram') {
         return '${c.value.toStringAsFixed(0)}%';
       }
+    }
+    return null;
+  }
+
+  void _shareWithImage(AffiliateLink link, String shareText, String affiliateUrl) async {
+    // Debug: Check if productImage is available
+    print('🚀 [SHARE] Starting share for link: ${link.productTitle}');
+    print('🔍 [DEBUG] Product Image URL: ${link.productImage}');
+    print('🔍 [DEBUG] Product Image Empty: ${link.productImage.isEmpty}');
+    print('🔍 [DEBUG] Product Title: ${link.productTitle}');
+    print('🔍 [DEBUG] Affiliate URL: $affiliateUrl');
+    print('📝 [SHARE] Share text length: ${shareText.length}');
+    
+    try {
+      // Try to share with image if available
+      if (link.productImage.isNotEmpty) {
+        print('🖼️ [SHARE] Attempting to share with image: ${link.productImage}');
+        
+        // Download image to temporary file
+        final imageFile = await _downloadImageToTemp(link.productImage);
+        if (imageFile != null) {
+          print('✅ [SHARE] Image downloaded successfully: ${imageFile.path}');
+          print('📊 [SHARE] Image file size: ${await imageFile.length()} bytes');
+          
+          // Method 1: Try sharing both together (preferred)
+          try {
+            print('📤 [SHARE] Method 1: Sharing both together...');
+            await Share.shareXFiles(
+              [XFile(imageFile.path)],
+              text: '$shareText\n\n$affiliateUrl',
+              subject: link.productTitle,
+            );
+            print('✅ [SHARE] Combined sharing completed');
+            return;
+          } catch (e) {
+            print('❌ [SHARE] Combined sharing failed: $e');
+            print('🔄 [SHARE] Trying sequential method...');
+          }
+          
+          // Method 2: Try sharing text first, then image (fallback)
+          try {
+            print('📤 [SHARE] Method 2: Sharing text first...');
+            // Share text first
+            await Share.share(
+              '$shareText\n\n$affiliateUrl',
+              subject: link.productTitle,
+            );
+            print('✅ [SHARE] Text shared successfully');
+            
+            // Small delay then share image
+            print('⏳ [SHARE] Waiting 2 seconds before sharing image...');
+            await Future.delayed(const Duration(milliseconds: 2000));
+            
+            // Share image separately
+            print('📤 [SHARE] Method 2: Sharing image separately...');
+            await Share.shareXFiles(
+              [XFile(imageFile.path)],
+              text: '',
+            );
+            print('✅ [SHARE] Image shared successfully');
+            print('✅ [SHARE] Sequential sharing completed');
+            return;
+          } catch (e) {
+            print('❌ [SHARE] Sequential sharing failed: $e');
+            print('🔄 [SHARE] Falling back to text-only...');
+          }
+        } else {
+          print('❌ [SHARE] Failed to download image, falling back to text-only');
+        }
+      } else {
+        print('⚠️ [SHARE] No image available, using text-only sharing');
+      }
+      
+      // Fallback to text-only sharing
+      print('📤 [SHARE] Fallback: Text-only sharing...');
+      Share.share(
+        '$shareText\n\n$affiliateUrl',
+        subject: link.productTitle,
+      );
+      print('✅ [SHARE] Text-only sharing completed');
+    } catch (e) {
+      print('❌ [SHARE] Error sharing: $e');
+      print('🔄 [SHARE] Final fallback: Text-only sharing...');
+      // If image sharing fails, fallback to text-only
+      Share.share(
+        '$shareText\n\n$affiliateUrl',
+        subject: link.productTitle,
+      );
+      print('✅ [SHARE] Final fallback completed');
+    }
+  }
+
+
+  Future<File?> _downloadImageToTemp(String imageUrl) async {
+    try {
+      print('📥 [DOWNLOAD] Starting download: $imageUrl');
+      
+      // Validate URL
+      if (!imageUrl.startsWith('http')) {
+        print('❌ [DOWNLOAD] Invalid URL format: $imageUrl');
+        return null;
+      }
+      
+      // Add timeout and headers
+      final response = await http.get(
+        Uri.parse(imageUrl),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'image/*',
+        },
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📊 [DOWNLOAD] HTTP Status: ${response.statusCode}');
+      print('📊 [DOWNLOAD] Content-Type: ${response.headers['content-type']}');
+      print('📊 [DOWNLOAD] Content-Length: ${response.headers['content-length']}');
+      
+      if (response.statusCode == 200) {
+        final tempDir = await getTemporaryDirectory();
+        final fileName = 'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final file = File('${tempDir.path}/$fileName');
+        await file.writeAsBytes(response.bodyBytes);
+        
+        final fileSize = await file.length();
+        print('✅ [DOWNLOAD] Image saved to: ${file.path}');
+        print('📊 [DOWNLOAD] File size: $fileSize bytes');
+        
+        // Validate file size
+        if (fileSize < 100) {
+          print('⚠️ [DOWNLOAD] File size too small, might be corrupted');
+          return null;
+        }
+        
+        return file;
+      } else {
+        print('❌ [DOWNLOAD] HTTP error: ${response.statusCode}');
+        print('❌ [DOWNLOAD] Response body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      }
+    } catch (e) {
+      print('❌ [DOWNLOAD] Error downloading image: $e');
+      print('❌ [DOWNLOAD] Error type: ${e.runtimeType}');
     }
     return null;
   }
