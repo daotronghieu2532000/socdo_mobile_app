@@ -67,6 +67,15 @@ class TokenManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_tokenKey);
       await prefs.remove(_tokenExpiryKey);
+      await prefs.commit();
+      
+      // Verify token đã được xóa
+      final afterToken = await getToken();
+      if (afterToken != null) {
+        await prefs.clear();
+        await prefs.commit();
+      }
+      
       print('✅ Token đã được xóa');
     } catch (e) {
       print('❌ Lỗi khi xóa token: $e');

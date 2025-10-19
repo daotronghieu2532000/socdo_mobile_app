@@ -76,11 +76,13 @@ class _HeaderCardState extends State<HeaderCard> {
               userMoney: parseInt(u['user_money']),
               userMoney2: parseInt(u['user_money2']),
             );
-            await _authService.updateUser(updated);
-            setState(() {
-              _currentUser = updated;
-              _isLoading = false;
-            });
+            // CRITICAL: Chỉ update UI, KHÔNG lưu vào SharedPreferences để tránh restore sau logout
+            if (mounted) {
+              setState(() {
+                _currentUser = updated;
+                _isLoading = false;
+              });
+            }
             // Sau khi có user -> tải badge
             _loadCounts();
             _startPolling();
@@ -88,17 +90,21 @@ class _HeaderCardState extends State<HeaderCard> {
           }
         } catch (_) {}
       }
-      setState(() {
-        _currentUser = user;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _isLoading = false;
+        });
+      }
       _loadCounts();
       _startPolling();
     } catch (e) {
-      setState(() {
-        _currentUser = null;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _currentUser = null;
+          _isLoading = false;
+        });
+      }
     }
   }
 

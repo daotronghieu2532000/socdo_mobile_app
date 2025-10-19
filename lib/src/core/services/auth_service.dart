@@ -13,6 +13,7 @@ class AuthService {
 
   final ApiService _apiService = ApiService();
   User? _currentUser;
+  bool _isLoggingOut = false; // Flag để ngăn restore user data
   
   // Callback để thông báo khi trạng thái đăng nhập thay đổi
   final List<Function()> _onAuthStateChanged = [];
@@ -151,6 +152,11 @@ class AuthService {
 
   /// Lấy thông tin user hiện tại
   Future<User?> getCurrentUser() async {
+    // CRITICAL: Nếu đang trong quá trình logout, không restore user data
+    if (_isLoggingOut) {
+      return null;
+    }
+    
     if (_currentUser != null) {
       return _currentUser;
     }
@@ -172,11 +178,55 @@ class AuthService {
     }
   }
 
+  /// Force clear toàn bộ AuthService (dùng khi logout)
+  void forceClear() {
+    _currentUser = null;
+    _onAuthStateChanged.clear();
+  }
+
+  /// Logout hoàn toàn với verification
+  Future<void> logoutCompletely() async {
+    // Step 0: Set flag để ngăn restore user data
+    _isLoggingOut = true;
+    
+    // Step 1: Clear memory FIRST
+    _currentUser = null;
+    
+    // Step 2: Clear listeners BEFORE clearing SharedPreferences
+    _onAuthStateChanged.clear();
+    
+    // Step 3: Clear SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userKey);
+      await prefs.remove(_loginTimeKey);
+      await prefs.commit();
+      
+      // Step 4: Verify
+      final verify = prefs.getString(_userKey);
+      if (verify != null) {
+        await prefs.clear();
+        await prefs.commit();
+      }
+    } catch (e) {
+      print('❌ Lỗi clear SharedPreferences: $e');
+    }
+    
+    // Step 5: Clear API token
+    try {
+      await _apiService.clearToken();
+    } catch (e) {
+      print('❌ Lỗi clear API token: $e');
+    }
+    
+    // Step 6: Reset flag sau khi hoàn thành
+    _isLoggingOut = false;
+  }
+
   /// Kiểm tra user đã đăng nhập chưa
   Future<bool> isLoggedIn() async {
     try {
       final user = await getCurrentUser();
-      // Chỉ cần kiểm tra có user data hay không, không kiểm tra thời gian hết hạn
       return user != null;
     } catch (e) {
       print('❌ Lỗi kiểm tra đăng nhập: $e');
@@ -188,19 +238,39 @@ class AuthService {
   Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_userKey);
-      await prefs.remove(_loginTimeKey); // Xóa luôn để clean up
       
+      // CRITICAL: Clear user data TRƯỚC KHI xóa SharedPreferences
       _currentUser = null;
+      
+      // Xóa SharedPreferences và đợi hoàn tất
+      await prefs.remove(_userKey);
+      await prefs.remove(_loginTimeKey);
+      
+      // CRITICAL: Force commit để đảm bảo SharedPreferences được lưu
+      await prefs.commit();
+      
+      // CRITICAL: Verify SharedPreferences đã được xóa
+      final verifyUserJson = prefs.getString(_userKey);
+      
+      if (verifyUserJson != null) {
+        await prefs.clear(); // Force clear toàn bộ SharedPreferences
+        await prefs.commit();
+      }
+      
       print('✅ Đã đăng xuất và xóa thông tin user');
       
-      // Thông báo cho các listener về việc thay đổi trạng thái
-      _notifyAuthStateChanged();
+      // CRITICAL: Xóa API token để tránh auto-login
+      await _apiService.clearToken();
+      print('✅ Đã xóa API token');
+      
+      // CRITICAL: Force clear listeners để tránh restore user
+      _onAuthStateChanged.clear();
+      
     } catch (e) {
       print('❌ Lỗi khi đăng xuất: $e');
       // Vẫn đảm bảo clear local state ngay cả khi có lỗi
       _currentUser = null;
-      _notifyAuthStateChanged();
+      _onAuthStateChanged.clear();
     }
   }
 
@@ -216,11 +286,11 @@ class AuthService {
 
   /// Thông báo cho tất cả listener về sự thay đổi trạng thái
   void _notifyAuthStateChanged() {
-    for (final listener in _onAuthStateChanged) {
+    for (int i = 0; i < _onAuthStateChanged.length; i++) {
       try {
-        listener();
+        _onAuthStateChanged[i]();
       } catch (e) {
-        print('❌ Lỗi trong auth state listener: $e');
+        print('❌ Lỗi trong auth state listener #$i: $e');
       }
     }
   }

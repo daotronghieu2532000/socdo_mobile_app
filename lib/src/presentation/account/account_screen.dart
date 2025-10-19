@@ -21,7 +21,7 @@ class AccountScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
-          const HeaderCard(),
+          HeaderCard(),
           const SizedBox(height: 12),
           const SectionHeader(title: 'Tài khoản'),
           ActionList(items: const [
@@ -59,9 +59,12 @@ class AccountScreen extends StatelessWidget {
                   final shouldLogout = await LogoutConfirmationDialog.show(context);
                   
                   if (shouldLogout == true) {
-                    await authService.logout();
+                    // CRITICAL: Sử dụng logoutCompletely để đảm bảo logout hoàn toàn
+                    await authService.logoutCompletely();
+                    
                     // Reset app initialization state
                     AppInitializationService().resetInitialization();
+                    
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -70,6 +73,7 @@ class AccountScreen extends StatelessWidget {
                           duration: Duration(seconds: 2),
                         ),
                       );
+                      
                       // Quay về trang chủ và refresh toàn bộ navigation stack
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(
