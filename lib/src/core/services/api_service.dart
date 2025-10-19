@@ -89,6 +89,26 @@ class ApiService {
     }
   }
 
+  // =============== AFFILIATE REGISTRATION ===============
+  Future<Map<String, dynamic>?> registerAffiliate({required int userId}) async {
+    try {
+      final response = await post('/user_profile', body: {
+        'action': 'register_affiliate',
+        'user_id': userId,
+      });
+      if (response != null) {
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          return data;
+        }
+      }
+      return null;
+    } catch (e) {
+      print('❌ Lỗi đăng ký affiliate: $e');
+      return null;
+    }
+  }
+
   // =============== ORDERS & NOTIFICATIONS ===============
   Future<Map<String, dynamic>?> getOrdersList({
     required int userId,

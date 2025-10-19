@@ -7,8 +7,39 @@ import '../models/commission_history.dart';
 import '../models/withdrawal_history.dart';
 import '../models/balance_info.dart';
 import '../models/bank_account.dart';
+import 'api_service.dart';
 
 class AffiliateService {
+  final ApiService _apiService = ApiService();
+
+  /// Register user for affiliate program
+  Future<Map<String, dynamic>?> registerAffiliate({required int userId}) async {
+    try {
+      final result = await _apiService.registerAffiliate(userId: userId);
+      print('🔗 Register Affiliate API Result: $result');
+      return result;
+    } catch (e) {
+      print('❌ Error registering affiliate: $e');
+      return null;
+    }
+  }
+
+  /// Get user affiliate status (dk_aff field)
+  Future<bool?> getUserAffiliateStatus({required int userId}) async {
+    try {
+      final profile = await _apiService.getUserProfile(userId: userId);
+      if (profile != null && profile['user'] != null) {
+        final user = profile['user'] as Map<String, dynamic>;
+        final dkAff = user['dk_aff'];
+        print('🔍 User dk_aff status: $dkAff');
+        return dkAff == 1;
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting user affiliate status: $e');
+      return null;
+    }
+  }
 
   /// Get affiliate dashboard statistics
   Future<AffiliateDashboard?> getDashboard({int? userId}) async {
