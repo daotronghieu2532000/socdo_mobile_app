@@ -1327,37 +1327,8 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Đăng ký Affiliate',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D3748),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Tham gia chương trình affiliate để kiếm hoa hồng từ việc chia sẻ sản phẩm',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF718096),
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    // Benefits
-                    const Text(
-                      'Lợi ích khi tham gia:',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2D3748),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
+                  children: [               
+                    const SizedBox(height: 12),
                     _buildBenefitItem(
                       Icons.monetization_on,
                       'Hoa hồng cao',
