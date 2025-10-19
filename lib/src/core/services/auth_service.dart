@@ -311,11 +311,17 @@ class AuthService {
       return avatar;
     }
     
+    // Xử lý trường hợp có prefix socdo.vn trong path
+    String cleanPath = avatar;
+    if (avatar.startsWith('socdo.vn/')) {
+      cleanPath = avatar.substring(9); // Bỏ "socdo.vn/"
+    }
+    
     // Nếu avatar là path relative, thêm tiền tố https://socdo.vn/
-    if (avatar.startsWith('/')) {
-      return 'https://socdo.vn$avatar';
+    if (cleanPath.startsWith('/')) {
+      return 'https://socdo.vn$cleanPath';
     } else {
-      return 'https://socdo.vn/$avatar';
+      return 'https://socdo.vn/$cleanPath';
     }
   }
 

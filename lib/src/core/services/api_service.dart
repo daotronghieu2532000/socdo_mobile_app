@@ -11,6 +11,7 @@ import '../models/product_suggest.dart';
 import '../models/product_detail.dart';
 import '../models/related_product.dart';
 import '../models/banner.dart';
+import '../models/shop_detail.dart';
 
 class ApiService {
   static const String baseUrl = 'https://api.socdo.vn/v1';
@@ -365,13 +366,16 @@ class ApiService {
   }) async {
     try {
       final token = await getValidToken();
-      if (token == null) return null;
+      if (token == null) {
+        return null;
+      }
 
       final uri = Uri.parse('$baseUrl/user_profile');
       final request = http.MultipartRequest('POST', uri);
       request.headers['Authorization'] = 'Bearer $token';
       request.fields['action'] = 'upload_avatar';
       request.fields['user_id'] = userId.toString();
+      
       request.files.add(http.MultipartFile.fromBytes(
         'avatar',
         bytes,
@@ -381,10 +385,13 @@ class ApiService {
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        
         if (data['success'] == true) {
-          return (data['data']?['avatar'] as String?) ?? '';
+          final avatarPath = (data['data']?['avatar'] as String?) ?? '';
+          return avatarPath;
         }
       }
       return null;
@@ -3399,5 +3406,78 @@ class ApiService {
     }
     
     return null;
+  }
+
+  // =============== SHOP DETAIL ===============
+  Future<ShopDetail?> getShopDetail({
+    int? shopId,
+    String? username,
+    int includeProducts = 1,
+    int includeFlashSale = 1,
+    int includeVouchers = 1,
+    int includeWarehouses = 1,
+    int includeCategories = 1,
+    int productsLimit = 20,
+  }) async {
+    try {
+      final token = await getValidToken();
+      if (token == null) {
+        print('❌ Không có token hợp lệ');
+        return null;
+      }
+
+      final Map<String, String> queryParams = {
+        'include_products': includeProducts.toString(),
+        'include_flash_sale': includeFlashSale.toString(),
+        'include_vouchers': includeVouchers.toString(),
+        'include_warehouses': includeWarehouses.toString(),
+        'include_categories': includeCategories.toString(),
+        'products_limit': productsLimit.toString(),
+      };
+
+      if (shopId != null && shopId > 0) {
+        queryParams['shop_id'] = shopId.toString();
+      } else if (username != null && username.isNotEmpty) {
+        queryParams['username'] = username;
+      } else {
+        print('❌ Phải cung cấp shop_id hoặc username');
+        return null;
+      }
+
+
+
+      final uri = Uri.parse('https://api.socdo.vn/v1/shop_detail').replace(
+        queryParameters: queryParams,
+      );
+
+      print('🔍 Gọi API shop detail: $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (data['success'] == true && data['data'] != null) {
+          return ShopDetail.fromJson(data['data'] as Map<String, dynamic>);
+        } else {
+          print('❌ API trả về lỗi: ${data['message']}');
+          return null;
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Lỗi khi lấy thông tin shop: $e');
+      return null;
+    }
   }
 }

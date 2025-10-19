@@ -66,8 +66,8 @@ class RelatedProductCardHorizontal extends StatelessWidget {
                 children: [
                   // Box trái: Ảnh sản phẩm + Label giảm giá
                   Container(
-                    width: 150,
-                    height: 150,
+                    width: 140,
+                    height: 140,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F6FB),
                       borderRadius: BorderRadius.circular(8),
@@ -79,8 +79,8 @@ class RelatedProductCardHorizontal extends StatelessWidget {
                           child: product.image.isNotEmpty
                               ? Image.network(
                                   product.image,
-                                  width: 150,
-                                  height: 150,
+                                  width: 140,
+                                  height: 140,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                                 )
@@ -115,7 +115,7 @@ class RelatedProductCardHorizontal extends StatelessWidget {
                   Expanded(
                     child: Container(
                       height: 150,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 1),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -24,6 +24,7 @@ import '../../core/models/related_product.dart';
 import '../search/search_screen.dart';
 import '../cart/cart_screen.dart';
 import '../checkout/checkout_screen.dart';
+import '../shop/shop_detail_screen.dart';
 import '../../core/services/cart_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -77,6 +78,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
       );
     });
+  }
+
+  void _navigateToShop() {
+    if (_productDetail == null) return;
+    
+    final shopId = int.tryParse(_productDetail!.shopId ?? '0');
+    final shopUsername = _productDetail!.shopNameFromInfo.isNotEmpty 
+        ? _productDetail!.shopNameFromInfo 
+        : null;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ShopDetailScreen(
+          shopId: shopId,
+          shopUsername: shopUsername,
+          shopName: _productDetail!.shopNameFromInfo.isNotEmpty 
+              ? _productDetail!.shopNameFromInfo 
+              : widget.initialShopName,
+          shopAvatar: _productDetail!.shopAvatar,
+        ),
+      ),
+    );
   }
 
   @override
@@ -685,39 +709,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(FormatUtils.formatCurrency(price),
-                          style: const TextStyle(fontSize: 24, color: Colors.red, fontWeight: FontWeight.w800)),
-                      if (oldPrice != null) ...[
-                        const SizedBox(width: 8),
-                        Text(FormatUtils.formatCurrency(oldPrice),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                              decoration: TextDecoration.lineThrough,
-                            )),
-                      ],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Text(FormatUtils.formatCurrency(price),
+                                style: const TextStyle(fontSize: 24, color: Colors.red, fontWeight: FontWeight.w800)),
+                            if (oldPrice != null) ...[
+                              const SizedBox(width: 8),
+                              Text(FormatUtils.formatCurrency(oldPrice),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                    decoration: TextDecoration.lineThrough,
+                                  )),
+                            ],
+                          ],
+                        ),
+                      ),
+                      // Icon trái tim ở bên phải cùng hàng với giá
+                      Icon(Icons.favorite_border, color: Colors.grey, size: 24),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(title, 
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Row(
-                        children: [
-                          // Bỏ dấu ? theo yêu cầu
-                          // Icon(Icons.help_outline, size: 16, color: Colors.grey),
-                          // SizedBox(width: 8),
-                          Icon(Icons.favorite_border, color: Colors.grey),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Hiển thị thông tin biến thể đã chọn (nếu có)
-                  if (product?.variants.isNotEmpty == true && _selectedVariant != null) ...[
+                  // Hiển thị dropdown chọn biến thể (nếu có)
+                  if (product?.variants.isNotEmpty == true) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -729,16 +747,35 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         children: [
                           const Icon(Icons.style, color: Colors.grey, size: 20),
                           const SizedBox(width: 8),
-                          Text(
-                            'Đã chọn: ${_selectedVariant!.name}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                          Expanded(
+                            child: DropdownButton<ProductVariant>(
+                              value: _selectedVariant,
+                              isExpanded: true,
+                              underline: const SizedBox(), // Bỏ gạch dưới
+                              items: product!.variants.map((ProductVariant variant) {
+                                return DropdownMenuItem<ProductVariant>(
+                                  value: variant,
+                                  child: Text(
+                                    variant.name,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (ProductVariant? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _selectedVariant = newValue;
+                                  });
+                                }
+                              },
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           Text(
-                            '${_selectedVariant!.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}₫',
+                            '${_selectedVariant?.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}₫',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -771,6 +808,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             shopAvatar: product?.shopAvatar,
             shopAddress: product?.shopAddress,
             shopUrl: product?.shopUrl,
+            totalProducts: () {
+              final totalProducts = product?.shopInfo?['total_products'] as int?;
+              print('🔍 Debug ShopBar totalProducts: $totalProducts');
+              print('🔍 Debug ShopBar shopInfo: ${product?.shopInfo}');
+              return totalProducts;
+            }(), // Truyền số sản phẩm từ shopInfo với debug
+            onViewShop: _navigateToShop,
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -787,8 +831,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   else if (_sameShopProducts.isNotEmpty) ...[
                     ProductCarousel(
                       title: 'Sản phẩm cùng gian hàng',
-                      height: 160,
-                      itemWidth: 280,
+                      height: 170, // Tăng height để phù hợp với card 150x150
+                      itemWidth: 320, // Tăng itemWidth một chút để phù hợp
                       children: _sameShopProducts.map((product) {
                         return SameShopProductCardHorizontal(product: product);
                       }).toList(),

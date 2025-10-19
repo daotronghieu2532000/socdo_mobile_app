@@ -225,6 +225,16 @@ try {
             $shop_result = mysqli_query($conn, $shop_query);
             if ($shop_result && mysqli_num_rows($shop_result) > 0) {
                 $shop_data = mysqli_fetch_assoc($shop_result);
+                
+                // Đếm tổng số sản phẩm của shop
+                $product_count_query = "SELECT COUNT(*) as total FROM sanpham WHERE shop = '$deal_shop' AND status = 1";
+                $product_count_result = mysqli_query($conn, $product_count_query);
+                $product_count = 0;
+                if ($product_count_result) {
+                    $count_row = mysqli_fetch_assoc($product_count_result);
+                    $product_count = intval($count_row['total']);
+                }
+                
                 $shop_info = array(
                     'shop_id' => intval($shop_data['user_id']),
                     'shop_name' => $shop_data['name'],
@@ -233,7 +243,8 @@ try {
                     'shop_mobile' => $shop_data['mobile'],
                     'shop_address' => $shop_data['dia_chi'],
                     'shop_avatar' => !empty($shop_data['avatar']) ? 'https://socdo.vn/' . $shop_data['avatar'] : '',
-                    'shop_url' => 'https://socdo.vn/shop/' . $shop_data['username']
+                    'shop_url' => 'https://socdo.vn/shop/' . $shop_data['username'],
+                    'total_products' => $product_count
                 );
             }
         }

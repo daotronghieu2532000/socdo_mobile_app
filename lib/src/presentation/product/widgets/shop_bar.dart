@@ -8,6 +8,7 @@ class ShopBar extends StatelessWidget {
   final String? shopUrl;
   final double rating;
   final int reviewCount;
+  final int? totalProducts; // Thêm field cho số sản phẩm
   final VoidCallback? onViewShop;
 
   const ShopBar({
@@ -19,6 +20,7 @@ class ShopBar extends StatelessWidget {
     this.shopUrl,
     this.rating = 4.46,
     this.reviewCount = 24,
+    this.totalProducts, // Thêm parameter
     this.onViewShop,
   });
 
@@ -45,24 +47,26 @@ class ShopBar extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 59, // Tăng kích thước ảnh shop
-                height: 59,
+                width: 70, // Tăng kích thước để hiển thị full ảnh
+                height: 70,
                 decoration: BoxDecoration(
                   color: const Color(0xFF0FC6FF),
-                  borderRadius: BorderRadius.circular(12), // Bo góc nhiều hơn
+                  borderRadius: BorderRadius.circular(12), // Bo góc nhiều hơn cho đẹp
                 ),
                 child: shopAvatar?.isNotEmpty == true
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12), // Bo góc nhiều hơn
+                        borderRadius: BorderRadius.circular(12), // Bo góc nhiều hơn cho đẹp
                         child: Image.network(
                           shopAvatar!,
-                          fit: BoxFit.cover,
+                          width: 70, // Đảm bảo width đầy đủ
+                          height: 70, // Đảm bảo height đầy đủ
+                          fit: BoxFit.cover, // Thay đổi thành cover để full box
                           errorBuilder: (context, error, stackTrace) => Center(
                             child: Text(
                               firstLetter(),
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 16, // Tăng kích thước chữ
+                                fontSize: 18, // Tăng kích thước chữ cho phù hợp
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -74,7 +78,7 @@ class ShopBar extends StatelessWidget {
                           firstLetter(),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16, // Tăng kích thước chữ
+                            fontSize: 18, // Tăng kích thước chữ cho phù hợp
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -89,17 +93,39 @@ class ShopBar extends StatelessWidget {
                     Text(
                       shopName ?? 'Shop',
                       style: const TextStyle(
-                        fontSize: 14, // Tăng kích thước tên shop
+                        fontSize: 15, // Tăng kích thước tên shop
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4), // Tăng khoảng cách
+                    const SizedBox(height: 6), // Tăng khoảng cách
+                    // Hiển thị số sản phẩm nếu có dữ liệu thật từ API
+                    if (totalProducts != null && totalProducts! > 0) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$totalProducts sản phẩm',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     Text(
                       shopAddress?.isNotEmpty == true 
                           ? shopAddress!
                           : '$rating | $reviewCount đánh giá',
                       style: const TextStyle(
-                        fontSize: 14, // Tăng kích thước địa chỉ
+                        fontSize: 13, // Giảm kích thước địa chỉ một chút
                         color: Colors.grey,
                       ),
                       maxLines: 1,
@@ -109,18 +135,41 @@ class ShopBar extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), // Tăng padding
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), // Padding cân đối
                 decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(12), // Bo góc nhiều hơn
-                ),
-                child: const Text(
-                  'Xem Shop',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16, // Tăng kích thước chữ
-                    fontWeight: FontWeight.w600,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE53E3E), Color(0xFFC53030)], // Gradient đỏ sang trọng
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(20), // Bo góc tròn hơn
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.storefront,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Xem Shop',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13, // Font size vừa phải
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5, // Tăng khoảng cách chữ cho sang trọng
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

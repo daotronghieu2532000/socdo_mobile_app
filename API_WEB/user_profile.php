@@ -171,18 +171,22 @@ function handle_update_info() {
 
 function handle_upload_avatar() {
     global $conn;
+    
     if (!isset($_POST['user_id'])) {
         http_response_code(400);
         echo json_encode(["success" => false, "message" => "Vui lòng truyền user_id"]);
         return;
     }
+    
     $user_id = (int)$_POST['user_id'];
+    
     if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
         http_response_code(400);
         echo json_encode(["success" => false, "message" => "Không có file avatar hợp lệ"]);
         return;
     }
     $file = $_FILES['avatar'];
+    
     $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
     if (!isset($allowed[$file['type']])) {
         http_response_code(400);
@@ -190,21 +194,42 @@ function handle_upload_avatar() {
         return;
     }
     $ext = $allowed[$file['type']];
-    $uploadDir = __DIR__ . '/uploads/avatars/';
-    if (!is_dir($uploadDir)) { mkdir($uploadDir, 0777, true); }
+    
+    // Sửa đường dẫn upload để trỏ đúng đến thư mục chính của website
+    $uploadDir = '/home/socdo.vn/public_html/uploads/avatar/';
+    
+    if (!is_dir($uploadDir)) { 
+        if (!mkdir($uploadDir, 0755, true)) {
+            http_response_code(500);
+            echo json_encode(["success" => false, "message" => "Không thể tạo thư mục upload"]);
+            return;
+        }
+    }
+    
+    // Kiểm tra quyền ghi
+    if (!is_writable($uploadDir)) {
+        http_response_code(500);
+        echo json_encode(["success" => false, "message" => "Thư mục upload không có quyền ghi"]);
+        return;
+    }
+    
     $filename = 'u' . $user_id . '_' . time() . '.' . $ext;
     $target = $uploadDir . $filename;
+    
     if (!move_uploaded_file($file['tmp_name'], $target)) {
         http_response_code(500);
         echo json_encode(["success" => false, "message" => "Lưu file thất bại"]);
         return;
     }
-    $relativePath = '/uploads/avatars/' . $filename;
+    
+    $relativePath = '/uploads/avatar/' . $filename;
+    
     $stmt = $conn->prepare("UPDATE user_info SET avatar = ?, date_update = ? WHERE user_id = ?");
     $now = time();
     $stmt->bind_param('sii', $relativePath, $now, $user_id);
     $ok = $stmt->execute();
     $stmt->close();
+    
     if ($ok) {
         http_response_code(200);
         echo json_encode(['success' => true, 'message' => 'Cập nhật avatar thành công', 'data' => ['avatar' => $relativePath]]);

@@ -1,27 +1,57 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import '../../../core/models/same_shop_product.dart';
-import '../../../core/models/product_detail.dart';
-import '../../product/product_detail_screen.dart';
+import '../../../core/models/shop_detail.dart';
+import '../../../core/utils/format_utils.dart';
+import '../../shared/widgets/product_badges.dart';
 import '../../product/widgets/variant_selection_dialog.dart';
 import '../../product/widgets/simple_purchase_dialog.dart';
-import '../../../core/services/cart_service.dart';
 import '../../cart/cart_screen.dart';
 import '../../checkout/checkout_screen.dart';
+import '../../../core/models/product_detail.dart';
+import '../../../core/services/cart_service.dart';
 import '../../../core/services/api_service.dart';
-import '../../shared/widgets/product_badges.dart';
 
-class SameShopProductCardHorizontal extends StatelessWidget {
-  final SameShopProduct product;
+class ShopProductsSection extends StatelessWidget {
+  final List<ShopProduct> products;
+  final Function(ShopProduct) onProductTap;
 
-  const SameShopProductCardHorizontal({
+  const ShopProductsSection({
     super.key,
-    required this.product,
+    required this.products,
+    required this.onProductTap,
   });
 
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Shop chưa có sản phẩm nào',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: products.length,
+      itemBuilder: (context, index) {
+        final product = products[index];
+        return _buildProductCard(product, context);
+      },
+    );
+  }
+
   // Helper function to generate fake rating and sold data
-  Map<String, dynamic> _generateFakeData(int price) {
-    final random = Random(product.id);
+  Map<String, dynamic> _generateFakeData(int productId, int price) {
+    final random = Random(productId);
     final isExpensive = price >= 1000000;
     
     final reviews = isExpensive 
@@ -39,9 +69,8 @@ class SameShopProductCardHorizontal extends StatelessWidget {
     };
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final fakeData = _generateFakeData(product.price);
+  Widget _buildProductCard(ShopProduct product, BuildContext context) {
+    final fakeData = _generateFakeData(product.id, product.price);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -56,7 +85,7 @@ class SameShopProductCardHorizontal extends StatelessWidget {
         ],
       ),
       child: InkWell(
-        onTap: () => _navigateToProductDetail(context),
+        onTap: () => onProductTap(product),
         borderRadius: BorderRadius.circular(8),
         child: Stack(
           children: [
@@ -67,7 +96,7 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                   // Box trái: Ảnh sản phẩm + Label giảm giá
                   Container(
                     width: 150,
-                    height: 150, // Tăng height lên 150x150 như yêu cầu
+                    height: 150,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F6FB),
                       borderRadius: BorderRadius.circular(8),
@@ -79,9 +108,9 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                           child: product.image.isNotEmpty
                               ? Image.network(
                                   product.image,
-                                  width: 150, // Tăng width lên 150
-                                  height: 150, // Tăng height lên 150
-                                  fit: BoxFit.contain, // Giữ nguyên contain để không bị cắt
+                                  width: 150,
+                                  height: 150,
+                                  fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                                 )
                               : _buildPlaceholderImage(),
@@ -110,12 +139,12 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   // Box phải: Thông tin sản phẩm
                   Expanded(
                     child: Container(
-                      height: 150, // Điều chỉnh height cho phù hợp với ảnh 150x150
-                      padding: const EdgeInsets.symmetric(vertical: 4), // Tăng padding một chút
+                      height: 150,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -128,7 +157,7 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                   height: 1.1,
                                 ),
@@ -137,17 +166,17 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                               Row(
                                 children: [
                                   Text(
-                                    product.priceFormatted,
+                                    FormatUtils.formatCurrency(product.price),
                                     style: const TextStyle(
                                       color: Colors.red,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                  if (product.oldPrice > 0 && product.oldPrice > product.price) ...[
+                                  if (product.oldPrice > 0) ...[
                                     const SizedBox(width: 6),
                                     Text(
-                                      product.oldPriceFormatted,
+                                      FormatUtils.formatCurrency(product.oldPrice),
                                       style: const TextStyle(
                                         color: Colors.grey,
                                         decoration: TextDecoration.lineThrough,
@@ -158,6 +187,7 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 6),
+                              // Rating and sold with fake data
                               Row(
                                 children: [
                                   const Icon(Icons.star, size: 14, color: Colors.amber),
@@ -170,11 +200,11 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              // Badges row từ các icon riêng lẻ từ API
+                              // Badges row
                               ProductIconsRow(
-                                voucherIcon: product.voucherIcon,
-                                freeshipIcon: product.freeshipIcon,
-                                chinhhangIcon: product.chinhhangIcon,
+                                voucherIcon: product.voucherIcon.isNotEmpty ? product.voucherIcon : null,
+                                freeshipIcon: product.freeshipIcon.isNotEmpty ? product.freeshipIcon : null,
+                                chinhhangIcon: product.chinhhangIcon.isNotEmpty ? product.chinhhangIcon : null,
                                 fontSize: 9,
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                               ),
@@ -183,8 +213,8 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                           // Badge kho ở đáy box
                           ProductLocationBadge(
                             locationText: null,
-                            // warehouseName: product.warehouseName,
-                            provinceName: product.provinceName,
+                            warehouseName: product.warehouseName.isNotEmpty ? product.warehouseName : null,
+                            provinceName: product.provinceName.isNotEmpty ? product.provinceName : null,
                             fontSize: 9,
                             iconColor: Colors.black,
                             textColor: Colors.black,
@@ -201,7 +231,7 @@ class SameShopProductCardHorizontal extends StatelessWidget {
               bottom: 8,
               right: 8,
               child: GestureDetector(
-                onTap: () => _showPurchaseDialog(context),
+                onTap: () => _showPurchaseDialog(context, product),
                 child: Container(
                   width: 40,
                   height: 40,
@@ -232,7 +262,7 @@ class SameShopProductCardHorizontal extends StatelessWidget {
 
   Widget _buildPlaceholderImage() {
     return Container(
-      width: 150, // Điều chỉnh cho phù hợp với container 150x150
+      width: 150,
       height: 150,
       color: const Color(0xFFF0F0F0),
       child: const Center(
@@ -245,20 +275,7 @@ class SameShopProductCardHorizontal extends StatelessWidget {
     );
   }
 
-  void _navigateToProductDetail(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProductDetailScreen(
-          productId: product.id,
-          title: product.name,
-          image: product.image,
-          price: product.price,
-        ),
-      ),
-    );
-  }
-
-  void _showPurchaseDialog(BuildContext context) async {
+  void _showPurchaseDialog(BuildContext context, ShopProduct product) async {
     try {
       final productDetail = await ApiService().getProductDetail(product.id);
       final parentContext = Navigator.of(context).context;
