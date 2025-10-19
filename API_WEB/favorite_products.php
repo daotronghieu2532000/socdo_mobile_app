@@ -49,7 +49,7 @@ try {
         
         $get_all = isset($_GET['all']) && $_GET['all'] == '1';
         
-        if ($limit > 500) $limit = 500;
+        if ($limit > 1000) $limit = 1000;
         if ($limit < 1) $limit = 50;
         if ($page < 1) $page = 1;
         

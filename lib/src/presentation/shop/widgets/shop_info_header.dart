@@ -100,19 +100,19 @@ class ShopInfoHeader extends StatelessWidget {
           
           const SizedBox(height: 16),
           
-          // Shop badges
-          if (shopInfo.isCtv == 1 || shopInfo.isDropship == 1 || shopInfo.isLeader == 1)
-            Wrap(
-              spacing: 8,
-              children: [
-                if (shopInfo.isCtv == 1)
-                  _buildBadge('CTV', Colors.blue),
-                if (shopInfo.isDropship == 1)
-                  _buildBadge('Dropship', Colors.green),
-                if (shopInfo.isLeader == 1)
-                  _buildBadge('Leader', Colors.orange),
-              ],
-            ),
+          // Comment out shop badges
+          // if (shopInfo.isCtv == 1 || shopInfo.isDropship == 1 || shopInfo.isLeader == 1)
+          //   Wrap(
+          //     spacing: 8,
+          //     children: [
+          //       if (shopInfo.isCtv == 1)
+          //         _buildBadge('CTV', Colors.blue),
+          //       if (shopInfo.isDropship == 1)
+          //         _buildBadge('Dropship', Colors.green),
+          //       if (shopInfo.isLeader == 1)
+          //         _buildBadge('Leader', Colors.orange),
+          //     ],
+          //   ),
         ],
       ),
     );

@@ -39,7 +39,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET') {
     // Get parameters
     $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-    $limit = isset($_GET['limit']) ? max(1, min(500, intval($_GET['limit']))) : 20;
+    $limit = isset($_GET['limit']) ? max(1, min(1000, intval($_GET['limit']))) : 20;
     $get_all = isset($_GET['all']) && $_GET['all'] == '1';
     $search = isset($_GET['search']) ? trim($_GET['search']) : '';
     $category = isset($_GET['category']) ? intval($_GET['category']) : 0;
@@ -51,7 +51,7 @@ if ($method === 'GET') {
     
     // Validate parameters
     if ($page < 1) $page = 1;
-    if ($limit < 1 || $limit > 500) $limit = 20;
+    if ($limit < 1 || $limit > 1000) $limit = 20;
     
     // Override limit nếu get_all = true
     if ($get_all) {

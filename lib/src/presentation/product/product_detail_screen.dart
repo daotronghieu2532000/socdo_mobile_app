@@ -319,6 +319,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     // Hiển thị thông báo và nút xem giỏ hàng
     _showSnack(
       'Đã thêm ${variant.name} vào giỏ hàng',
+      background: Colors.green, // Thêm màu xanh cho thông báo thành công
       action: SnackBarAction(
         label: 'Xem giỏ hàng',
         onPressed: () {
@@ -330,6 +331,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ),
     );
   }
+
 
   // Xử lý MUA NGAY cho sản phẩm không có biến thể
   void _handleBuyNowSimple(ProductDetail product, int quantity) {
@@ -380,6 +382,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     
     _showSnack(
       'Đã thêm ${product.name} vào giỏ hàng',
+      background: Colors.green, // Thêm màu xanh cho thông báo thành công
       action: SnackBarAction(
         label: 'Xem giỏ hàng',
         onPressed: () {
@@ -734,59 +737,126 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Text(title, 
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-                  // Hiển thị dropdown chọn biến thể (nếu có)
-                  if (product?.variants.isNotEmpty == true) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[200]!),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.style, color: Colors.grey, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButton<ProductVariant>(
-                              value: _selectedVariant,
-                              isExpanded: true,
-                              underline: const SizedBox(), // Bỏ gạch dưới
-                              items: product!.variants.map((ProductVariant variant) {
-                                return DropdownMenuItem<ProductVariant>(
-                                  value: variant,
-                                  child: Text(
-                                    variant.name,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (ProductVariant? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _selectedVariant = newValue;
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${_selectedVariant?.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}₫',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                  // TODO: Hiển thị chọn biến thể với thiết kế minimalist hiện đại (nếu có) - ĐÃ COMMENT TẠM THỜI
+                  // if (product?.variants.isNotEmpty == true) ...[
+                  //   Container(
+                  //     padding: const EdgeInsets.all(16),
+                  //     decoration: BoxDecoration(
+                  //       color: Colors.white,
+                  //       borderRadius: BorderRadius.circular(12),
+                  //       border: Border.all(color: Colors.grey[100]!, width: 1),
+                  //     ),
+                  //     child: Column(
+                  //       crossAxisAlignment: CrossAxisAlignment.start,
+                  //       children: [
+                  //         // Header với giá
+                  //         Row(
+                  //           children: [
+                  //             Text(
+                  //               'Chọn biến thể',
+                  //               style: TextStyle(
+                  //                 fontSize: 15,
+                  //                 fontWeight: FontWeight.w600,
+                  //                 color: Colors.grey[800],
+                  //               ),
+                  //             ),
+                  //             const Spacer(),
+                  //             Container(
+                  //               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  //               decoration: BoxDecoration(
+                  //                 color: Colors.red[50],
+                  //                 borderRadius: BorderRadius.circular(6),
+                  //               ),
+                  //               child: Text(
+                  //                 '${_selectedVariant?.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}₫',
+                  //                 style: TextStyle(
+                  //                   fontSize: 14,
+                  //                   fontWeight: FontWeight.bold,
+                  //                   color: Colors.red[700],
+                  //                 ),
+                  //               ),
+                  //             ),
+                  //           ],
+                  //         ),
+                  //         const SizedBox(height: 12),
+                  //         // Selection buttons minimalist
+                  //         ...product!.variants.map((ProductVariant variant) {
+                  //           final isSelected = _selectedVariant?.id == variant.id;
+                  //           return Container(
+                  //             margin: const EdgeInsets.only(bottom: 8),
+                  //             child: InkWell(
+                  //               onTap: () {
+                  //                 setState(() {
+                  //                   _selectedVariant = variant;
+                  //                 });
+                  //               },
+                  //               borderRadius: BorderRadius.circular(8),
+                  //               child: Container(
+                  //                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  //                 decoration: BoxDecoration(
+                  //                   color: isSelected ? Colors.red[50] : Colors.transparent,
+                  //                   borderRadius: BorderRadius.circular(8),
+                  //                   border: Border.all(
+                  //                     color: isSelected ? Colors.red : Colors.grey[200]!,
+                  //                     width: isSelected ? 1.5 : 1,
+                  //                   ),
+                  //                 ),
+                  //                 child: Row(
+                  //                   children: [
+                  //                     // Radio button custom
+                  //                     Container(
+                  //                       width: 20,
+                  //                       height: 20,
+                  //                       decoration: BoxDecoration(
+                  //                         shape: BoxShape.circle,
+                  //                         border: Border.all(
+                  //                           color: isSelected ? Colors.red : Colors.grey[400]!,
+                  //                           width: 2,
+                  //                         ),
+                  //                       ),
+                  //                       child: isSelected
+                  //                           ? Center(
+                  //                               child: Container(
+                  //                                 width: 8,
+                  //                                 height: 8,
+                  //                                 decoration: const BoxDecoration(
+                  //                                   color: Colors.red,
+                  //                                   shape: BoxShape.circle,
+                  //                                 ),
+                  //                               ),
+                  //                             )
+                  //                           : null,
+                  //                     ),
+                  //                     const SizedBox(width: 12),
+                  //                     Expanded(
+                  //                       child: Text(
+                  //                         variant.name,
+                  //                         style: TextStyle(
+                  //                           fontSize: 14,
+                  //                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  //                           color: isSelected ? Colors.red[700] : Colors.grey[700],
+                  //                         ),
+                  //                       ),
+                  //                     ),
+                  //                     Text(
+                  //                       '${variant.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}₫',
+                  //                       style: TextStyle(
+                  //                         fontSize: 13,
+                  //                         fontWeight: FontWeight.w600,
+                  //                         color: Colors.red[600],
+                  //                       ),
+                  //                     ),
+                  //                   ],
+                  //                 ),
+                  //               ),
+                  //             ),
+                  //           );
+                  //         }).toList(),
+                  //       ],
+                  //     ),
+                  //   ),
+                  //   const SizedBox(height: 16),
+                  // ],
                   const SizedBox(height: 12),
                   RowTile(icon: Icons.autorenew, title: 'Đổi trả hàng trong vòng 15 ngày'),
                   const SizedBox(height: 8),

@@ -50,12 +50,12 @@ class ShopBar extends StatelessWidget {
                 width: 70, // Tăng kích thước để hiển thị full ảnh
                 height: 70,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0FC6FF),
-                  borderRadius: BorderRadius.circular(12), // Bo góc nhiều hơn cho đẹp
+                  color: const Color.fromARGB(255, 255, 255, 255),
+                  borderRadius: BorderRadius.circular(60), // Bo góc nhiều hơn cho đẹp
                 ),
                 child: shopAvatar?.isNotEmpty == true
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12), // Bo góc nhiều hơn cho đẹp
+                        borderRadius: BorderRadius.circular(60), // Bo góc nhiều hơn cho đẹp
                         child: Image.network(
                           shopAvatar!,
                           width: 70, // Đảm bảo width đầy đủ

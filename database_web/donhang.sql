@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Oct 07, 2025 at 11:09 AM
+-- Generation Time: Oct 19, 2025 at 05:52 PM
 -- Server version: 10.1.48-MariaDB
 -- PHP Version: 7.3.31
 
@@ -59,7 +59,8 @@ CREATE TABLE `donhang` (
   `shop_id` varchar(255) NOT NULL,
   `shipping_provider` varchar(100) NOT NULL,
   `ninja_response` longtext,
-  `ship_support` int(11) NOT NULL DEFAULT '0'
+  `ship_support` int(11) NOT NULL DEFAULT '0',
+  `sales_channel` varchar(11) NOT NULL DEFAULT 'socdo'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --

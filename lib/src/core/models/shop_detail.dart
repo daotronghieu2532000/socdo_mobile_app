@@ -283,11 +283,29 @@ class ShopFlashSale {
   });
 
   factory ShopFlashSale.fromJson(Map<String, dynamic> json) {
+    // Parse sub_products safely
+    Map<String, dynamic> subProducts = {};
+    if (json['sub_products'] != null) {
+      if (json['sub_products'] is Map<String, dynamic>) {
+        subProducts = json['sub_products'] as Map<String, dynamic>;
+      } else if (json['sub_products'] is Map) {
+        subProducts = Map<String, dynamic>.from(json['sub_products'] as Map);
+      }
+    }
+    
+    // Parse main_products safely
+    List<int> mainProducts = [];
+    if (json['main_products'] != null) {
+      if (json['main_products'] is List) {
+        mainProducts = (json['main_products'] as List).map((e) => int.tryParse(e.toString()) ?? 0).toList();
+      }
+    }
+    
     return ShopFlashSale(
       id: json['id'] as int? ?? 0,
       title: json['title'] as String? ?? '',
-      mainProducts: (json['main_products'] as List?)?.cast<int>() ?? [],
-      subProducts: json['sub_products'] as Map<String, dynamic>? ?? {},
+      mainProducts: mainProducts,
+      subProducts: subProducts,
       startTime: json['start_time'] as int? ?? 0,
       endTime: json['end_time'] as int? ?? 0,
       timeline: json['timeline'] as String? ?? '',

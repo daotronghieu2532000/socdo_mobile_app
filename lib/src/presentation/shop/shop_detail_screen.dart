@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
 import '../../core/models/shop_detail.dart';
 import '../product/product_detail_screen.dart';
+import '../cart/cart_screen.dart';
 import 'widgets/shop_info_header.dart';
 import 'widgets/shop_products_section.dart';
 import 'widgets/shop_flash_sales_section.dart';
@@ -164,10 +165,13 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
         actions: [
           IconButton(
             onPressed: () {
-              // TODO: Implement share shop functionality
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CartScreen()),
+              );
             },
-            icon: const Icon(Icons.share),
-            tooltip: 'Chia sẻ shop',
+            icon: const Icon(Icons.shopping_cart),
+            tooltip: 'Giỏ hàng',
           ),
         ],
       ),

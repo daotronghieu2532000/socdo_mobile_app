@@ -342,8 +342,8 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Tìm thấy ${_totalProducts > 0 ? _totalProducts : _products.length} sản phẩm',
-                  style: const TextStyle(
+                'Tìm thấy ${_totalProducts > 0 ? _totalProducts : _products.length} sản phẩm',
+                style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Color(0xFF666666),
@@ -541,9 +541,9 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           borderRadius: BorderRadius.circular(20),
           border: selected ? null : Border.all(color: Colors.grey[300]!),
         ),
-        child: Row(
+      child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
+        children: [
             Icon(
               icon,
               size: 16,

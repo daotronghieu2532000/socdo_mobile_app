@@ -41,7 +41,7 @@ try {
     
     if ($method === 'GET') {
         $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-        $limit = isset($_GET['limit']) ? min(500, max(1, intval($_GET['limit']))) : 20;
+        $limit = isset($_GET['limit']) ? min(1000, max(1, intval($_GET['limit']))) : 20;
         $get_all = isset($_GET['all']) && $_GET['all'] == '1';
         
         // Override limit nếu get_all = true

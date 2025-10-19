@@ -132,13 +132,13 @@ try {
         if ($include_products) {
             $products_query = "SELECT s.id, s.ma_sanpham, s.tieu_de, s.minh_hoa, s.link, s.cat, s.gia_cu, s.gia_moi, s.gia_ctv,
                                      s.thuong_hieu, s.kho, s.ban, s.view, s.box_banchay, s.box_noibat, s.box_flash, 
-                                     s.date_post, s.status, s.chinhhang, s.free_ship_all, s.free_ship_min_order, s.free_ship_discount,
-                                     t.ten_kho as warehouse_name, tm.tieu_de as province_name
+                                     s.date_post, s.status,
+                                     t.ten_kho as warehouse_name, tm.tieu_de as province_name,
+                                     t.free_ship_all, t.free_ship_min_order, t.free_ship_discount
                               FROM sanpham s
                               LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
                               LEFT JOIN tinh_moi tm ON t.province = tm.id
                               WHERE s.shop = '$shop_id' AND s.status = 1
-                              GROUP BY s.id
                               ORDER BY s.date_post DESC
                               LIMIT $products_limit";
             
@@ -218,9 +218,9 @@ try {
                         $freeship_icon = 'Freeship';
                     }
                     
-                    // Logic chính hãng
+                    // Logic chính hãng - dựa vào thương hiệu có giá trị
                     $chinhhang_icon = '';
-                    if ($product['chinhhang'] == 1) {
+                    if (!empty($product['thuong_hieu']) && trim($product['thuong_hieu']) != '') {
                         $chinhhang_icon = 'Chính hãng';
                     }
                     
@@ -278,7 +278,111 @@ try {
                     $flash_sale_data['title'] = $flash_sale['tieu_de'];
                     $flash_sale_data['main_products'] = explode(',', $flash_sale['main_product']);
                     $flash_sale_data['main_products'] = array_filter(array_map('intval', $flash_sale_data['main_products']));
-                    $flash_sale_data['sub_products'] = json_decode($flash_sale['sub_product'], true);
+                    $sub_products_raw = json_decode($flash_sale['sub_product'], true);
+                    $sub_products_enhanced = array();
+                    
+                    // Lấy thông tin chi tiết sản phẩm cho flash sale
+                    foreach ($sub_products_raw as $product_id => $variants) {
+                        $product_detail_query = "SELECT s.id, s.tieu_de, s.minh_hoa, s.link, s.cat, s.gia_cu, s.gia_moi, s.gia_ctv,
+                                                       s.thuong_hieu, s.kho, s.ban, s.view, s.box_banchay, s.box_noibat, s.box_flash, 
+                                                       s.date_post, s.status,
+                                                       t.ten_kho as warehouse_name, tm.tieu_de as province_name,
+                                                       t.free_ship_all, t.free_ship_min_order, t.free_ship_discount
+                                                FROM sanpham s
+                                                LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
+                                                LEFT JOIN tinh_moi tm ON t.province = tm.id
+                                                WHERE s.id = '$product_id' AND s.shop = '$shop_id'
+                                                LIMIT 1";
+                        
+                        $product_detail_result = mysqli_query($conn, $product_detail_query);
+                        if ($product_detail_result && mysqli_num_rows($product_detail_result) > 0) {
+                            $product_detail = mysqli_fetch_assoc($product_detail_result);
+                            
+                            // Tính % giảm giá
+                            $discount_percent = 0;
+                            if ($product_detail['gia_cu'] > 0 && $product_detail['gia_moi'] < $product_detail['gia_cu']) {
+                                $discount_percent = round((($product_detail['gia_cu'] - $product_detail['gia_moi']) / $product_detail['gia_cu']) * 100);
+                            }
+                            
+                            // Logic voucher cho flash sale product
+                            $voucher_icon = '';
+                            $deal_shop = $shop_id;
+                            
+                            // Check voucher sản phẩm cụ thể
+                            $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$product_id', sanpham) AND shop = '$deal_shop' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                            if (mysqli_num_rows($check_coupon) > 0) {
+                                $voucher_icon = 'Voucher';
+                            } else {
+                                // Check voucher shop
+                                $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                                if (mysqli_num_rows($check_coupon_all) > 0) {
+                                    $voucher_icon = 'Voucher';
+                                }
+                            }
+                            
+                            // Logic freeship cho flash sale product
+                            $freeship_icon = '';
+                            $mode = intval($product_detail['free_ship_all'] ?? 0);
+                            $discount = intval($product_detail['free_ship_discount'] ?? 0);
+                            $minOrder = intval($product_detail['free_ship_min_order'] ?? 0);
+                            $base_price = $product_detail['gia_moi'];
+                            
+                            if ($mode === 1) {
+                                $freeship_icon = 'Freeship 100%';
+                            } elseif ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
+                                $freeship_icon = 'Giảm ' . number_format($discount) . 'đ';
+                            } elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
+                                $freeship_icon = 'Giảm ' . $discount . '%';
+                            } elseif ($mode === 3) {
+                                $freeship_icon = 'Ưu đãi ship';
+                            } elseif ($mode === 0 && $discount == 0) {
+                                $freeship_icon = 'Freeship';
+                            }
+                            
+                            // Logic chính hãng
+                            $chinhhang_icon = '';
+                            if (!empty($product_detail['thuong_hieu']) && trim($product_detail['thuong_hieu']) != '') {
+                                $chinhhang_icon = 'Chính hãng';
+                            }
+                            
+                            // Thông tin kho
+                            $warehouse_name = $product_detail['warehouse_name'] ?? '';
+                            $province_name = $product_detail['province_name'] ?? '';
+                            
+                            // Xử lý hình ảnh
+                            $image_url = '';
+                            if (!empty($product_detail['minh_hoa'])) {
+                                $image_url = 'https://socdo.vn/' . $product_detail['minh_hoa'];
+                            }
+                            
+                            // Tạo URL sản phẩm
+                            $product_url = 'https://socdo.vn/san-pham/' . $product_id . '/' . $product_detail['link'] . '.html';
+                            
+                            $sub_products_enhanced[$product_id] = array(
+                                'product_info' => array(
+                                    'id' => intval($product_id),
+                                    'name' => $product_detail['tieu_de'],
+                                    'slug' => $product_detail['link'],
+                                    'image' => $image_url,
+                                    'product_url' => $product_url,
+                                    'category_ids' => explode(',', $product_detail['cat']),
+                                    'brand_id' => intval($product_detail['thuong_hieu']),
+                                    'stock' => intval($product_detail['kho']),
+                                    'sold' => intval($product_detail['ban']),
+                                    'views' => intval($product_detail['view']),
+                                    'discount_percent' => $discount_percent,
+                                    'voucher_icon' => $voucher_icon,
+                                    'freeship_icon' => $freeship_icon,
+                                    'chinhhang_icon' => $chinhhang_icon,
+                                    'warehouse_name' => $warehouse_name,
+                                    'province_name' => $province_name,
+                                ),
+                                'variants' => $variants
+                            );
+                        }
+                    }
+                    
+                    $flash_sale_data['sub_products'] = $sub_products_enhanced;
                     $flash_sale_data['start_time'] = intval($flash_sale['date_start']);
                     $flash_sale_data['end_time'] = intval($flash_sale['date_end']);
                     $flash_sale_data['timeline'] = $flash_sale['timeline'];

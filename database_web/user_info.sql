@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Oct 03, 2025 at 03:26 PM
+-- Generation Time: Oct 19, 2025 at 05:52 PM
 -- Server version: 10.1.48-MariaDB
 -- PHP Version: 7.3.31
 
@@ -70,7 +70,8 @@ CREATE TABLE `user_info` (
   `ip_address` varchar(160) NOT NULL,
   `logined` varchar(11) NOT NULL,
   `end_online` varchar(11) NOT NULL,
-  `dk_aff` int(11) NOT NULL
+  `dk_aff` int(11) NOT NULL,
+  `is_self_operated` int(2) NOT NULL DEFAULT '0' COMMENT '1 = Tự vận hành\r\n\r\n0 = Do hệ thống vận hành'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
