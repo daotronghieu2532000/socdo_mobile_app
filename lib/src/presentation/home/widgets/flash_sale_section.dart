@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../flash_sale/flash_sale_screen.dart';
 import '../../../core/utils/format_utils.dart';
-import '../../../core/services/api_service.dart';
+import '../../../core/services/cached_api_service.dart';
 import '../../../core/models/flash_sale_product.dart';
 import '../../../core/models/flash_sale_deal.dart';
 import 'flash_sale_product_card_horizontal.dart';
@@ -17,7 +17,7 @@ class FlashSaleSection extends StatefulWidget {
 class _FlashSaleSectionState extends State<FlashSaleSection> {
   Duration _timeLeft = const Duration(hours: 2, minutes: 6, seconds: 49);
   late Timer _timer;
-  final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   List<FlashSaleDeal> _deals = [];
   bool _isLoading = true;
   String? _error;
@@ -63,36 +63,32 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
         currentTimeline = '16:00';
       }
 
-      // Tắt logging để tránh spam terminal
-      // print('🕐 Current timeline: $currentTimeline (hour: $hour)');
+      print('🕐 Current timeline: $currentTimeline (hour: $hour)');
 
-      // Chỉ lấy flash sale của timeline hiện tại, giống website
-      final deals = await _apiService.getFlashSaleDeals(
-        timeSlot: currentTimeline,
-        status: 'active',
-        limit: 10, // Tăng limit để lấy đủ sản phẩm như website
-      );
+      // Sử dụng cached API service
+      final flashSaleData = await _cachedApiService.getHomeFlashSale();
       
-      if (mounted) {
+      if (mounted && flashSaleData.isNotEmpty) {
+        // Convert Map to FlashSaleDeal
+        final deals = flashSaleData.map((data) => FlashSaleDeal.fromJson(data)).toList();
+        
         setState(() {
           _isLoading = false;
-          if (deals != null && deals.isNotEmpty) {
-            _deals = deals;
-            // Cập nhật countdown theo mốc hiện tại (đến cuối slot)
-            final slotEnd = _currentSlotEnd(currentTimeline);
-            final nowTs = DateTime.now();
-            final remaining = slotEnd.difference(nowTs).inSeconds;
-            _timeLeft = Duration(seconds: remaining > 0 ? remaining : 0);
-            
-            // Tắt logging để tránh spam terminal
-            // print('✅ Loaded ${deals.length} deals for timeline $currentTimeline');
-            // print('⏰ Time remaining: ${_timeLeft.inHours}h ${_timeLeft.inMinutes % 60}m ${_timeLeft.inSeconds % 60}s');
-          } else {
-            _error = 'Không có flash sale cho khung giờ $currentTimeline';
-            // Tắt logging để tránh spam terminal
-            // print('❌ No deals found for timeline $currentTimeline');
-          }
+          _deals = deals;
+          // Cập nhật countdown theo mốc hiện tại (đến cuối slot)
+          final slotEnd = _currentSlotEnd(currentTimeline);
+          final nowTs = DateTime.now();
+          final remaining = slotEnd.difference(nowTs).inSeconds;
+          _timeLeft = Duration(seconds: remaining > 0 ? remaining : 0);
         });
+        
+        print('✅ Flash sale loaded successfully (${deals.length} deals)');
+      } else {
+        setState(() {
+          _isLoading = false;
+          _error = 'Không có flash sale cho khung giờ $currentTimeline';
+        });
+        print('⚠️ No flash sale found for timeline $currentTimeline');
       }
     } catch (e) {
       if (mounted) {
@@ -101,8 +97,7 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
           _error = 'Lỗi kết nối: $e';
         });
       }
-      // Tắt logging để tránh spam terminal
-      // print('❌ Error loading flash sale: $e');
+      print('❌ Error loading flash sale: $e');
     }
   }
 

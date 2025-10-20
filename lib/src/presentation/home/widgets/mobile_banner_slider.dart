@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/banner.dart';
-import '../../../core/services/api_service.dart';
+import '../../../core/services/cached_api_service.dart';
 
 class MobileBannerSlider extends StatefulWidget {
   const MobileBannerSlider({super.key});
@@ -12,7 +12,7 @@ class MobileBannerSlider extends StatefulWidget {
 }
 
 class _MobileBannerSliderState extends State<MobileBannerSlider> {
-  final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   List<BannerModel> _banners = [];
   bool _isLoading = true;
   int _currentIndex = 0;
@@ -25,20 +25,24 @@ class _MobileBannerSliderState extends State<MobileBannerSlider> {
 
   Future<void> _loadBanners() async {
     try {
-      final banners = await _apiService.getBanners(
-        position: 'banner_index_mobile',
-        limit: 10,
-      );
+      // Sử dụng cached API service
+      final bannersData = await _cachedApiService.getHomeBanners();
       
-      if (mounted && banners != null) {
+      if (mounted && bannersData.isNotEmpty) {
+        // Convert Map to BannerModel
+        final banners = bannersData.map((data) => BannerModel.fromJson(data)).toList();
+        
         setState(() {
           _banners = banners;
           _isLoading = false;
         });
+        
+        print('✅ Mobile banners loaded successfully (${banners.length} banners)');
       } else {
         setState(() {
           _isLoading = false;
         });
+        print('⚠️ No mobile banners found');
       }
     } catch (e) {
       if (mounted) {
@@ -46,7 +50,7 @@ class _MobileBannerSliderState extends State<MobileBannerSlider> {
           _isLoading = false;
         });
       }
-      // print('❌ Lỗi khi tải banner mobile: $e');
+      print('❌ Error loading mobile banners: $e');
     }
   }
 

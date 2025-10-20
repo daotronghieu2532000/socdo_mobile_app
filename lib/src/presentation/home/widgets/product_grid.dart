@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'product_card_horizontal.dart';
-import '../../../core/services/api_service.dart';
+import '../../../core/services/cached_api_service.dart';
 import '../../../core/models/product_suggest.dart';
 
 class ProductGrid extends StatefulWidget {
@@ -12,7 +12,7 @@ class ProductGrid extends StatefulWidget {
 }
 
 class _ProductGridState extends State<ProductGrid> {
-  final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   List<ProductSuggest> _products = [];
   bool _isLoading = true;
   String? _error;
@@ -31,18 +31,25 @@ class _ProductGridState extends State<ProductGrid> {
         _error = null;
       });
 
-      // Lấy tối đa 100 sản phẩm gợi ý
-      final products = await _apiService.getProductSuggests(limit: 100);
+      // Sử dụng cached API service
+      final suggestionsData = await _cachedApiService.getHomeSuggestions(limit: 100);
       
-      if (mounted) {
+      if (mounted && suggestionsData.isNotEmpty) {
+        // Convert Map to ProductSuggest
+        final products = suggestionsData.map((data) => ProductSuggest.fromJson(data)).toList();
+        
         setState(() {
           _isLoading = false;
-          if (products != null && products.isNotEmpty) {
-            _products = products;
-          } else {
-            _error = 'Không có sản phẩm gợi ý';
-          }
+          _products = products;
         });
+        
+        print('✅ Product suggestions loaded successfully (${products.length} products)');
+      } else if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Không có sản phẩm gợi ý';
+        });
+        print('⚠️ No product suggestions found');
       }
     } catch (e) {
       if (mounted) {
@@ -51,6 +58,7 @@ class _ProductGridState extends State<ProductGrid> {
           _error = 'Lỗi kết nối: $e';
         });
       }
+      print('❌ Error loading product suggestions: $e');
     }
   }
 
