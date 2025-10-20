@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/api_service.dart';
 import '../../core/models/search_result.dart';
 import '../../core/utils/format_utils.dart';
@@ -30,13 +31,16 @@ class _SearchScreenState extends State<SearchScreen> {
   RangeValues _priceRange = const RangeValues(0, 20000000);
   bool _showFilters = false;
 
+  // Gợi ý từ khóa
+  List<String> _searchSuggestions = [];
+  bool _isLoadingSuggestions = false;
+  
+  // Danh mục ngẫu nhiên
+  List<String> _randomCategories = [];
+  bool _isLoadingCategories = false;
+  
   // Lịch sử tìm kiếm
-  final List<String> _searchHistory = [
-    'điện thoại',
-    'laptop',
-    'tai nghe',
-    'sữa tươi',
-  ];
+  List<String> _searchHistory = [];
 
 
   @override
@@ -44,6 +48,8 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
+    _loadSearchHistory();
+    _loadRandomCategoriesFromSuggestions();
   }
 
 
@@ -55,7 +61,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _onSearchChanged() {
-    // Có thể thêm debounce logic ở đây
+    // Debounce logic cho gợi ý từ khóa
+    final keyword = _searchController.text.trim();
+    if (keyword.isNotEmpty && keyword.length >= 2) {
+      _loadSearchSuggestions(keyword);
+    } else {
+      setState(() {
+        _searchSuggestions = [];
+      });
+    }
   }
 
   void _onScroll() {
@@ -130,12 +144,9 @@ class _SearchScreenState extends State<SearchScreen> {
           _isSearching = false;
         });
 
-        // Thêm vào lịch sử tìm kiếm
-        if (!_searchHistory.contains(keyword)) {
-          _searchHistory.insert(0, keyword);
-          if (_searchHistory.length > 4) {
-            _searchHistory.removeLast();
-          }
+        // Thêm vào lịch sử tìm kiếm nếu có kết quả
+        if (searchResult.products.isNotEmpty) {
+          await _addToSearchHistory(keyword);
         }
       }
     } catch (e) {
@@ -165,6 +176,119 @@ class _SearchScreenState extends State<SearchScreen> {
         !_isSearching &&
         _currentKeyword.isNotEmpty) {
       _performSearch(_currentKeyword, isLoadMore: true);
+    }
+  }
+
+  // Load lịch sử tìm kiếm từ SharedPreferences
+  Future<void> _loadSearchHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final history = prefs.getStringList('search_history') ?? [];
+      setState(() {
+        _searchHistory = history;
+      });
+    } catch (e) {
+      print('Lỗi khi load lịch sử tìm kiếm: $e');
+    }
+  }
+
+  // Save lịch sử tìm kiếm vào SharedPreferences
+  Future<void> _saveSearchHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('search_history', _searchHistory);
+    } catch (e) {
+      print('Lỗi khi save lịch sử tìm kiếm: $e');
+    }
+  }
+
+  // Thêm từ khóa vào lịch sử
+  Future<void> _addToSearchHistory(String keyword) async {
+    if (keyword.trim().isEmpty) return;
+    
+    setState(() {
+      // Xóa từ khóa cũ nếu có
+      _searchHistory.remove(keyword);
+      // Thêm vào đầu danh sách
+      _searchHistory.insert(0, keyword);
+      // Giới hạn tối đa 10 từ khóa
+      if (_searchHistory.length > 10) {
+        _searchHistory = _searchHistory.take(10).toList();
+      }
+    });
+    
+    // Lưu vào SharedPreferences
+    await _saveSearchHistory();
+  }
+
+  // Clear lịch sử tìm kiếm
+  Future<void> _clearSearchHistory() async {
+    setState(() {
+      _searchHistory.clear();
+    });
+    await _saveSearchHistory();
+  }
+
+  // Load danh mục ngẫu nhiên từ suggestions API
+  Future<void> _loadRandomCategoriesFromSuggestions() async {
+    if (_isLoadingCategories) return;
+    
+    setState(() {
+      _isLoadingCategories = true;
+    });
+
+    try {
+      // Gọi API với keyword rỗng để lấy danh mục ngẫu nhiên
+      final suggestions = await _apiService.getSearchSuggestions(
+        keyword: 'random_categories',
+        limit: 10,
+      );
+      
+      if (mounted && suggestions != null && suggestions.isNotEmpty) {
+        setState(() {
+          // Lấy 4 danh mục cuối cùng (là danh mục ngẫu nhiên từ API)
+          _randomCategories = suggestions.length >= 4 
+              ? suggestions.sublist(suggestions.length - 4) 
+              : suggestions;
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _randomCategories = [];
+          _isLoadingCategories = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadSearchSuggestions(String keyword) async {
+    if (_isLoadingSuggestions) return;
+    
+    setState(() {
+      _isLoadingSuggestions = true;
+    });
+
+    try {
+      final suggestions = await _apiService.getSearchSuggestions(
+        keyword: keyword,
+        limit: 5,
+      );
+      
+      if (mounted && suggestions != null) {
+        setState(() {
+          _searchSuggestions = suggestions;
+          _isLoadingSuggestions = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _searchSuggestions = [];
+          _isLoadingSuggestions = false;
+        });
+      }
     }
   }
 
@@ -262,6 +386,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 _currentKeyword = '';
                                 _currentPage = 1;
                                 _showFilters = false;
+                                _searchSuggestions = [];
                               });
                               if (_scrollController.hasClients) {
                                 _scrollController.animateTo(
@@ -776,7 +901,8 @@ class _SearchScreenState extends State<SearchScreen> {
                 _searchResult = null;
                 _currentKeyword = '';
                 _currentPage = 1;
-                  _showFilters = false;
+                _showFilters = false;
+                _searchSuggestions = [];
               });
               if (_scrollController.hasClients) {
                 _scrollController.animateTo(
@@ -812,12 +938,70 @@ class _SearchScreenState extends State<SearchScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // Hiển thị gợi ý từ khóa nếu đang nhập
+        if (_searchController.text.isNotEmpty && _searchSuggestions.isNotEmpty) ...[
+          _SectionTitle(icon: Icons.lightbulb_outline, title: 'Gợi ý từ khóa'),
+          const SizedBox(height: 12),
+          _SearchSuggestionsList(
+            suggestions: _searchSuggestions, 
+            onTap: _onKeywordTapped,
+            isLoading: _isLoadingSuggestions,
+          ),
+          const SizedBox(height: 24),
+        ],
+        // Hiển thị lịch sử tìm kiếm nếu có
         if (_searchHistory.isNotEmpty) ...[
-          _SectionTitle(icon: Icons.history, title: 'Lịch sử tìm kiếm'),
+          Row(
+            children: [
+              Expanded(
+                child: _SectionTitle(icon: Icons.history, title: 'Lịch sử tìm kiếm'),
+              ),
+              GestureDetector(
+                onTap: _clearSearchHistory,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.clear_all,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Xóa',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           _SearchHistoryList(history: _searchHistory, onTap: _onKeywordTapped),
           const SizedBox(height: 24),
         ],
+        // Hiển thị 4 danh mục ngẫu nhiên
+        if (_randomCategories.isNotEmpty) ...[
+          _SectionTitle(icon: Icons.category_outlined, title: 'Danh mục nổi bật'),
+          const SizedBox(height: 12),
+          _RandomCategoriesGrid(
+            categories: _randomCategories,
+            isLoading: _isLoadingCategories,
+            onTap: _onKeywordTapped,
+          ),
+          const SizedBox(height: 24),
+        ],
+        // Hiển thị từ khóa phổ biến
         _SectionTitle(icon: Icons.trending_up, title: 'Từ khóa phổ biến'),
         const SizedBox(height: 12),
         _KeywordGrid(onTap: _onKeywordTapped),
@@ -859,6 +1043,72 @@ class _SectionTitle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SearchSuggestionsList extends StatelessWidget {
+  final List<String> suggestions;
+  final Function(String) onTap;
+  final bool isLoading;
+
+  const _SearchSuggestionsList({
+    required this.suggestions, 
+    required this.onTap,
+    required this.isLoading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Column(
+      children: suggestions.map((suggestion) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.lightbulb_outline,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            title: Text(
+              suggestion,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF333333),
+              ),
+            ),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: Colors.grey[400],
+            ),
+            onTap: () => onTap(suggestion),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            tileColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          ),
+        );
+      }).toList(),
     );
   }
 }
@@ -914,6 +1164,121 @@ class _SearchHistoryList extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+class _RandomCategoriesGrid extends StatelessWidget {
+  final List<String> categories;
+  final bool isLoading;
+  final Function(String) onTap;
+
+  const _RandomCategoriesGrid({
+    required this.categories,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 4,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisExtent: 100,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+        ),
+        itemBuilder: (context, i) => Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: categories.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisExtent: 100,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+      ),
+      itemBuilder: (context, i) => _RandomCategoryItem(
+        categories[i],
+        onTap: () => onTap(categories[i]),
+      ),
+    );
+  }
+}
+
+class _RandomCategoryItem extends StatelessWidget {
+  final String name;
+  final VoidCallback onTap;
+
+  const _RandomCategoryItem(this.name, {required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                Icons.category,
+                size: 24,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF333333),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

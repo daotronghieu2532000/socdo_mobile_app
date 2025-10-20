@@ -267,6 +267,7 @@ try {
                                  FROM deal 
                                  WHERE shop = '$shop_id' AND loai = 'flash_sale' 
                                  AND '$current_time' BETWEEN date_start AND date_end
+                                 AND status = '2'
                                  ORDER BY date_post DESC";
             
             $flash_sale_result = mysqli_query($conn, $flash_sale_query);

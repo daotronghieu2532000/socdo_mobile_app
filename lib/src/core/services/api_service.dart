@@ -2421,6 +2421,77 @@ class ApiService {
     };
   }
 
+  /// Lấy gợi ý từ khóa tìm kiếm
+  Future<List<String>?> getSearchSuggestions({
+    required String keyword,
+    int limit = 5,
+  }) async {
+    try {
+      if (keyword.trim().isEmpty || keyword.length < 2) {
+        return [];
+      }
+      
+      final encodedKeyword = Uri.encodeComponent(keyword);
+      final response = await get('/search_suggestions?keyword=$encodedKeyword&limit=$limit');
+      
+      if (response != null && response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data['success'] == true && data['data'] != null) {
+          final suggestions = data['data']['suggestions'] as List?;
+          if (suggestions != null) {
+            return suggestions.cast<String>();
+          }
+        }
+      }
+      
+      // Fallback to mock suggestions if API fails
+      return _getMockSuggestions(keyword, limit);
+    } catch (e) {
+      print('❌ Lỗi khi lấy gợi ý từ khóa: $e');
+      return _getMockSuggestions(keyword, limit);
+    }
+  }
+
+  /// Mock suggestions fallback
+  List<String> _getMockSuggestions(String keyword, int limit) {
+    final keywordLower = keyword.toLowerCase();
+    
+    // Mapping từ khóa gợi ý
+    final Map<String, List<String>> suggestionMap = {
+      'điện': ['điện thoại', 'điện gia dụng', 'điện tử', 'điện máy'],
+      'điện thoại': ['điện thoại iphone', 'điện thoại samsung', 'điện thoại oppo'],
+      'laptop': ['laptop gaming', 'laptop dell', 'laptop hp', 'laptop asus'],
+      'tai nghe': ['tai nghe bluetooth', 'tai nghe có dây', 'airpods'],
+      'sữa': ['sữa tươi', 'sữa bột', 'sữa chua', 'sữa đậu nành'],
+      'mỹ phẩm': ['mỹ phẩm hàn quốc', 'kem dưỡng da', 'son môi', 'phấn nền'],
+      'thực phẩm': ['thực phẩm chức năng', 'thực phẩm sạch', 'đồ ăn nhanh'],
+      'quần áo': ['quần áo nam', 'quần áo nữ', 'quần áo trẻ em'],
+      'giày': ['giày thể thao', 'giày cao gót', 'giày boot'],
+      'dầu gội': ['dầu gội đầu', 'dầu xả', 'dầu gội trị gàu'],
+      'nước giặt': ['nước giặt tide', 'nước giặt omo', 'nước xả vải'],
+      'chảo': ['chảo chống dính', 'chảo inox', 'chảo gang'],
+      'kem': ['kem dưỡng da', 'kem chống nắng', 'kem đánh răng'],
+      'bánh': ['bánh mì', 'bánh ngọt', 'bánh kẹo'],
+    };
+    
+    // Tìm gợi ý phù hợp
+    for (var entry in suggestionMap.entries) {
+      if (keywordLower.contains(entry.key) || entry.key.contains(keywordLower)) {
+        return entry.value.take(limit).toList();
+      }
+    }
+    
+    // Gợi ý mặc định nếu không tìm thấy
+    return [
+      '$keyword nam',
+      '$keyword nữ', 
+      '$keyword giá rẻ',
+      '$keyword chính hãng',
+      '$keyword tốt nhất'
+    ].take(limit).toList();
+  }
+
   /// Helper method để tìm từ khóa liên quan
   List<String> _getRelatedKeywords(String keyword) {
     final keywordLower = keyword.toLowerCase().trim();
