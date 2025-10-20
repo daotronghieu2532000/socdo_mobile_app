@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../core/models/affiliate_product.dart';
 import '../../core/services/affiliate_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/cached_api_service.dart';
 import '../../core/utils/format_utils.dart';
 import '../product/product_detail_screen.dart';
 
@@ -21,6 +22,7 @@ class AffiliateProductsScreen extends StatefulWidget {
 class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
   final AffiliateService _affiliateService = AffiliateService();
   final AuthService _authService = AuthService();
+  final CachedApiService _cachedApiService = CachedApiService();
   List<AffiliateProduct> _products = [];
   List<AffiliateProduct> _filteredProducts = [];
   bool _isLoading = true;
@@ -135,37 +137,62 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
     });
 
     try {
-      final result = await _affiliateService.getProducts(
+      // Sử dụng cached API service cho products
+      final productsData = await _cachedApiService.getAffiliateProducts(
         userId: _currentUserId,
         page: _currentPage,
-        limit: 50, // Tăng từ 20 lên 50
+        limit: 50,
         search: _searchQuery.isEmpty ? null : _searchQuery,
         sortBy: _sortBy,
         onlyFollowing: _onlyFollowed,
       );
+      
+      // Nếu cache không có data, fallback về AffiliateService
+      if (productsData == null || productsData.isEmpty) {
+        print('🔄 Cache miss, fetching from AffiliateService...');
+        final result = await _affiliateService.getProducts(
+          userId: _currentUserId,
+          page: _currentPage,
+          limit: 50,
+          search: _searchQuery.isEmpty ? null : _searchQuery,
+          sortBy: _sortBy,
+          onlyFollowing: _onlyFollowed,
+        );
 
-      if (mounted) {
-        setState(() {
-          if (result != null) {
-            final newProducts = result['products'] as List<AffiliateProduct>;
-            if (refresh) {
-              _products = newProducts;
-            } else {
-              _products.addAll(newProducts);
+        if (mounted) {
+          setState(() {
+            if (result != null) {
+              final newProducts = result['products'] as List<AffiliateProduct>;
+              if (refresh) {
+                _products = newProducts;
+              } else {
+                _products.addAll(newProducts);
+              }
+              _applyFilters();
+              
+              final pagination = result['pagination'];
+              _hasMoreData = _currentPage < pagination['total_pages'];
+              _currentPage++;
+              
+              // Debug: Check if products have links
+              for (final product in newProducts) {
+                print('📦 Product ${product.id}: hasLink=${product.hasLink}, shortLink=${product.shortLink}');
+              }
             }
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Convert cached data to AffiliateProduct models
+        print('📦 Using cached products data');
+        if (mounted) {
+          setState(() {
+            // Convert cached data to AffiliateProduct list
+            // _products = productsData['products'].map((data) => AffiliateProduct.fromJson(data)).toList();
             _applyFilters();
-            
-            final pagination = result['pagination'];
-            _hasMoreData = _currentPage < pagination['total_pages'];
-            _currentPage++;
-            
-            // Debug: Check if products have links
-            for (final product in newProducts) {
-              print('📦 Product ${product.id}: hasLink=${product.hasLink}, shortLink=${product.shortLink}');
-            }
-          }
-          _isLoading = false;
-        });
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

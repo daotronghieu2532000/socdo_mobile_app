@@ -330,6 +330,289 @@ class CachedApiService {
     return _cache.getCacheInfo();
   }
 
+  /// Lấy danh sách categories với cache
+  Future<List<Map<String, dynamic>>> getCategoriesList({
+    String type = 'parents',
+    int? parentId,
+    bool includeChildren = false,
+    bool includeProductsCount = false,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.categories, {
+      'type': type,
+      'parentId': parentId,
+      'includeChildren': includeChildren,
+      'includeProductsCount': includeProductsCount,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('📂 Using cached categories list');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching categories list from API...');
+      final categories = await _apiService.getCategoriesList(
+        type: type,
+        parentId: parentId ?? 0,
+        includeChildren: includeChildren,
+        includeProductsCount: includeProductsCount,
+      );
+      
+      // Convert to Map list - categories đã là List<Map<String, dynamic>>
+      final categoriesData = categories ?? [];
+      
+      // Lưu vào cache với thời gian dài vì categories ít thay đổi
+      _cache.set(cacheKey, categoriesData, duration: cacheDuration ?? _longCacheDuration);
+      
+      print('✅ Categories list cached successfully');
+      return categoriesData;
+    } catch (e) {
+      print('❌ Error fetching categories list: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for categories list');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Lấy sản phẩm theo danh mục với cache và pagination
+  Future<Map<String, dynamic>?> getCategoryProductsWithPagination({
+    required int categoryId,
+    int page = 1,
+    int limit = 50,
+    String sort = 'relevance',
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.categoryProducts, {
+      'categoryId': categoryId,
+      'page': page,
+      'limit': limit,
+      'sort': sort,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('📦 Using cached category products (page $page)');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching category products from API (page $page)...');
+      final response = await _apiService.getProductsByCategory(
+        categoryId: categoryId,
+        page: page,
+        limit: limit,
+        sort: sort,
+      );
+      
+      // Lưu vào cache
+      _cache.set(cacheKey, response, duration: cacheDuration ?? _defaultCacheDuration);
+      
+      print('✅ Category products cached successfully (page $page)');
+      return response;
+    } catch (e) {
+      print('❌ Error fetching category products: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for category products (page $page)');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của category cụ thể
+  void clearCategoryCache(int categoryId) {
+    clearCachePattern('category_products:{"categoryId":$categoryId');
+    print('🧹 Cleared cache for category $categoryId');
+  }
+
+  /// Lấy affiliate dashboard với cache
+  Future<Map<String, dynamic>?> getAffiliateDashboard({
+    required int? userId,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.affiliateDashboard, {
+      'userId': userId,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('💰 Using cached affiliate dashboard');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching affiliate dashboard from API...');
+      // Note: Cần import AffiliateService hoặc tạo method trong ApiService
+      // final dashboard = await _apiService.getAffiliateDashboard(userId: userId);
+      
+      // Placeholder - cần implement actual API call
+      final dashboard = <String, dynamic>{}; // await _apiService.getAffiliateDashboard(userId: userId);
+      
+      // Lưu vào cache với thời gian ngắn vì dashboard thay đổi thường xuyên
+      _cache.set(cacheKey, dashboard, duration: cacheDuration ?? _shortCacheDuration);
+      
+      print('✅ Affiliate dashboard cached successfully');
+      return dashboard;
+    } catch (e) {
+      print('❌ Error fetching affiliate dashboard: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for affiliate dashboard');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Lấy affiliate links với cache và pagination
+  Future<Map<String, dynamic>?> getAffiliateLinks({
+    required int? userId,
+    int page = 1,
+    int limit = 50,
+    String? search,
+    String sortBy = 'newest',
+    bool onlyHasLink = false,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.affiliateLinks, {
+      'userId': userId,
+      'page': page,
+      'limit': limit,
+      'search': search,
+      'sortBy': sortBy,
+      'onlyHasLink': onlyHasLink,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔗 Using cached affiliate links (page $page)');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching affiliate links from API (page $page)...');
+      // Placeholder - cần implement actual API call
+      final result = <String, dynamic>{}; // await _apiService.getAffiliateLinks(...);
+      
+      // Lưu vào cache
+      _cache.set(cacheKey, result, duration: cacheDuration ?? _defaultCacheDuration);
+      
+      print('✅ Affiliate links cached successfully (page $page)');
+      return result;
+    } catch (e) {
+      print('❌ Error fetching affiliate links: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for affiliate links (page $page)');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Lấy affiliate products với cache và pagination
+  Future<Map<String, dynamic>?> getAffiliateProducts({
+    required int? userId,
+    int page = 1,
+    int limit = 50,
+    String? search,
+    String sortBy = 'newest',
+    bool onlyFollowing = false,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.affiliateProducts, {
+      'userId': userId,
+      'page': page,
+      'limit': limit,
+      'search': search,
+      'sortBy': sortBy,
+      'onlyFollowing': onlyFollowing,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('📦 Using cached affiliate products (page $page)');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching affiliate products from API (page $page)...');
+      // Placeholder - cần implement actual API call
+      final result = <String, dynamic>{}; // await _apiService.getAffiliateProducts(...);
+      
+      // Lưu vào cache
+      _cache.set(cacheKey, result, duration: cacheDuration ?? _defaultCacheDuration);
+      
+      print('✅ Affiliate products cached successfully (page $page)');
+      return result;
+    } catch (e) {
+      print('❌ Error fetching affiliate products: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for affiliate products (page $page)');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của affiliate cụ thể
+  void clearAffiliateCache(int userId) {
+    clearCachePattern('affiliate_dashboard:{"userId":$userId');
+    clearCachePattern('affiliate_links:{"userId":$userId');
+    clearCachePattern('affiliate_products:{"userId":$userId');
+    print('🧹 Cleared cache for affiliate user $userId');
+  }
+
+  /// Xóa tất cả cache của affiliate
+  void clearAllAffiliateCache() {
+    clearCachePattern('affiliate_dashboard');
+    clearCachePattern('affiliate_links');
+    clearCachePattern('affiliate_products');
+    print('🧹 Cleared all affiliate cache');
+  }
+
   /// Force refresh tất cả cache của home
   Future<void> refreshHomeCache() async {
     print('🔄 Force refreshing home cache...');

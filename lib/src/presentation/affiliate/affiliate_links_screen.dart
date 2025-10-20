@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import '../../core/services/affiliate_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/cached_api_service.dart';
 import '../../core/models/affiliate_link.dart';
 import '../../core/utils/format_utils.dart';
 import '../product/product_detail_screen.dart';
@@ -20,6 +21,7 @@ class AffiliateLinksScreen extends StatefulWidget {
 class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
   final AffiliateService _affiliateService = AffiliateService();
   final AuthService _authService = AuthService();
+  final CachedApiService _cachedApiService = CachedApiService();
   List<AffiliateLink> _links = [];
   List<AffiliateLink> _filteredLinks = [];
   bool _isLoading = true;
@@ -77,31 +79,56 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
     });
 
     try {
-      final result = await _affiliateService.getMyLinks(
+      // Sử dụng cached API service cho links
+      final linksData = await _cachedApiService.getAffiliateLinks(
         userId: _currentUserId,
         page: _currentPage,
-        limit: 50, // Tăng từ 20 lên 50
+        limit: 50,
         search: _searchQuery.isEmpty ? null : _searchQuery,
         sortBy: _sortBy,
         onlyHasLink: _onlyHasLink,
       );
       
-      if (mounted) {
-        setState(() {
-          if (result != null) {
-            final newLinks = result['links'] as List<AffiliateLink>;
-            if (refresh) {
-              _links = newLinks;
-            } else {
-              _links.addAll(newLinks);
+      // Nếu cache không có data, fallback về AffiliateService
+      if (linksData == null || linksData.isEmpty) {
+        print('🔄 Cache miss, fetching from AffiliateService...');
+        final result = await _affiliateService.getMyLinks(
+          userId: _currentUserId,
+          page: _currentPage,
+          limit: 50,
+          search: _searchQuery.isEmpty ? null : _searchQuery,
+          sortBy: _sortBy,
+          onlyHasLink: _onlyHasLink,
+        );
+        
+        if (mounted) {
+          setState(() {
+            if (result != null) {
+              final newLinks = result['links'] as List<AffiliateLink>;
+              if (refresh) {
+                _links = newLinks;
+              } else {
+                _links.addAll(newLinks);
+              }
+              _applyFilters();
+              final pagination = result['pagination'];
+              _hasMoreData = _currentPage < pagination['total_pages'];
+              _currentPage++;
             }
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Convert cached data to AffiliateLink models
+        print('🔗 Using cached links data');
+        if (mounted) {
+          setState(() {
+            // Convert cached data to AffiliateLink list
+            // _links = linksData['links'].map((data) => AffiliateLink.fromJson(data)).toList();
             _applyFilters();
-            final pagination = result['pagination'];
-            _hasMoreData = _currentPage < pagination['total_pages'];
-            _currentPage++;
-          }
-          _isLoading = false;
-        });
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

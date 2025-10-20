@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'widgets/left_menu_item.dart';
 import 'widgets/right_content.dart';
-import '../../core/services/api_service.dart';
+import '../../core/services/cached_api_service.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -12,7 +12,7 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen>
     with SingleTickerProviderStateMixin {
-  final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   
   List<Map<String, dynamic>> _parentCategories = [];
   List<Map<String, dynamic>> _childCategories = [];
@@ -29,25 +29,28 @@ class _CategoryScreenState extends State<CategoryScreen>
     try {
       setState(() => _isLoading = true);
       
-      final categories = await _apiService.getCategoriesList(
+      // Sử dụng cached API service
+      final categoriesData = await _cachedApiService.getCategoriesList(
         type: 'parents',
         includeChildren: true,
         includeProductsCount: true,
       );
       
-      if (categories != null && mounted) {
+      if (categoriesData.isNotEmpty && mounted) {
         setState(() {
-          _parentCategories = categories;
+          _parentCategories = categoriesData;
           _isLoading = false;
           // Load children of first category
-          if (categories.isNotEmpty) {
-            _loadChildrenFromParent(categories.first);
+          if (categoriesData.isNotEmpty) {
+            _loadChildrenFromParent(categoriesData.first);
           }
         });
       }
     } catch (e) {
       print('❌ Lỗi khi tải danh mục cha: $e');
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -94,19 +97,20 @@ class _CategoryScreenState extends State<CategoryScreen>
 
   Future<void> _loadChildCategories(int parentId) async {
     try {
-      final children = await _apiService.getCategoriesList(
+      // Sử dụng cached API service
+      final childrenData = await _cachedApiService.getCategoriesList(
         type: 'children',
         parentId: parentId,
         includeProductsCount: true,
       );
       
-      if (children != null && mounted) {
-        print('🔍 Loaded ${children.length} child categories for parent ID: $parentId');
-        for (var child in children) {
+      if (childrenData.isNotEmpty && mounted) {
+        print('🔍 Loaded ${childrenData.length} child categories for parent ID: $parentId');
+        for (var child in childrenData) {
           print('  - ${child['name'] ?? child['cat_tieude']} (ID: ${child['id'] ?? child['cat_id']})');
         }
         setState(() {
-          _childCategories = children;
+          _childCategories = childrenData;
         });
       }
     } catch (e) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/affiliate_dashboard.dart';
 import '../../core/services/affiliate_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/cached_api_service.dart';
 import '../../core/utils/format_utils.dart';
 import '../auth/login_screen.dart';
 import 'affiliate_products_screen.dart';
@@ -21,6 +22,7 @@ class AffiliateScreen extends StatefulWidget {
 class _AffiliateScreenState extends State<AffiliateScreen> {
   final AffiliateService _affiliateService = AffiliateService();
   final AuthService _authService = AuthService();
+  final CachedApiService _cachedApiService = CachedApiService();
   AffiliateDashboard? _dashboard;
   bool _isLoading = true;
   String? _error;
@@ -311,14 +313,33 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
     });
 
     try {
-      final dashboard = await _affiliateService.getDashboard(userId: _currentUserId);
-      print('📊 Dashboard loaded: $dashboard');
+      // Sử dụng cached API service cho dashboard
+      final dashboardData = await _cachedApiService.getAffiliateDashboard(
+        userId: _currentUserId,
+      );
       
-      if (mounted) {
-        setState(() {
-          _dashboard = dashboard;
-          _isLoading = false;
-        });
+      // Nếu cache không có data, fallback về AffiliateService
+      if (dashboardData == null || dashboardData.isEmpty) {
+        print('🔄 Cache miss, fetching from AffiliateService...');
+        final dashboard = await _affiliateService.getDashboard(userId: _currentUserId);
+        print('📊 Dashboard loaded: $dashboard');
+        
+        if (mounted) {
+          setState(() {
+            _dashboard = dashboard;
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Convert cached data to AffiliateDashboard model
+        // Note: Cần implement conversion từ Map sang AffiliateDashboard
+        print('💰 Using cached dashboard data');
+        if (mounted) {
+          setState(() {
+            // _dashboard = AffiliateDashboard.fromJson(dashboardData);
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

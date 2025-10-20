@@ -200,8 +200,8 @@ class CacheKeys {
   static const String userProfile = 'user_profile';
   static const String userAddresses = 'user_addresses';
   
-  // Other cache keys
-  static const String notifications = 'notifications';
-  static const String vouchers = 'vouchers';
-  static const String locations = 'locations';
+  // Affiliate cache keys
+  static const String affiliateDashboard = 'affiliate_dashboard';
+  static const String affiliateLinks = 'affiliate_links';
+  static const String affiliateProducts = 'affiliate_products';
 }

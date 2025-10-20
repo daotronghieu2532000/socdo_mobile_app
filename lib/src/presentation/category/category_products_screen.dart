@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/services/api_service.dart';
+import '../../core/services/cached_api_service.dart';
 import 'widgets/category_product_card_horizontal.dart';
 
 class CategoryProductsScreen extends StatefulWidget {
@@ -17,7 +17,7 @@ class CategoryProductsScreen extends StatefulWidget {
 }
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
-  final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   final ScrollController _scrollController = ScrollController();
   
   List<Map<String, dynamic>> _products = [];
@@ -90,7 +90,8 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     }
 
     try {
-      final response = await _apiService.getProductsByCategory(
+      // Sử dụng cached API service với pagination
+      final response = await _cachedApiService.getCategoryProductsWithPagination(
         categoryId: widget.categoryId,
         page: loadMore ? _currentPage + 1 : 1,
         limit: 50, // Tăng từ 20 lên 50
@@ -191,6 +192,10 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
       setState(() {
         _currentSort = sort;
       });
+      
+      // Clear cache cho category này khi sort thay đổi
+      _cachedApiService.clearCategoryCache(widget.categoryId);
+      
       _loadProducts();
     }
   }
