@@ -214,4 +214,8 @@ class CacheKeys {
         
         // Flash Sale cache keys
         static const String flashSaleDeals = 'flash_sale_deals';
+        
+        // Voucher cache keys
+        static const String platformVouchers = 'platform_vouchers';
+        static const String voucherShops = 'voucher_shops';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/cached_api_service.dart';
 import '../../../core/models/voucher.dart';
 import 'voucher_card.dart';
 import '../../product/product_detail_screen.dart';
@@ -13,6 +14,7 @@ class PlatformVouchersTab extends StatefulWidget {
 
 class _PlatformVouchersTabState extends State<PlatformVouchersTab> {
   final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   List<Voucher> _vouchers = [];
   bool _isLoading = true;
   String? _error;
@@ -41,10 +43,10 @@ class _PlatformVouchersTabState extends State<PlatformVouchersTab> {
         _error = null;
       });
 
-      final vouchers = await _apiService.getVouchers(
-        type: 'platform',
+      final vouchers = await _cachedApiService.getPlatformVouchersCached(
         page: _currentPage,
         limit: _limit,
+        forceRefresh: isRefresh,
       );
       
       if (mounted) {

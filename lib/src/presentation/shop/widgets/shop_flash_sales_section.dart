@@ -229,7 +229,7 @@ class _ShopFlashSalesSectionState extends State<ShopFlashSalesSection> {
                               variant: variant,
                               context: context,
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),
@@ -250,7 +250,7 @@ class _ShopFlashSalesSectionState extends State<ShopFlashSalesSection> {
     final seconds = duration.inSeconds % 60;
     
     if (days > 0) {
-      return '⌛ ${days} : ${hours} : ${minutes} : ${seconds}';
+      return '⌛ $days : $hours : $minutes : $seconds';
     } else if (hours > 0) {
       return '${hours}h ${minutes}m ${seconds}s';
     } else if (minutes > 0) {

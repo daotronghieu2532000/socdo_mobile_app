@@ -87,7 +87,7 @@ class _OrdersScreenState extends State<OrdersScreen>
         title: const Text('Đơn hàng của tôi'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(80),
-            child: Container(
+            child: SizedBox(
               height: 80,
               child: Stack(
                 children: [

@@ -273,18 +273,18 @@ class RelatedProductCardHorizontal extends StatelessWidget {
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (context) {
-            if (productDetail!.variants.isNotEmpty) {
+            if (productDetail.variants.isNotEmpty) {
               return VariantSelectionDialog(
                 product: productDetail,
                 selectedVariant: productDetail.variants.first,
                 onBuyNow: (variant, quantity) {
-                  _handleBuyNow(parentContext, productDetail!, variant, quantity);
+                  _handleBuyNow(parentContext, productDetail, variant, quantity);
                   Future.delayed(const Duration(milliseconds: 500), () {
                     if (context.mounted) Navigator.of(context).pop();
                   });
                 },
                 onAddToCart: (variant, quantity) {
-                  _handleAddToCart(parentContext, productDetail!, variant, quantity);
+                  _handleAddToCart(parentContext, productDetail, variant, quantity);
                   Future.delayed(const Duration(milliseconds: 500), () {
                     if (context.mounted) Navigator.of(context).pop();
                   });

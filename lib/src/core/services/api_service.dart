@@ -897,49 +897,70 @@ class ApiService {
   /// Lấy danh sách shop có voucher
   Future<List<Map<String, dynamic>>?> getShopsWithVouchers() async {
     try {
-      // Thử gọi API endpoint mới để lấy shop có voucher
-      final response = await get('/shops_with_vouchers');
+      print('🔄 Đang lấy danh sách shop có voucher từ API...');
+      
+      // Sử dụng API voucher_list để lấy tất cả voucher shop
+      final response = await get('/voucher_list?type=shop&page=1&limit=100');
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
-          final shops = List<Map<String, dynamic>>.from(data['data']);
-          print('✅ Lấy ${shops.length} shop có voucher từ API');
-          return shops;
+          final vouchersData = data['data']['vouchers'] as List?;
+          
+          if (vouchersData != null && vouchersData.isNotEmpty) {
+            // Tạo map để group voucher theo shop
+            final Map<int, Map<String, dynamic>> shopMap = {};
+            
+            for (final voucherJson in vouchersData) {
+              final voucher = voucherJson as Map<String, dynamic>;
+              final shopId = voucher['shop'];
+              final shopInfo = voucher['shop_info'] as Map<String, dynamic>?;
+              
+              if (shopId != null) {
+                final shopIdInt = int.tryParse(shopId.toString());
+                if (shopIdInt != null) {
+                  if (!shopMap.containsKey(shopIdInt)) {
+                    shopMap[shopIdInt] = {
+                      'id': shopIdInt,
+                      'name': shopInfo?['name'] ?? 'Shop $shopIdInt',
+                      'voucher_count': 0,
+                      'avatar': shopInfo?['avatar'],
+                    };
+                  }
+                  shopMap[shopIdInt]!['voucher_count']++;
+                }
+              }
+            }
+            
+            final shops = shopMap.values.toList();
+            print('✅ Tìm thấy ${shops.length} shop có voucher từ API voucher_list');
+            
+            // Debug: In ra từng shop
+            for (final shop in shops) {
+              print('🏪 Shop ${shop['id']} (${shop['name']}): ${shop['voucher_count']} voucher');
+            }
+            
+            return shops;
+          }
         }
       }
       
-      // Fallback: Khám phá shop từ danh sách sản phẩm đang hiển thị trên sàn
-      print('⚠️ API shops_with_vouchers không có, khám phá shop từ sản phẩm');
-      final discoveredIds = await _discoverShopIdsFromProducts();
-      if (discoveredIds.isEmpty) {
-        print('⚠️ Không khám phá được shop nào từ sản phẩm, dùng danh sách tĩnh');
-      }
-      final List<int> potentialShopIds = discoveredIds.isNotEmpty
-          ? discoveredIds
-          : <int>[23933, 31503, 31504, 31505, 31506];
-
-      // Lấy danh sách shop có voucher bằng cách thử từng shop
+      print('⚠️ API voucher_list không trả về dữ liệu, thử phương pháp khác...');
+      
+      // Fallback: Thử một số shop ID phổ biến
+      final List<int> commonShopIds = [23933, 11100, 31503, 31504, 31505, 31506];
       final List<Map<String, dynamic>> shops = [];
-      for (int shopId in potentialShopIds) {
+      
+      for (int shopId in commonShopIds) {
         try {
-          // Thử lấy voucher từ shop này
           final testResponse = await get('/voucher_list?type=shop&shop_id=$shopId&limit=1');
           
           if (testResponse != null && testResponse.statusCode == 200) {
             final testData = jsonDecode(testResponse.body);
             if (testData['success'] == true && testData['data'] != null) {
-              final dynamic dataField = testData['data'];
-              List<dynamic> vouchers = [];
+              final vouchers = testData['data']['vouchers'] as List?;
               
-              if (dataField is Map && dataField.containsKey('vouchers')) {
-                vouchers = dataField['vouchers'] as List<dynamic>;
-              } else if (dataField is List) {
-                vouchers = dataField;
-              }
-              
-              if (vouchers.isNotEmpty) {
-                // Lấy tên shop từ voucher đầu tiên
+              if (vouchers != null && vouchers.isNotEmpty) {
                 final firstVoucher = vouchers.first as Map<String, dynamic>;
                 final shopInfo = firstVoucher['shop_info'] as Map<String, dynamic>?;
                 final shopName = shopInfo?['name'] ?? 'Shop $shopId';
@@ -948,6 +969,7 @@ class ApiService {
                   'id': shopId,
                   'name': shopName,
                   'voucher_count': vouchers.length,
+                  'avatar': shopInfo?['avatar'],
                 });
                 
                 print('✅ Shop $shopId ($shopName) có ${vouchers.length} voucher');
@@ -961,19 +983,15 @@ class ApiService {
       }
       
       if (shops.isNotEmpty) {
-        print('✅ Tìm thấy ${shops.length} shop có voucher');
+        print('✅ Tìm thấy ${shops.length} shop có voucher từ fallback method');
         return shops;
       } else {
-        print('⚠️ Không tìm thấy shop nào có voucher, dùng mock data');
-        return [
-          {'id': 23933, 'name': 'Emich Official', 'voucher_count': 7},
-        ];
+        print('❌ Không tìm thấy shop nào có voucher');
+        return [];
       }
     } catch (e) {
       print('❌ Lỗi khi lấy danh sách shop: $e');
-      return [
-        {'id': 23933, 'name': 'Emich Official', 'voucher_count': 7},
-      ];
+      return [];
     }
   }
 

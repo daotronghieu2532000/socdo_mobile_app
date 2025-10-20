@@ -2,6 +2,7 @@ import 'dart:async';
 import 'api_service.dart';
 import 'memory_cache_service.dart';
 import '../models/product_detail.dart';
+import '../models/voucher.dart';
 
 /// Enhanced API Service với Memory Cache
 /// Tự động cache dữ liệu API để giảm số lần gọi và cải thiện performance
@@ -74,13 +75,31 @@ class CachedApiService {
     }
   }
 
-  /// Lấy flash sale cho trang chủ với cache
+  /// Lấy flash sale cho trang chủ với cache (theo khung giờ hiện tại)
   Future<List<Map<String, dynamic>>> getHomeFlashSale({
     bool forceRefresh = false,
     Duration? cacheDuration,
   }) async {
-    const cacheKey = CacheKeys.homeFlashSale;
+    // Xác định timeline hiện tại giống UI
+    final now = DateTime.now();
+    final hour = now.hour;
+    final String currentTimeline = (hour >= 0 && hour < 9)
+        ? '00:00'
+        : (hour >= 9 && hour < 16)
+            ? '09:00'
+            : '16:00';
+
+    // Bao gồm timeline trong cache key để tránh lẫn dữ liệu giữa các khung giờ
+    final cacheKey = MemoryCacheService.createKey(
+      CacheKeys.homeFlashSale,
+      {'slot': currentTimeline},
+    );
     
+    // Migration: Xóa cache cũ dùng key cố định nếu còn tồn tại để tránh dùng nhầm dữ liệu slot khác
+    if (_cache.has(CacheKeys.homeFlashSale)) {
+      _cache.remove(CacheKeys.homeFlashSale);
+    }
+
     // Kiểm tra cache trước
     if (!forceRefresh && _cache.has(cacheKey)) {
       final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
@@ -91,11 +110,11 @@ class CachedApiService {
     }
 
     try {
-      print('🌐 Fetching home flash sale from API...');
+      print('🌐 Fetching home flash sale from API for slot: $currentTimeline...');
       final flashSaleDeals = await _apiService.getFlashSaleDeals(
-        timeSlot: '09:00', // Default time slot
+        timeSlot: currentTimeline,
         status: 'active',
-        limit: 10,
+        limit: 100,
       );
       
       // Convert FlashSaleDeal to Map
@@ -970,5 +989,187 @@ class CachedApiService {
   void clearAllFlashSaleCache() {
     clearCachePattern(CacheKeys.flashSaleDeals);
     print('🧹 Cleared all flash sale cache');
+  }
+
+  /// Lấy platform vouchers với cache
+  Future<List<Voucher>?> getPlatformVouchersCached({
+    int page = 1,
+    int limit = 20,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.platformVouchers, {
+      'page': page,
+      'limit': limit,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedVouchers = _cache.get<List<Voucher>>(cacheKey);
+      if (cachedVouchers != null) {
+        print('🎫 Using cached platform vouchers for page: $page');
+        return cachedVouchers;
+      }
+    }
+
+    try {
+      print('🌐 Fetching platform vouchers from API for page: $page...');
+      final vouchers = await _apiService.getVouchers(
+        type: 'platform',
+        page: page,
+        limit: limit,
+      );
+      
+      // Lưu vào cache với thời gian ngắn vì voucher thay đổi thường xuyên
+      if (vouchers != null) {
+        _cache.set(cacheKey, vouchers, duration: cacheDuration ?? _shortCacheDuration);
+        print('✅ Platform vouchers cached successfully for page: $page');
+      }
+      
+      return vouchers;
+    } catch (e) {
+      print('❌ Error fetching platform vouchers: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedVouchers = _cache.get<List<Voucher>>(cacheKey);
+      if (cachedVouchers != null) {
+        print('🔄 Using stale cache for platform vouchers page: $page');
+        return cachedVouchers;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Lấy shop vouchers với cache
+  Future<List<Voucher>?> getShopVouchersCached({
+    String? shopId,
+    int page = 1,
+    int limit = 20,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey('shop_vouchers', {
+      'shopId': shopId,
+      'page': page,
+      'limit': limit,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedVouchers = _cache.get<List<Voucher>>(cacheKey);
+      if (cachedVouchers != null) {
+        print('🏪 Using cached shop vouchers for shopId: $shopId, page: $page');
+        return cachedVouchers;
+      }
+    }
+
+    try {
+      print('🌐 Fetching shop vouchers from API for shopId: $shopId, page: $page...');
+      final vouchers = await _apiService.getVouchers(
+        type: 'shop',
+        shopId: shopId != null ? int.tryParse(shopId) : null,
+        page: page,
+        limit: limit,
+      );
+      
+      // Lưu vào cache với thời gian ngắn vì voucher thay đổi thường xuyên
+      if (vouchers != null) {
+        _cache.set(cacheKey, vouchers, duration: cacheDuration ?? _shortCacheDuration);
+        print('✅ Shop vouchers cached successfully for shopId: $shopId, page: $page');
+      }
+      
+      return vouchers;
+    } catch (e) {
+      print('❌ Error fetching shop vouchers: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedVouchers = _cache.get<List<Voucher>>(cacheKey);
+      if (cachedVouchers != null) {
+        print('🔄 Using stale cache for shop vouchers shopId: $shopId, page: $page');
+        return cachedVouchers;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Lấy danh sách shops cho voucher với cache
+  Future<List<Map<String, dynamic>>?> getVoucherShopsCached({
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = CacheKeys.voucherShops;
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedShops = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedShops != null) {
+        print('🏪 Using cached voucher shops');
+        return cachedShops;
+      }
+    }
+
+    try {
+      print('🌐 Fetching voucher shops from API...');
+      final shops = await _apiService.getShopsWithVouchers();
+      
+      // Lưu vào cache với thời gian dài vì danh sách shop ít thay đổi
+      if (shops != null) {
+        _cache.set(cacheKey, shops, duration: cacheDuration ?? _longCacheDuration);
+        print('✅ Voucher shops cached successfully');
+      }
+      
+      return shops;
+    } catch (e) {
+      print('❌ Error fetching voucher shops: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedShops = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedShops != null) {
+        print('🔄 Using stale cache for voucher shops');
+        return cachedShops;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của platform vouchers cụ thể
+  void clearPlatformVoucherCache(int page) {
+    clearCachePattern('platform_vouchers:{"page":$page"');
+    print('🧹 Cleared platform voucher cache for page: $page');
+  }
+
+  /// Xóa tất cả cache của platform vouchers
+  void clearAllPlatformVoucherCache() {
+    clearCachePattern(CacheKeys.platformVouchers);
+    print('🧹 Cleared all platform voucher cache');
+  }
+
+  /// Xóa cache của shop vouchers cụ thể
+  void clearShopVoucherCache(String? shopId, int page) {
+    clearCachePattern('shop_vouchers:{"shopId":"$shopId","page":$page"');
+    print('🧹 Cleared shop voucher cache for shopId: $shopId, page: $page');
+  }
+
+  /// Xóa tất cả cache của shop vouchers
+  void clearAllShopVoucherCache() {
+    clearCachePattern('shop_vouchers');
+    print('🧹 Cleared all shop voucher cache');
+  }
+
+  /// Xóa cache của voucher shops
+  void clearVoucherShopsCache() {
+    _cache.remove(CacheKeys.voucherShops);
+    print('🧹 Cleared voucher shops cache');
+  }
+
+  /// Xóa tất cả cache của voucher
+  void clearAllVoucherCache() {
+    clearCachePattern(CacheKeys.platformVouchers);
+    clearCachePattern('shop_vouchers');
+    _cache.remove(CacheKeys.voucherShops);
+    print('🧹 Cleared all voucher cache');
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class BottomActions extends StatelessWidget {
   final int price;
+  final int? shopId;
   final VoidCallback? onChat;
   final VoidCallback? onAddToCart;
   final VoidCallback? onBuyNow;
@@ -9,6 +10,7 @@ class BottomActions extends StatelessWidget {
   const BottomActions({
     super.key,
     required this.price,
+    this.shopId,
     this.onChat,
     this.onAddToCart,
     this.onBuyNow,

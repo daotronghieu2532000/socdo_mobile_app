@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/cached_api_service.dart';
 import '../../../core/models/voucher.dart';
 import 'voucher_card.dart';
 import '../../product/product_detail_screen.dart';
@@ -13,6 +14,7 @@ class ShopVouchersTab extends StatefulWidget {
 
 class _ShopVouchersTabState extends State<ShopVouchersTab> {
   final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   List<Voucher> _vouchers = [];
   bool _isLoading = true;
   String? _error;
@@ -31,24 +33,23 @@ class _ShopVouchersTabState extends State<ShopVouchersTab> {
   }
 
   Future<void> _loadShopsAndVouchers() async {
-    // Load shops trước
-    await _loadShops();
-    // Sau đó load vouchers
-    await _loadVouchers();
+    // Load shops và vouchers song song để tối ưu performance
+    await Future.wait([
+      _loadShops(),
+      _loadVouchers(),
+    ]);
   }
 
   Future<void> _loadShops() async {
     try {
-      final shops = await _apiService.getShopsWithVouchers();
-      if (shops != null && mounted) {
+      // Sử dụng cached API service cho shops
+      final shops = await _cachedApiService.getVoucherShopsCached();
+      
+      if (mounted && shops != null) {
         setState(() {
-          _shops = shops.map((shop) => {
-            'id': shop['id'].toString(),
-            'name': shop['name'] ?? 'Unknown Shop',
-            'logo': 'lib/src/core/assets/images/shop_1.png', // Default logo
-          }).toList();
+          _shops = shops;
         });
-        print('✅ Loaded ${_shops.length} shops: ${_shops.map((s)=>"${s['id']}:"+ (s['name']??'')).join(', ')}');
+        print('✅ Loaded ${_shops.length} shops');
       }
     } catch (e) {
       print('❌ Lỗi khi load shops: $e');
@@ -70,35 +71,30 @@ class _ShopVouchersTabState extends State<ShopVouchersTab> {
         _error = null;
       });
 
+      print('🔄 Loading vouchers - Shop: ${_selectedShopId ?? "All"}, Page: $_currentPage');
+
       // Khi chọn shop cụ thể: lấy voucher của shop đó
       // Khi chọn "Tất cả": lấy từng shop và gộp lại
       List<Voucher>? vouchers = [];
       if (_selectedShopId != null) {
-        vouchers = await _apiService.getVouchers(
-          type: 'shop',
-          shopId: int.tryParse(_selectedShopId!),
+        vouchers = await _cachedApiService.getShopVouchersCached(
+          shopId: _selectedShopId,
           page: _currentPage,
           limit: _limit,
+          forceRefresh: isRefresh,
         );
       } else {
-        // Lấy voucher từ tất cả shop
-        for (final shop in _shops) {
-          final shopId = int.tryParse(shop['id'].toString());
-          if (shopId == null) continue;
-          final shopVouchers = await _apiService.getVouchers(
-            type: 'shop',
-            shopId: shopId,
-            limit: 10, // Mỗi shop lấy tối đa 10 voucher
-          );
-          if (shopVouchers != null) {
-            print('🧾 Shop $shopId vouchers: ${shopVouchers.length}');
-            vouchers.addAll(shopVouchers);
-          }
-        }
-        // Với "Tất cả", chỉ hỗ trợ page 1
-        if (_currentPage > 1) {
-          vouchers = [];
-        }
+        // Tối ưu: Sử dụng API để lấy tất cả voucher shop trong 1 lần gọi
+        print('🔄 Loading all shop vouchers...');
+        
+        // Gọi API với limit lớn để lấy tất cả voucher shop
+        vouchers = await _cachedApiService.getShopVouchersCached(
+          page: _currentPage,
+          limit: 100, // Tăng limit để lấy nhiều voucher hơn
+          forceRefresh: isRefresh,
+        );
+        
+        print('📊 Total vouchers loaded: ${vouchers?.length ?? 0}');
       }
       
       if (mounted) {
@@ -221,16 +217,25 @@ class _ShopVouchersTabState extends State<ShopVouchersTab> {
 
   Widget _buildBody() {
     if (_isLoading && _vouchers.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.blue),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(color: Colors.blue),
+            const SizedBox(height: 16),
             Text(
-              'Đang tải voucher shop...',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              _shops.isEmpty 
+                ? 'Đang tải danh sách shop...' 
+                : 'Đang tải voucher shop...',
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
+            if (_shops.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Tìm thấy ${_shops.length} shop',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+            ],
           ],
         ),
       );

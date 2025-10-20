@@ -230,7 +230,7 @@ class ShopVouchersSection extends StatelessWidget {
     final minutes = (seconds % 3600) ~/ 60;
     
     if (days > 0) {
-      return '${days} ngày ${hours}h ${minutes}m';
+      return '$days ngày ${hours}h ${minutes}m';
     } else if (hours > 0) {
       return '${hours}h ${minutes}m';
     } else {

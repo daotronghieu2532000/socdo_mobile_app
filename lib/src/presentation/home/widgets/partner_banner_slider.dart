@@ -84,7 +84,7 @@ class _PartnerBannerSliderState extends State<PartnerBannerSlider> {
       return const SizedBox.shrink();
     }
 
-    return Container(
+    return SizedBox(
       height: 160,
       width: double.infinity,
       child: Stack(

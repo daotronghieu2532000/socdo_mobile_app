@@ -26,6 +26,7 @@ import '../search/search_screen.dart';
 import '../cart/cart_screen.dart';
 import '../checkout/checkout_screen.dart';
 import '../shop/shop_detail_screen.dart';
+import '../chat/chat_screen.dart';
 import '../../core/services/cart_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -100,6 +101,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ? _productDetail!.shopNameFromInfo 
               : widget.initialShopName,
           shopAvatar: _productDetail!.shopAvatar,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToChat() {
+    if (_productDetail == null) return;
+    
+    final shopId = int.tryParse(_productDetail!.shopId ?? '0');
+    print('💬 [DEBUG] Navigating to chat:');
+    print('   Product Detail: $_productDetail');
+    print('   Shop ID from product: ${_productDetail!.shopId}');
+    print('   Parsed Shop ID: $shopId');
+    print('   Shop Name: ${_productDetail!.shopNameFromInfo}');
+    print('   Initial Shop Name: ${widget.initialShopName}');
+    
+    if (shopId == null || shopId == 0) {
+      print('❌ [DEBUG] Invalid shop ID, showing error');
+      _showSnack('Không thể xác định shop để chat', background: Colors.red);
+      return;
+    }
+    
+    print('✅ [DEBUG] Valid shop ID, navigating to chat');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          shopId: shopId,
+          shopName: _productDetail!.shopNameFromInfo.isNotEmpty 
+              ? _productDetail!.shopNameFromInfo 
+              : widget.initialShopName ?? 'Shop',
+          shopAvatar: _productDetail!.shopAvatar,
+          productId: widget.productId,
         ),
       ),
     );
@@ -584,6 +618,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Scaffold(
       bottomNavigationBar: BottomActions(
         price: price,
+        shopId: int.tryParse(_productDetail?.shopId ?? '0'),
+        onChat: _navigateToChat,
         onBuyNow: _showPurchaseDialog,
         onAddToCart: _showPurchaseDialog,
       ),

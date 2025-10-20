@@ -59,12 +59,13 @@ try {
             }
         }
         
-        // Validate parameters
-        if ($type === 'shop' && $shop_id <= 0) {
+        // Validate parameters - Cho phép lấy tất cả voucher shop nếu không có shop_id
+        // Chỉ validate khi có shop_id cụ thể
+        if ($type === 'shop' && $shop_id < 0) {
             http_response_code(400);
             echo json_encode([
                 "success" => false,
-                "message" => "Thiếu shop_id khi lấy voucher shop"
+                "message" => "shop_id không hợp lệ"
             ]);
             exit;
         }
@@ -91,11 +92,21 @@ try {
             
         } else {
             // Voucher shop
-            $base_query = "FROM coupon 
-                          WHERE shop = $shop_id 
-                          AND start <= $current_time 
-                          AND expired >= $current_time 
-                          AND status = 2";
+            if ($shop_id > 0) {
+                // Lấy voucher của shop cụ thể
+                $base_query = "FROM coupon 
+                              WHERE shop = $shop_id 
+                              AND start <= $current_time 
+                              AND expired >= $current_time 
+                              AND status = 2";
+            } else {
+                // Lấy tất cả voucher shop (shop > 0)
+                $base_query = "FROM coupon 
+                              WHERE shop > 0 
+                              AND start <= $current_time 
+                              AND expired >= $current_time 
+                              AND status = 2";
+            }
                           
             // Nếu có product_id thì lọc theo sản phẩm
             if ($product_id > 0) {
@@ -264,7 +275,7 @@ try {
                 ],
                 "filters" => [
                     "type" => $type,
-                    "shop_id" => $shop_id,
+                    "shop_id" => $shop_id > 0 ? $shop_id : "all",
                     "product_id" => $product_id
                 ]
             ]
