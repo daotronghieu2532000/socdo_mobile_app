@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/cached_api_service.dart';
 import '../../core/models/search_result.dart';
 import '../../core/utils/format_utils.dart';
 import 'widgets/search_product_card_horizontal.dart';
@@ -16,6 +17,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
 
   SearchResult? _searchResult;
   bool _isSearching = false;
@@ -108,17 +110,33 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       final page = isLoadMore ? _currentPage + 1 : 1;
-      final result = await _apiService.searchProducts(
+      
+      // Sử dụng cached API service cho search products
+      final result = await _cachedApiService.searchProductsCached(
         keyword: keyword,
         page: page,
         limit: _itemsPerPage,
       );
+      
+      // Nếu cache không có data, fallback về ApiService
+      Map<String, dynamic>? searchResult;
+      if (result == null || result.isEmpty) {
+        print('🔄 Cache miss, fetching from ApiService...');
+        searchResult = await _apiService.searchProducts(
+          keyword: keyword,
+          page: page,
+          limit: _itemsPerPage,
+        );
+      } else {
+        print('🔍 Using cached search results');
+        searchResult = result;
+      }
 
-      if (result != null && mounted) {
-        final searchResult = SearchResult.fromJson(result);
+      if (searchResult != null && mounted) {
+        final searchResultObj = SearchResult.fromJson(searchResult);
 
         print(
-          '🔍 Search result: ${searchResult.products.length} products, total: ${searchResult.pagination.total}',
+          '🔍 Search result: ${searchResultObj.products.length} products, total: ${searchResultObj.pagination.total}',
         );
 
         setState(() {
@@ -127,25 +145,25 @@ class _SearchScreenState extends State<SearchScreen> {
             final existingProducts = List<SearchProduct>.from(
               _searchResult!.products,
             );
-            existingProducts.addAll(searchResult.products);
+            existingProducts.addAll(searchResultObj.products);
 
             _searchResult = SearchResult(
-              success: searchResult.success,
+              success: searchResultObj.success,
               products: existingProducts,
-              pagination: searchResult.pagination,
-              keyword: searchResult.keyword,
-              searchTime: searchResult.searchTime,
+              pagination: searchResultObj.pagination,
+              keyword: searchResultObj.keyword,
+              searchTime: searchResultObj.searchTime,
             );
             _currentPage = page;
           } else {
-            _searchResult = searchResult;
+            _searchResult = searchResultObj;
             _currentPage = page;
           }
           _isSearching = false;
         });
 
         // Thêm vào lịch sử tìm kiếm nếu có kết quả
-        if (searchResult.products.isNotEmpty) {
+        if (searchResultObj.products.isNotEmpty) {
           await _addToSearchHistory(keyword);
         }
       }
@@ -271,14 +289,28 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      final suggestions = await _apiService.getSearchSuggestions(
+      // Sử dụng cached API service cho search suggestions
+      final suggestions = await _cachedApiService.getSearchSuggestionsCached(
         keyword: keyword,
         limit: 5,
       );
       
-      if (mounted && suggestions != null) {
+      // Nếu cache không có data, fallback về ApiService
+      List<String>? suggestionsList;
+      if (suggestions == null || suggestions.isEmpty) {
+        print('🔄 Cache miss, fetching suggestions from ApiService...');
+        suggestionsList = await _apiService.getSearchSuggestions(
+          keyword: keyword,
+          limit: 5,
+        );
+      } else {
+        print('💡 Using cached search suggestions');
+        suggestionsList = suggestions;
+      }
+      
+      if (mounted && suggestionsList != null) {
         setState(() {
-          _searchSuggestions = suggestions;
+          _searchSuggestions = suggestionsList!;
           _isLoadingSuggestions = false;
         });
       }

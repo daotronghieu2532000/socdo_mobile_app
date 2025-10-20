@@ -4,6 +4,7 @@ import '../../../core/models/search_result.dart';
 import '../../../core/models/product_detail.dart';
 import '../../../core/utils/format_utils.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/cached_api_service.dart';
 import '../../product/product_detail_screen.dart';
 import '../../product/widgets/variant_selection_dialog.dart';
 import '../../product/widgets/simple_purchase_dialog.dart';
@@ -261,7 +262,10 @@ class SearchProductCardHorizontal extends StatelessWidget {
 
   void _showPurchaseDialog(BuildContext context) async {
     try {
-      final productDetail = await ApiService().getProductDetail(product.id);
+            // Sử dụng cached API service cho product detail
+            final cachedApiService = CachedApiService();
+            final productDetail = await cachedApiService.getProductDetailCached(product.id);
+      
       final parentContext = Navigator.of(context).context;
       
       if (parentContext.mounted && productDetail != null) {
@@ -270,18 +274,18 @@ class SearchProductCardHorizontal extends StatelessWidget {
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (context) {
-            if (productDetail.variants.isNotEmpty) {
+            if (productDetail!.variants.isNotEmpty) {
               return VariantSelectionDialog(
                 product: productDetail,
                 selectedVariant: productDetail.variants.first,
                 onBuyNow: (variant, quantity) {
-                  _handleBuyNow(parentContext, productDetail, variant, quantity);
+                  _handleBuyNow(parentContext, productDetail!, variant, quantity);
                   Future.delayed(const Duration(milliseconds: 500), () {
                     if (context.mounted) Navigator.of(context).pop();
                   });
                 },
                 onAddToCart: (variant, quantity) {
-                  _handleAddToCart(parentContext, productDetail, variant, quantity);
+                  _handleAddToCart(parentContext, productDetail!, variant, quantity);
                   Future.delayed(const Duration(milliseconds: 500), () {
                     if (context.mounted) Navigator.of(context).pop();
                   });

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/cached_api_service.dart';
 import '../../core/models/freeship_product.dart';
 import '../root_shell.dart';
 import 'widgets/freeship_product_card_horizontal.dart';
@@ -13,6 +14,7 @@ class FreeShipProductsScreen extends StatefulWidget {
 
 class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
   final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   List<FreeShipProduct> _products = [];
   bool _isLoading = true;
   String? _error;
@@ -35,7 +37,19 @@ class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
         _error = null;
       });
 
-      final products = await _apiService.getFreeShipProducts();
+      // Sử dụng cached API service cho freeship products
+      final productsData = await _cachedApiService.getFreeShipProductsCached();
+      
+      // Nếu cache không có data, fallback về ApiService
+      List<FreeShipProduct>? products;
+      if (productsData == null || productsData.isEmpty) {
+        print('🔄 Cache miss, fetching from ApiService...');
+        products = await _apiService.getFreeShipProducts();
+      } else {
+        print('🚚 Using cached freeship products data');
+        // Convert cached data to FreeShipProduct list
+        products = productsData.map((data) => FreeShipProduct.fromJson(data)).toList();
+      }
       
       if (mounted) {
         setState(() {

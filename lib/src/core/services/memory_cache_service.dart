@@ -200,8 +200,18 @@ class CacheKeys {
   static const String userProfile = 'user_profile';
   static const String userAddresses = 'user_addresses';
   
-  // Affiliate cache keys
-  static const String affiliateDashboard = 'affiliate_dashboard';
-  static const String affiliateLinks = 'affiliate_links';
-  static const String affiliateProducts = 'affiliate_products';
+        // Affiliate cache keys
+        static const String affiliateDashboard = 'affiliate_dashboard';
+        static const String affiliateLinks = 'affiliate_links';
+        static const String affiliateProducts = 'affiliate_products';
+        
+        // Freeship cache keys
+        static const String freeshipProducts = 'freeship_products';
+        
+        // Search cache keys
+        static const String searchProducts = 'search_products';
+        static const String searchSuggestions = 'search_suggestions';
+        
+        // Flash Sale cache keys
+        static const String flashSaleDeals = 'flash_sale_deals';
 }

@@ -4,6 +4,7 @@ import 'widgets/time_slots_tab_bar.dart';
 import 'widgets/countdown_banner.dart';
 import 'widgets/flash_sale_product_card.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/cached_api_service.dart';
 import '../../core/models/flash_sale_deal.dart';
 import '../../core/models/flash_sale_product.dart';
 import '../cart/cart_screen.dart';
@@ -30,6 +31,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> with TickerProviderSt
   int _selectedTab = 0;
   final Map<int, bool> _expandedDeals = {}; // Track which deals are expanded
   final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   final CartService _cartService = CartService();
   
   final List<String> _timeSlots = ['00:00', '09:00', '16:00'];
@@ -74,11 +76,27 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> with TickerProviderSt
         _errors[slotIndex] = null;
       });
 
-      final deals = await _apiService.getFlashSaleDeals(
+      // Sử dụng cached API service cho flash sale deals
+      final dealsData = await _cachedApiService.getFlashSaleDealsCached(
         timeSlot: _timeSlots[slotIndex],
         status: 'active',
-        limit: 100, // Tăng từ 20 lên 100
+        limit: 100,
       );
+      
+      // Nếu cache không có data, fallback về ApiService
+      List<FlashSaleDeal>? deals;
+      if (dealsData == null || dealsData.isEmpty) {
+        print('🔄 Cache miss, fetching from ApiService...');
+        deals = await _apiService.getFlashSaleDeals(
+          timeSlot: _timeSlots[slotIndex],
+          status: 'active',
+          limit: 100,
+        );
+      } else {
+        print('⚡ Using cached flash sale deals');
+        // Convert cached data to FlashSaleDeal list
+        deals = dealsData.map((data) => FlashSaleDeal.fromJson(data)).toList();
+      }
       
       if (mounted) {
         setState(() {
@@ -88,7 +106,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> with TickerProviderSt
             // Cập nhật countdown từ slot đầu tiên có deal
             if (slotIndex == 0 && deals.isNotEmpty) {
               final firstDeal = deals.first;
-              _timeLeft = Duration(seconds: firstDeal.timeRemainingSeconds);
+              _timeLeft = Duration(seconds: firstDeal.timeRemaining);
             }
           } else {
             _errors[slotIndex] = 'Không có deal flash sale';
@@ -144,8 +162,8 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> with TickerProviderSt
 
   void _addToCart(FlashSaleProduct product) async {
     try {
-      // Load product detail to get variants
-      final productDetail = await _apiService.getProductDetail(product.id);
+            // Sử dụng cached API service cho product detail
+            final productDetail = await _cachedApiService.getProductDetailCached(product.id);
       
       if (productDetail != null && productDetail.variants.isNotEmpty) {
         // Show variant selection dialog

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'api_service.dart';
 import 'memory_cache_service.dart';
+import '../models/product_detail.dart';
 
 /// Enhanced API Service với Memory Cache
 /// Tự động cache dữ liệu API để giảm số lần gọi và cải thiện performance
@@ -207,48 +208,6 @@ class CachedApiService {
     }
   }
 
-  /// Lấy chi tiết sản phẩm với cache
-  Future<Map<String, dynamic>?> getProductDetail(
-    int productId, {
-    bool forceRefresh = false,
-    Duration? cacheDuration,
-  }) async {
-    final cacheKey = MemoryCacheService.createKey(CacheKeys.productDetail, {'id': productId});
-    
-    // Kiểm tra cache trước
-    if (!forceRefresh && _cache.has(cacheKey)) {
-      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
-      if (cachedData != null) {
-        print('📦 Using cached product detail');
-        return cachedData;
-      }
-    }
-
-    try {
-      print('🌐 Fetching product detail from API...');
-      final product = await _apiService.getProductDetail(productId);
-      
-      // Convert ProductDetail to Map
-      final productData = product?.toJson();
-      
-      // Lưu vào cache
-      _cache.set(cacheKey, productData, duration: cacheDuration ?? _defaultCacheDuration);
-      
-      print('✅ Product detail cached successfully');
-      return productData;
-    } catch (e) {
-      print('❌ Error fetching product detail: $e');
-      
-      // Fallback về cache cũ nếu có
-      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
-      if (cachedData != null) {
-        print('🔄 Using stale cache for product detail');
-        return cachedData;
-      }
-      
-      rethrow;
-    }
-  }
 
   /// Lấy danh sách sản phẩm theo danh mục với cache
   Future<List<Map<String, dynamic>>> getCategoryProducts(
@@ -613,6 +572,164 @@ class CachedApiService {
     print('🧹 Cleared all affiliate cache');
   }
 
+  /// Lấy chi tiết sản phẩm với cache
+  Future<ProductDetail?> getProductDetailCached(
+    int productId, {
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.productDetail, {'id': productId});
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedProduct = _cache.get<ProductDetail>(cacheKey);
+      if (cachedProduct != null) {
+        print('📦 Using cached product detail for ID: $productId');
+        return cachedProduct;
+      }
+    }
+
+    try {
+      print('🌐 Fetching product detail from API for ID: $productId...');
+      final product = await _apiService.getProductDetail(productId);
+      
+      // Lưu trực tiếp ProductDetail object vào cache
+      if (product != null) {
+        _cache.set(cacheKey, product, duration: cacheDuration ?? _longCacheDuration);
+        print('✅ Product detail cached successfully for ID: $productId');
+      }
+      
+      return product;
+    } catch (e) {
+      print('❌ Error fetching product detail: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedProduct = _cache.get<ProductDetail>(cacheKey);
+      if (cachedProduct != null) {
+        print('🔄 Using stale cache for product detail ID: $productId');
+        return cachedProduct;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Lấy sản phẩm cùng gian hàng với cache
+  Future<Map<String, dynamic>?> getSameShopProductsCached(
+    int productId, {
+    int limit = 10,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.sameShopProducts, {
+      'productId': productId,
+      'limit': limit,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🏪 Using cached same shop products for product ID: $productId');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching same shop products from API for product ID: $productId...');
+      final response = await _apiService.getProductsSameShop(
+        productId: productId,
+        limit: limit,
+      );
+      
+      // Lưu vào cache
+      _cache.set(cacheKey, response, duration: cacheDuration ?? _defaultCacheDuration);
+      
+      print('✅ Same shop products cached successfully for product ID: $productId');
+      return response;
+    } catch (e) {
+      print('❌ Error fetching same shop products: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for same shop products ID: $productId');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Lấy sản phẩm liên quan với cache
+  Future<List<Map<String, dynamic>>?> getRelatedProductsCached(
+    int productId, {
+    int limit = 8,
+    String type = 'auto',
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.relatedProducts, {
+      'productId': productId,
+      'limit': limit,
+      'type': type,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('🔗 Using cached related products for product ID: $productId');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching related products from API for product ID: $productId...');
+      final relatedProducts = await _apiService.getRelatedProducts(
+        productId: productId,
+        limit: limit,
+        type: type,
+      );
+      
+      // Convert RelatedProduct to Map list
+      final relatedProductsData = relatedProducts?.map((product) => product.toJson()).toList();
+      
+      // Lưu vào cache
+      _cache.set(cacheKey, relatedProductsData, duration: cacheDuration ?? _defaultCacheDuration);
+      
+      print('✅ Related products cached successfully for product ID: $productId');
+      return relatedProductsData;
+    } catch (e) {
+      print('❌ Error fetching related products: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for related products ID: $productId');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của sản phẩm cụ thể
+  void clearProductCache(int productId) {
+    clearCachePattern('product_detail:{"id":$productId');
+    clearCachePattern('same_shop_products:{"productId":$productId');
+    clearCachePattern('related_products:{"productId":$productId');
+    print('🧹 Cleared cache for product $productId');
+  }
+
+  /// Xóa tất cả cache của products
+  void clearAllProductCache() {
+    clearCachePattern(CacheKeys.productDetail);
+    clearCachePattern(CacheKeys.sameShopProducts);
+    clearCachePattern(CacheKeys.relatedProducts);
+    print('🧹 Cleared all product cache');
+  }
+
   /// Force refresh tất cả cache của home
   Future<void> refreshHomeCache() async {
     print('🔄 Force refreshing home cache...');
@@ -629,5 +746,229 @@ class CachedApiService {
     } catch (e) {
       print('❌ Error refreshing home cache: $e');
     }
+  }
+
+  /// Lấy danh sách sản phẩm freeship với cache
+  Future<List<Map<String, dynamic>>?> getFreeShipProductsCached({
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = CacheKeys.freeshipProducts;
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('🚚 Using cached freeship products');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching freeship products from API...');
+      final products = await _apiService.getFreeShipProducts();
+      
+      // Convert FreeShipProduct list to Map list for caching
+      final productsData = products?.map((product) => product.toJson()).toList();
+      
+      // Lưu vào cache với thời gian dài vì freeship products ít thay đổi
+      _cache.set(cacheKey, productsData, duration: cacheDuration ?? _longCacheDuration);
+      
+      print('✅ Freeship products cached successfully');
+      return productsData;
+    } catch (e) {
+      print('❌ Error fetching freeship products: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for freeship products');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của freeship products
+  void clearFreeshipCache() {
+    _cache.remove(CacheKeys.freeshipProducts);
+    print('🧹 Cleared freeship products cache');
+  }
+
+  /// Tìm kiếm sản phẩm với cache
+  Future<Map<String, dynamic>?> searchProductsCached({
+    required String keyword,
+    int page = 1,
+    int limit = 50,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.searchProducts, {
+      'keyword': keyword,
+      'page': page,
+      'limit': limit,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔍 Using cached search results for keyword: "$keyword" (page $page)');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching search results from API for keyword: "$keyword" (page $page)...');
+      final result = await _apiService.searchProducts(
+        keyword: keyword,
+        page: page,
+        limit: limit,
+      );
+      
+      // Lưu vào cache với thời gian ngắn vì search results thay đổi thường xuyên
+      _cache.set(cacheKey, result, duration: cacheDuration ?? _shortCacheDuration);
+      
+      print('✅ Search results cached successfully for keyword: "$keyword" (page $page)');
+      return result;
+    } catch (e) {
+      print('❌ Error fetching search results: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for search keyword: "$keyword" (page $page)');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Lấy gợi ý tìm kiếm với cache
+  Future<List<String>?> getSearchSuggestionsCached({
+    required String keyword,
+    int limit = 5,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.searchSuggestions, {
+      'keyword': keyword,
+      'limit': limit,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<String>>(cacheKey);
+      if (cachedData != null) {
+        print('💡 Using cached search suggestions for keyword: "$keyword"');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching search suggestions from API for keyword: "$keyword"...');
+      final suggestions = await _apiService.getSearchSuggestions(
+        keyword: keyword,
+        limit: limit,
+      );
+      
+      // Lưu vào cache với thời gian ngắn vì suggestions thay đổi thường xuyên
+      _cache.set(cacheKey, suggestions, duration: cacheDuration ?? _shortCacheDuration);
+      
+      print('✅ Search suggestions cached successfully for keyword: "$keyword"');
+      return suggestions;
+    } catch (e) {
+      print('❌ Error fetching search suggestions: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<List<String>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for search suggestions keyword: "$keyword"');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của search cụ thể
+  void clearSearchCache(String keyword) {
+    clearCachePattern('search_products:{"keyword":"$keyword"');
+    clearCachePattern('search_suggestions:{"keyword":"$keyword"');
+    print('🧹 Cleared search cache for keyword: "$keyword"');
+  }
+
+  /// Xóa tất cả cache của search
+  void clearAllSearchCache() {
+    clearCachePattern(CacheKeys.searchProducts);
+    clearCachePattern(CacheKeys.searchSuggestions);
+    print('🧹 Cleared all search cache');
+  }
+
+  /// Lấy flash sale deals với cache
+  Future<List<Map<String, dynamic>>?> getFlashSaleDealsCached({
+    required String timeSlot,
+    String status = 'active',
+    int limit = 100,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.flashSaleDeals, {
+      'timeSlot': timeSlot,
+      'status': status,
+      'limit': limit,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('⚡ Using cached flash sale deals for timeSlot: $timeSlot');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching flash sale deals from API for timeSlot: $timeSlot...');
+      final deals = await _apiService.getFlashSaleDeals(
+        timeSlot: timeSlot,
+        status: status,
+        limit: limit,
+      );
+      
+       // Convert FlashSaleDeal list to Map list for caching
+       final dealsData = deals?.map((deal) => deal.toJson()).toList();
+      
+      // Lưu vào cache với thời gian ngắn vì flash sale thay đổi thường xuyên
+      _cache.set(cacheKey, dealsData, duration: cacheDuration ?? _shortCacheDuration);
+      
+      print('✅ Flash sale deals cached successfully for timeSlot: $timeSlot');
+      return dealsData;
+    } catch (e) {
+      print('❌ Error fetching flash sale deals: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for flash sale deals timeSlot: $timeSlot');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của flash sale cụ thể
+  void clearFlashSaleCache(String timeSlot) {
+    clearCachePattern('flash_sale_deals:{"timeSlot":"$timeSlot"');
+    print('🧹 Cleared flash sale cache for timeSlot: $timeSlot');
+  }
+
+  /// Xóa tất cả cache của flash sale
+  void clearAllFlashSaleCache() {
+    clearCachePattern(CacheKeys.flashSaleDeals);
+    print('🧹 Cleared all flash sale cache');
   }
 }

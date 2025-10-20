@@ -18,6 +18,7 @@ import 'widgets/same_shop_product_card_horizontal.dart';
 import 'widgets/product_carousel.dart';
 import '../../core/utils/format_utils.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/cached_api_service.dart';
 import '../../core/models/product_detail.dart';
 import '../../core/models/same_shop_product.dart';
 import '../../core/models/related_product.dart';
@@ -51,6 +52,7 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   ProductDetail? _productDetail;
   List<SameShopProduct> _sameShopProducts = [];
   bool _isLoading = true;
@@ -129,7 +131,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         _currentImageIndex = 0; // Reset image index
       });
 
-      final productDetail = await _apiService.getProductDetail(widget.productId!);
+            // Sử dụng cached API service cho product detail
+            final productDetail = await _cachedApiService.getProductDetailCached(widget.productId!);
       
       if (mounted) {
         setState(() {
@@ -165,10 +168,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         _isLoadingSameShop = true;
       });
 
-      final response = await _apiService.getProductsSameShop(
-        productId: widget.productId!,
+      // Sử dụng cached API service cho same shop products
+      final responseData = await _cachedApiService.getSameShopProductsCached(
+        widget.productId!,
         limit: 10,
       );
+      
+      // Nếu cache không có data, fallback về ApiService
+      Map<String, dynamic>? response;
+      if (responseData == null || responseData.isEmpty) {
+        print('🔄 Cache miss, fetching same shop products from ApiService...');
+        response = await _apiService.getProductsSameShop(
+          productId: widget.productId!,
+          limit: 10,
+        );
+      } else {
+        print('🏪 Using cached same shop products data');
+        response = responseData;
+      }
       
       if (mounted && response != null) {
         final data = response['data'] as Map<String, dynamic>?;
@@ -207,15 +224,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         _isLoadingRelatedProducts = true;
       });
 
-      final relatedProducts = await _apiService.getRelatedProducts(
-        productId: widget.productId!,
+      // Sử dụng cached API service cho related products
+      final relatedProductsData = await _cachedApiService.getRelatedProductsCached(
+        widget.productId!,
         limit: 8,
         type: 'auto',
       );
       
+      // Nếu cache không có data, fallback về ApiService
+      List<RelatedProduct>? relatedProducts;
+      if (relatedProductsData == null || relatedProductsData.isEmpty) {
+        print('🔄 Cache miss, fetching related products from ApiService...');
+        relatedProducts = await _apiService.getRelatedProducts(
+          productId: widget.productId!,
+          limit: 8,
+          type: 'auto',
+        );
+      } else {
+        print('🔗 Using cached related products data');
+        // Convert cached data to RelatedProduct list
+        relatedProducts = relatedProductsData
+            .map((data) => RelatedProduct.fromJson(data))
+            .toList();
+      }
+      
       if (mounted && relatedProducts != null) {
         setState(() {
-          _relatedProducts = relatedProducts;
+          _relatedProducts = relatedProducts!;
           _isLoadingRelatedProducts = false;
         });
       } else {
