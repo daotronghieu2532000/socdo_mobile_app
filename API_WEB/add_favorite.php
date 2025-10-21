@@ -1,5 +1,5 @@
 <?php
-header("Access-Control-Allow-Methods: POST, DELETE");
+header("Access-Control-Allow-Methods: POST, DELETE, PUT");
 require_once './vendor/autoload.php';
 use \Firebase\JWT\JWT;
 use \Firebase\JWT\Key;
@@ -59,7 +59,7 @@ try {
         }
         
         // Kiểm tra sản phẩm có tồn tại không
-        $product_check = mysqli_query($conn, "SELECT id, tieu_de FROM sanpham WHERE id = $product_id LIMIT 1");
+        $product_check = mysqli_query($conn, "SELECT id, tieu_de, shop, thuong_hieu FROM sanpham WHERE id = $product_id LIMIT 1");
         if (!$product_check || mysqli_num_rows($product_check) == 0) {
             http_response_code(404);
             echo json_encode([
@@ -97,7 +97,9 @@ try {
                     "favorite_id" => $favorite_id,
                     "user_id" => $user_id,
                     "product_id" => $product_id,
-                    "product_name" => $product_info['tieu_de']
+                    "product_name" => $product_info['tieu_de'],
+                    "shop_id" => $product_info['shop'],
+                    "is_authentic" => !empty($product_info['thuong_hieu']) ? 1 : 0
                 ]
             ]);
         } else {
@@ -168,11 +170,111 @@ try {
             ]);
         }
         
+    } elseif ($method === 'PUT') {
+        // Toggle favorite (thích/bỏ thích)
+        $data = json_decode(file_get_contents("php://input"), true);
+        
+        // Validate required fields
+        if (!isset($data['user_id']) || !isset($data['product_id'])) {
+            http_response_code(400);
+            echo json_encode([
+                "success" => false,
+                "message" => "Thiếu user_id hoặc product_id"
+            ]);
+            exit;
+        }
+        
+        $user_id = intval($data['user_id']);
+        $product_id = intval($data['product_id']);
+        
+        if ($user_id <= 0 || $product_id <= 0) {
+            http_response_code(400);
+            echo json_encode([
+                "success" => false,
+                "message" => "user_id và product_id phải lớn hơn 0"
+            ]);
+            exit;
+        }
+        
+        // Kiểm tra sản phẩm có tồn tại không
+        $product_check = mysqli_query($conn, "SELECT id, tieu_de, shop, thuong_hieu FROM sanpham WHERE id = $product_id LIMIT 1");
+        if (!$product_check || mysqli_num_rows($product_check) == 0) {
+            http_response_code(404);
+            echo json_encode([
+                "success" => false,
+                "message" => "Không tìm thấy sản phẩm"
+            ]);
+            exit;
+        }
+        
+        $product_info = mysqli_fetch_assoc($product_check);
+        
+        // Kiểm tra đã yêu thích chưa
+        $favorite_check = mysqli_query($conn, "SELECT id FROM yeu_thich_san_pham WHERE user_id = '$user_id' AND product_id = '$product_id' LIMIT 1");
+        $is_favorite = mysqli_num_rows($favorite_check) > 0;
+        
+        if ($is_favorite) {
+            // Đã thích -> Bỏ thích
+            $delete_query = "DELETE FROM yeu_thich_san_pham WHERE user_id = '$user_id' AND product_id = '$product_id'";
+            $result = mysqli_query($conn, $delete_query);
+            
+            if ($result) {
+                http_response_code(200);
+                echo json_encode([
+                    "success" => true,
+                    "message" => "Đã bỏ thích sản phẩm",
+                    "data" => [
+                        "user_id" => $user_id,
+                        "product_id" => $product_id,
+                        "is_favorite" => false,
+                        "action" => "removed",
+                        "product_name" => $product_info['tieu_de']
+                    ]
+                ]);
+            } else {
+                http_response_code(500);
+                echo json_encode([
+                    "success" => false,
+                    "message" => "Lỗi bỏ thích sản phẩm: " . mysqli_error($conn)
+                ]);
+            }
+        } else {
+            // Chưa thích -> Thích
+            $insert_query = "INSERT INTO yeu_thich_san_pham (user_id, product_id) VALUES ('$user_id', '$product_id')";
+            $result = mysqli_query($conn, $insert_query);
+            
+            if ($result) {
+                $favorite_id = mysqli_insert_id($conn);
+                
+                http_response_code(200);
+                echo json_encode([
+                    "success" => true,
+                    "message" => "Đã thích sản phẩm",
+                    "data" => [
+                        "favorite_id" => $favorite_id,
+                        "user_id" => $user_id,
+                        "product_id" => $product_id,
+                        "is_favorite" => true,
+                        "action" => "added",
+                        "product_name" => $product_info['tieu_de'],
+                        "shop_id" => $product_info['shop'],
+                        "is_authentic" => !empty($product_info['thuong_hieu']) ? 1 : 0
+                    ]
+                ]);
+            } else {
+                http_response_code(500);
+                echo json_encode([
+                    "success" => false,
+                    "message" => "Lỗi thích sản phẩm: " . mysqli_error($conn)
+                ]);
+            }
+        }
+        
     } else {
         http_response_code(405);
         echo json_encode([
             "success" => false,
-            "message" => "Chỉ hỗ trợ phương thức POST và DELETE"
+            "message" => "Chỉ hỗ trợ phương thức POST, DELETE và PUT"
         ]);
     }
     

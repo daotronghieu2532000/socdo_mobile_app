@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/services/chat_service.dart';
+import '../../core/services/token_manager.dart';
 import '../../core/models/chat.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -68,8 +69,23 @@ class _ChatScreenState extends State<ChatScreen> {
       print('   Shop Avatar: ${widget.shopAvatar}');
       print('   Product ID: ${widget.productId}');
 
+      // Lấy userId từ token
+      final tokenManager = TokenManager();
+      final token = await tokenManager.getToken();
+      if (token == null) {
+        throw Exception('Không có token');
+      }
+      
+      final payload = tokenManager.getTokenPayload(token);
+      if (payload == null || payload['user_id'] == null) {
+        throw Exception('Token không hợp lệ');
+      }
+      
+      final userId = int.parse(payload['user_id'].toString());
+      print('   User ID: $userId');
+
       // Tạo phiên chat
-      final sessionResponse = await _chatService.createSession(widget.shopId);
+      final sessionResponse = await _chatService.createSession(widget.shopId, userId);
       
       if (sessionResponse.success) {
         setState(() {
@@ -99,8 +115,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _loadMessages() async {
     try {
       final response = await _chatService.getMessages(
-        sessionId: _sessionId,
-        phien: _phien,
+        phien: _phien!,
         limit: 50,
       );
 
@@ -256,7 +271,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   senderType: _messages[i].senderType,
                   senderName: _messages[i].senderName,
                   senderAvatar: _messages[i].senderAvatar,
-                  message: _messages[i].message,
+                  content: _messages[i].content,
                   datePost: _messages[i].datePost,
                   dateFormatted: _messages[i].dateFormatted,
                   isRead: true,
@@ -289,9 +304,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final response = await _chatService.sendMessage(
-        sessionId: _sessionId,
-        phien: _phien,
-        message: message,
+        phien: _phien!,
+        content: message,
+        senderType: 'customer',
         productId: widget.productId ?? 0,
       );
 
@@ -314,10 +329,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _markAsRead() async {
     try {
-      await _chatService.markAsRead(
-        sessionId: _sessionId,
-        phien: _phien,
-      );
+      await _chatService.markAsRead(phien: _phien!);
     } catch (e) {
       print('Error marking as read: $e');
     }
@@ -445,7 +457,7 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              message.message,
+              message.content,
               style: TextStyle(
                 color: message.isOwn ? Colors.white : Colors.black87,
                 fontSize: 16,

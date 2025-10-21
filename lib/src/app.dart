@@ -8,6 +8,7 @@ import 'presentation/orders/orders_screen.dart';
 import 'presentation/notifications/notifications_screen.dart';
 import 'presentation/orders/order_success_screen.dart';
 import 'presentation/auth/login_screen.dart';
+import 'presentation/chat/chat_list_screen.dart';
 
 class SocdoApp extends StatelessWidget {
   const SocdoApp({super.key});
@@ -25,6 +26,7 @@ class SocdoApp extends StatelessWidget {
         '/profile/address': (context) => const AddressBookScreen(),
         '/orders': (context) => const OrdersScreen(),
         '/notifications': (context) => const NotificationsScreen(),
+        '/chat': (context) => const ChatListScreen(),
         // order success requires argument maDon
         '/order/success': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;

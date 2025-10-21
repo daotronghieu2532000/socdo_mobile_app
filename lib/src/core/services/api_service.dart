@@ -3640,4 +3640,210 @@ class ApiService {
       return null;
     }
   }
+
+  // =============== FAVORITE PRODUCTS ===============
+  
+  /// Lấy danh sách sản phẩm yêu thích
+  Future<Map<String, dynamic>?> getFavoriteProducts({
+    required int userId,
+    int page = 1,
+    int limit = 50,
+    bool getAll = false,
+  }) async {
+    try {
+      final token = await getValidToken();
+      if (token == null) {
+        print('❌ Không có token hợp lệ');
+        return null;
+      }
+
+      final Map<String, String> queryParams = {
+        'user_id': userId.toString(),
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+
+      if (getAll) {
+        queryParams['all'] = '1';
+      }
+
+      final uri = Uri.parse('https://api.socdo.vn/v1/favorite_products').replace(
+        queryParameters: queryParams,
+      );
+
+      print('🔍 Gọi API favorite products: $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (data['success'] == true) {
+          print('✅ Lấy danh sách sản phẩm yêu thích thành công');
+          return data;
+        } else {
+          print('❌ API trả về lỗi: ${data['message']}');
+          return null;
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Lỗi khi lấy danh sách sản phẩm yêu thích: $e');
+      return null;
+    }
+  }
+
+  /// Thêm sản phẩm vào danh sách yêu thích
+  Future<Map<String, dynamic>?> addFavoriteProduct({
+    required int userId,
+    required int productId,
+  }) async {
+    try {
+      final token = await getValidToken();
+      if (token == null) {
+        print('❌ Không có token hợp lệ');
+        return null;
+      }
+
+      print('🔍 Thêm sản phẩm vào yêu thích: userId=$userId, productId=$productId');
+
+      final response = await http.post(
+        Uri.parse('https://api.socdo.vn/v1/add_favorite'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'user_id': userId,
+          'product_id': productId,
+        }),
+      );
+
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (data['success'] == true) {
+          print('✅ Thêm sản phẩm vào yêu thích thành công');
+          return data;
+        } else {
+          print('❌ API trả về lỗi: ${data['message']}');
+          return null;
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Lỗi khi thêm sản phẩm vào yêu thích: $e');
+      return null;
+    }
+  }
+
+  /// Xóa sản phẩm khỏi danh sách yêu thích
+  Future<Map<String, dynamic>?> removeFavoriteProduct({
+    required int userId,
+    required int productId,
+  }) async {
+    try {
+      final token = await getValidToken();
+      if (token == null) {
+        print('❌ Không có token hợp lệ');
+        return null;
+      }
+
+      print('🔍 Xóa sản phẩm khỏi yêu thích: userId=$userId, productId=$productId');
+
+      final response = await http.delete(
+        Uri.parse('https://api.socdo.vn/v1/add_favorite'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'user_id': userId,
+          'product_id': productId,
+        }),
+      );
+
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (data['success'] == true) {
+          print('✅ Xóa sản phẩm khỏi yêu thích thành công');
+          return data;
+        } else {
+          print('❌ API trả về lỗi: ${data['message']}');
+          return null;
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Lỗi khi xóa sản phẩm khỏi yêu thích: $e');
+      return null;
+    }
+  }
+
+  /// Toggle favorite (thích/bỏ thích)
+  Future<Map<String, dynamic>?> toggleFavoriteProduct({
+    required int userId,
+    required int productId,
+  }) async {
+    try {
+      final token = await getValidToken();
+      if (token == null) {
+        print('❌ Không có token hợp lệ');
+        return null;
+      }
+
+      print('🔍 Toggle favorite: userId=$userId, productId=$productId');
+
+      final response = await http.put(
+        Uri.parse('https://api.socdo.vn/v1/add_favorite'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'user_id': userId,
+          'product_id': productId,
+        }),
+      );
+
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (data['success'] == true) {
+          print('✅ Toggle favorite thành công');
+          return data;
+        } else {
+          print('❌ API trả về lỗi: ${data['message']}');
+          return null;
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Lỗi khi toggle favorite: $e');
+      return null;
+    }
+  }
 }

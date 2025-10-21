@@ -28,6 +28,7 @@ import '../checkout/checkout_screen.dart';
 import '../shop/shop_detail_screen.dart';
 import '../chat/chat_screen.dart';
 import '../../core/services/cart_service.dart';
+import '../../core/services/auth_service.dart';
 import '../common/widgets/go_top_button.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -69,7 +70,53 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final PageController _pageController = PageController();
   final ScrollController _scrollController = ScrollController();
   final CartService _cartService = CartService();
+  final AuthService _authService = AuthService();
+  bool _isFavorite = false;
+  bool _isTogglingFavorite = false;
   
+  Future<void> _toggleFavorite() async {
+    if (_isTogglingFavorite || widget.productId == null) return;
+
+    setState(() {
+      _isTogglingFavorite = true;
+    });
+
+    try {
+      final currentUser = await _authService.getCurrentUser();
+      if (currentUser == null) {
+        _showSnack('Vui lòng đăng nhập để thực hiện thao tác này', background: Colors.red);
+        return;
+      }
+
+      final result = await _apiService.toggleFavoriteProduct(
+        userId: currentUser.userId,
+        productId: widget.productId!,
+      );
+
+      if (result != null && result['success'] == true) {
+        final data = result['data'] as Map<String, dynamic>?;
+        final isFavorite = data?['is_favorite'] as bool? ?? false;
+        
+        setState(() {
+          _isFavorite = isFavorite;
+        });
+
+        final message = isFavorite ? 'Đã thêm vào danh sách yêu thích' : 'Đã xóa khỏi danh sách yêu thích';
+        _showSnack(message, background: Colors.green);
+      } else {
+        _showSnack('Không thể thực hiện thao tác này', background: Colors.red);
+      }
+    } catch (e) {
+      _showSnack('Lỗi khi thực hiện thao tác: $e', background: Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTogglingFavorite = false;
+        });
+      }
+    }
+  }
+
   void _showSnack(String message, {SnackBarAction? action, Color? background}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -806,8 +853,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ],
                         ),
                       ),
-                      // Icon trái tim ở bên phải cùng hàng với giá
-                      Icon(Icons.favorite_border, color: Colors.grey, size: 24),
+                      // Icon trái tim có thể tương tác
+                      GestureDetector(
+                        onTap: _toggleFavorite,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: _isTogglingFavorite
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(
+                                  _isFavorite ? Icons.favorite : Icons.favorite_border,
+                                  color: _isFavorite ? Colors.red : Colors.grey,
+                                  size: 20,
+                                ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),

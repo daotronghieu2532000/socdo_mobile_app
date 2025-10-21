@@ -31,13 +31,14 @@ class ChatService {
   }
 
   /// Tạo phiên chat mới với shop
-  Future<ChatSessionResponse> createSession(int shopId) async {
+  Future<ChatSessionResponse> createSession(int shopId, int userId) async {
     try {
       final headers = await _headers;
-      final url = '$_baseUrl/chat_api';
+      final url = '$_baseUrl/chat_api_correct';
       final body = {
         'action': 'create_session',
         'shop_id': shopId.toString(),
+        'user_id': userId.toString(),
       };
       
       print('🔍 [DEBUG] Creating chat session:');
@@ -101,14 +102,16 @@ class ChatService {
   }
 
   /// Lấy danh sách phiên chat
-  Future<ChatListResponse> getSessions({int page = 1, int limit = 20}) async {
+  Future<ChatListResponse> getSessions({required int userId, required String userType, int page = 1, int limit = 20}) async {
     try {
       final headers = await _headers;
       final response = await http.post(
-        Uri.parse('$_baseUrl/chat_api'),
+        Uri.parse('$_baseUrl/chat_api_correct'),
         headers: headers,
         body: {
           'action': 'list_sessions',
+          'user_id': userId.toString(),
+          'user_type': userType,
           'page': page.toString(),
           'limit': limit.toString(),
         },
@@ -127,8 +130,7 @@ class ChatService {
 
   /// Lấy tin nhắn của phiên chat
   Future<ChatMessagesResponse> getMessages({
-    int? sessionId,
-    String? phien,
+    required String phien,
     int page = 1,
     int limit = 50,
   }) async {
@@ -136,19 +138,13 @@ class ChatService {
       final headers = await _headers;
       final body = <String, String>{
         'action': 'get_messages',
+        'phien': phien,
         'page': page.toString(),
         'limit': limit.toString(),
       };
 
-      if (sessionId != null) {
-        body['session_id'] = sessionId.toString();
-      }
-      if (phien != null && phien.isNotEmpty) {
-        body['phien'] = phien;
-      }
-
       final response = await http.post(
-        Uri.parse('$_baseUrl/chat_api'),
+        Uri.parse('$_baseUrl/chat_api_correct'),
         headers: headers,
         body: body,
       );
@@ -166,9 +162,9 @@ class ChatService {
 
   /// Gửi tin nhắn
   Future<ChatSendResponse> sendMessage({
-    int? sessionId,
-    String? phien,
-    required String message,
+    required String phien,
+    required String content,
+    required String senderType,
     int productId = 0,
     int variantId = 0,
   }) async {
@@ -176,20 +172,15 @@ class ChatService {
       final headers = await _headers;
       final body = <String, String>{
         'action': 'send_message',
-        'message': message,
+        'phien': phien,
+        'content': content,
+        'sender_type': senderType,
         'product_id': productId.toString(),
         'variant_id': variantId.toString(),
       };
 
-      if (sessionId != null) {
-        body['session_id'] = sessionId.toString();
-      }
-      if (phien != null && phien.isNotEmpty) {
-        body['phien'] = phien;
-      }
-
       final response = await http.post(
-        Uri.parse('$_baseUrl/chat_api'),
+        Uri.parse('$_baseUrl/chat_api_correct'),
         headers: headers,
         body: body,
       );
@@ -206,22 +197,21 @@ class ChatService {
   }
 
   /// Đánh dấu tin nhắn đã đọc
-  Future<bool> markAsRead({int? sessionId, String? phien}) async {
+  Future<bool> markAsRead({required String phien, bool markAll = true, String? messageIds}) async {
     try {
       final headers = await _headers;
       final body = <String, String>{
         'action': 'mark_read',
+        'phien': phien,
+        'mark_all': markAll.toString(),
       };
 
-      if (sessionId != null) {
-        body['session_id'] = sessionId.toString();
-      }
-      if (phien != null && phien.isNotEmpty) {
-        body['phien'] = phien;
+      if (messageIds != null && messageIds.isNotEmpty) {
+        body['message_ids'] = messageIds;
       }
 
       final response = await http.post(
-        Uri.parse('$_baseUrl/chat_api'),
+        Uri.parse('$_baseUrl/chat_api_correct'),
         headers: headers,
         body: body,
       );
@@ -238,14 +228,16 @@ class ChatService {
   }
 
   /// Lấy số tin nhắn chưa đọc
-  Future<ChatUnreadResponse> getUnreadCount() async {
+  Future<ChatUnreadResponse> getUnreadCount({required int userId, required String userType}) async {
     try {
       final headers = await _headers;
       final response = await http.post(
-        Uri.parse('$_baseUrl/chat_api'),
+        Uri.parse('$_baseUrl/chat_api_correct'),
         headers: headers,
         body: {
           'action': 'get_unread_count',
+          'user_id': userId.toString(),
+          'user_type': userType,
         },
       );
 
@@ -261,22 +253,16 @@ class ChatService {
   }
 
   /// Đóng phiên chat
-  Future<bool> closeSession({int? sessionId, String? phien}) async {
+  Future<bool> closeSession({required String phien}) async {
     try {
       final headers = await _headers;
       final body = <String, String>{
         'action': 'close_session',
+        'phien': phien,
       };
 
-      if (sessionId != null) {
-        body['session_id'] = sessionId.toString();
-      }
-      if (phien != null && phien.isNotEmpty) {
-        body['phien'] = phien;
-      }
-
       final response = await http.post(
-        Uri.parse('$_baseUrl/chat_api'),
+        Uri.parse('$_baseUrl/chat_api_correct'),
         headers: headers,
         body: body,
       );
@@ -294,8 +280,7 @@ class ChatService {
 
   /// Tìm kiếm tin nhắn
   Future<ChatMessagesResponse> searchMessages({
-    int? sessionId,
-    String? phien,
+    required String phien,
     required String keyword,
     int page = 1,
     int limit = 20,
@@ -304,20 +289,14 @@ class ChatService {
       final headers = await _headers;
       final body = <String, String>{
         'action': 'search_messages',
+        'phien': phien,
         'keyword': keyword,
         'page': page.toString(),
         'limit': limit.toString(),
       };
 
-      if (sessionId != null) {
-        body['session_id'] = sessionId.toString();
-      }
-      if (phien != null && phien.isNotEmpty) {
-        body['phien'] = phien;
-      }
-
       final response = await http.post(
-        Uri.parse('$_baseUrl/chat_api'),
+        Uri.parse('$_baseUrl/chat_api_correct'),
         headers: headers,
         body: body,
       );

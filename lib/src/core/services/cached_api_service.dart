@@ -1271,4 +1271,145 @@ class CachedApiService {
     _cache.remove(CacheKeys.voucherShops);
     print('🧹 Cleared all voucher cache');
   }
+
+  // =============== FAVORITE PRODUCTS ===============
+  
+  /// Lấy danh sách sản phẩm yêu thích với cache
+  Future<Map<String, dynamic>?> getFavoriteProductsCached({
+    required int userId,
+    int page = 1,
+    int limit = 50,
+    bool getAll = false,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.favoriteProducts, {
+      'userId': userId,
+      'page': page,
+      'limit': limit,
+      'getAll': getAll,
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('❤️ Using cached favorite products (page $page)');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🌐 Fetching favorite products from API (page $page)...');
+      final result = await _apiService.getFavoriteProducts(
+        userId: userId,
+        page: page,
+        limit: limit,
+        getAll: getAll,
+      );
+      
+      if (result != null) {
+        // Lưu vào cache với thời gian ngắn vì favorite có thể thay đổi thường xuyên
+        _cache.set(cacheKey, result, duration: cacheDuration ?? _shortCacheDuration);
+        print('✅ Favorite products cached successfully (page $page)');
+      }
+      
+      return result;
+    } catch (e) {
+      print('❌ Error fetching favorite products: $e');
+      
+      // Fallback về cache cũ nếu có
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('🔄 Using stale cache for favorite products (page $page)');
+        return cachedData;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Thêm sản phẩm vào yêu thích và xóa cache
+  Future<Map<String, dynamic>?> addFavoriteProductCached({
+    required int userId,
+    required int productId,
+  }) async {
+    try {
+      final result = await _apiService.addFavoriteProduct(
+        userId: userId,
+        productId: productId,
+      );
+      
+      if (result != null && result['success'] == true) {
+        // Xóa cache của favorite products để refresh
+        clearFavoriteProductsCache(userId);
+        print('✅ Added favorite product and cleared cache');
+      }
+      
+      return result;
+    } catch (e) {
+      print('❌ Error adding favorite product: $e');
+      rethrow;
+    }
+  }
+
+  /// Xóa sản phẩm khỏi yêu thích và xóa cache
+  Future<Map<String, dynamic>?> removeFavoriteProductCached({
+    required int userId,
+    required int productId,
+  }) async {
+    try {
+      final result = await _apiService.removeFavoriteProduct(
+        userId: userId,
+        productId: productId,
+      );
+      
+      if (result != null && result['success'] == true) {
+        // Xóa cache của favorite products để refresh
+        clearFavoriteProductsCache(userId);
+        print('✅ Removed favorite product and cleared cache');
+      }
+      
+      return result;
+    } catch (e) {
+      print('❌ Error removing favorite product: $e');
+      rethrow;
+    }
+  }
+
+  /// Toggle favorite và xóa cache
+  Future<Map<String, dynamic>?> toggleFavoriteProductCached({
+    required int userId,
+    required int productId,
+  }) async {
+    try {
+      final result = await _apiService.toggleFavoriteProduct(
+        userId: userId,
+        productId: productId,
+      );
+      
+      if (result != null && result['success'] == true) {
+        // Xóa cache của favorite products để refresh
+        clearFavoriteProductsCache(userId);
+        print('✅ Toggled favorite product and cleared cache');
+      }
+      
+      return result;
+    } catch (e) {
+      print('❌ Error toggling favorite product: $e');
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của favorite products cho user cụ thể
+  void clearFavoriteProductsCache(int userId) {
+    clearCachePattern('favorite_products:{"userId":$userId');
+    print('🧹 Cleared favorite products cache for user: $userId');
+  }
+
+  /// Xóa tất cả cache của favorite products
+  void clearAllFavoriteProductsCache() {
+    clearCachePattern(CacheKeys.favoriteProducts);
+    print('🧹 Cleared all favorite products cache');
+  }
 }

@@ -218,4 +218,7 @@ class CacheKeys {
         // Voucher cache keys
         static const String platformVouchers = 'platform_vouchers';
         static const String voucherShops = 'voucher_shops';
+        
+        // Favorite cache keys
+        static const String favoriteProducts = 'favorite_products';
 }

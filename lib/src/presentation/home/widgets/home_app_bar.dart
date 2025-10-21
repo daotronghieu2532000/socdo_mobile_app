@@ -4,6 +4,7 @@ import '../../account/account_screen.dart';
 import '../../auth/login_screen.dart';
 import '../../search/search_screen.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/chat_service.dart';
 import '../../../core/models/user.dart';
 import '../../../core/services/api_service.dart';
 
@@ -17,9 +18,11 @@ class HomeAppBar extends StatefulWidget {
 class _HomeAppBarState extends State<HomeAppBar> {
   final _authService = AuthService();
   final _api = ApiService();
+  final _chatService = ChatService();
   User? _currentUser;
   bool _isLoading = true;
   int _unread = 0;
+  int _unreadChat = 0;
   Timer? _timer;
 
   @override
@@ -73,11 +76,27 @@ class _HomeAppBarState extends State<HomeAppBar> {
 
   Future<void> _loadUnread() async {
     if (_currentUser == null) return;
+    
+    // Load notifications
     final res = await _api.getNotifications(userId: _currentUser!.userId, page: 1, limit: 1, unreadOnly: true);
     if (!mounted) return;
     setState(() {
       _unread = (res?['data']?['unread_count'] as int?) ?? 0;
     });
+    
+    // Load chat unread count
+    try {
+      final chatRes = await _chatService.getUnreadCount(
+        userId: _currentUser!.userId,
+        userType: 'customer',
+      );
+      if (!mounted) return;
+      setState(() {
+        _unreadChat = chatRes.unreadCount;
+      });
+    } catch (e) {
+      // Ignore chat errors
+    }
   }
 
   void _handleSearchTap() {
@@ -168,6 +187,41 @@ class _HomeAppBarState extends State<HomeAppBar> {
                         ),
                         child: Text(
                           _unread > 99 ? '99+' : '$_unread',
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Chat icon with unread badge
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/chat').then((_) => _loadUnread()),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.chat_bubble_outline, color: Colors.black87),
+                  ),
+                  if (_unreadChat > 0)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          _unreadChat > 99 ? '99+' : '$_unreadChat',
                           style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                         ),
                       ),

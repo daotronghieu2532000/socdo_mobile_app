@@ -73,13 +73,17 @@ try {
         $sql = "SELECT DISTINCT
                 s.id, s.tieu_de, s.link, s.gia_cu, s.gia_moi, s.gia_ctv, s.minh_hoa, s.shop, s.ma_sanpham,
                 s.thuong_hieu, s.kho, s.ban, s.view, s.box_banchay, s.box_noibat, s.box_flash, 
-                s.date_post, s.noi_bat, s.cat,
+                s.date_post, s.noi_bat, s.cat, s.kho_id,
                 COALESCE(pc.total_reviews, 0) AS total_reviews,
                 COALESCE(pc.avg_rating, 0) AS avg_rating,
-                y.id as favorite_id
+                y.id as favorite_id,
+                t.ten_kho as warehouse_name, tm.tieu_de as province_name,
+                t.free_ship_all, t.free_ship_min_order, t.free_ship_discount
                 FROM yeu_thich_san_pham y
                 JOIN sanpham s ON y.product_id = s.id
                 LEFT JOIN phanloai_sanpham p ON s.id = p.sp_id
+                LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
+                LEFT JOIN tinh_moi tm ON t.province = tm.id
                 LEFT JOIN (
                     SELECT product_id, COUNT(*) AS total_reviews, AVG(rating) AS avg_rating
                     FROM product_comments
@@ -154,44 +158,64 @@ try {
             // Tạo URL sản phẩm
             $r_sp['product_url'] = 'https://socdo.vn/san-pham/' . $r_sp['id'] . '/' . $r_sp['link'] . '.html';
             
-            // Xử lý voucher và freeship icons
+            // Logic voucher chi tiết
             $deal_shop = $r_sp['shop'];
             $voucher_icon = '';
-            $freeship_icon = '';
             
-            if ($deal_shop) {
-                // Check voucher
-                $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$id_sp', sanpham) AND shop = '$deal_shop' AND '$current_time' BETWEEN start AND expired LIMIT 1");
-                if (mysqli_num_rows($check_coupon) > 0) {
+            // Check voucher sản phẩm cụ thể
+            $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('$id_sp', sanpham) AND shop = '$deal_shop' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+            if (mysqli_num_rows($check_coupon) > 0) {
+                $voucher_icon = 'Voucher';
+            } else {
+                // Check voucher shop
+                $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                if (mysqli_num_rows($check_coupon_all) > 0) {
                     $voucher_icon = 'Voucher';
-                } else {
-                    $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND '$current_time' BETWEEN start AND expired LIMIT 1");
-                    if (mysqli_num_rows($check_coupon_all) > 0) {
-                        $voucher_icon = 'Voucher';
-                    }
-                }
-                
-                // Check freeship
-                $check_freeship = mysqli_query($conn, "SELECT id FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all = 1 OR free_ship_discount > 0) LIMIT 1");
-                if (mysqli_num_rows($check_freeship) > 0) {
-                    $freeship_icon = 'Freeship';
                 }
             }
             
+            // Logic freeship chi tiết với 4 mode
+            $freeship_icon = '';
+            $mode = intval($r_sp['free_ship_all'] ?? 0);
+            $base_price = $gia_moi_main;
+            $minOrder = intval($r_sp['free_ship_min_order'] ?? 0);
+            $discount = intval($r_sp['free_ship_discount'] ?? 0);
+            
+            if ($mode === 1) {
+                $freeship_icon = 'Freeship 100%';
+            } elseif ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
+                $freeship_icon = 'Giảm ' . number_format($discount) . 'đ';
+            } elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
+                $freeship_icon = 'Giảm ' . $discount . '%';
+            } elseif ($mode === 3) {
+                $freeship_icon = 'Ưu đãi ship';
+            } elseif ($mode === 0 && $discount == 0) {
+                $freeship_icon = 'Freeship';
+            }
+            
+            // Logic chính hãng
+            $chinhhang_icon = '';
+            if (!empty($r_sp['thuong_hieu'])) {
+                $chinhhang_icon = 'Chính hãng';
+            }
+            
+            // Warehouse info
+            $warehouse_name = $r_sp['warehouse_name'] ?? '';
+            $province_name = $r_sp['province_name'] ?? '';
+            
             // Thêm badges
             $badges = array();
-            if ($r_sp['box_banchay'] == 1) $badges[] = 'Bán chạy';
-            if ($r_sp['box_noibat'] == 1) $badges[] = 'Nổi bật';
-            if ($r_sp['box_flash'] == 1) $badges[] = 'Flash sale';
             if ($giam > 0) $badges[] = "-$giam%";
             if (!empty($voucher_icon)) $badges[] = $voucher_icon;
             if (!empty($freeship_icon)) $badges[] = $freeship_icon;
-            $badges[] = 'Chính hãng';
+            if (!empty($chinhhang_icon)) $badges[] = $chinhhang_icon;
             
             $r_sp['badges'] = $badges;
             $r_sp['voucher_icon'] = $voucher_icon;
             $r_sp['freeship_icon'] = $freeship_icon;
-            $r_sp['chinhhang_icon'] = 'Chính hãng';
+            $r_sp['chinhhang_icon'] = $chinhhang_icon;
+            $r_sp['warehouse_name'] = $warehouse_name;
+            $r_sp['province_name'] = $province_name;
             
             // Label sale
             if ($giam > 0) {

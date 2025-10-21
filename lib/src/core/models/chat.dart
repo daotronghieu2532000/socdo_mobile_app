@@ -56,7 +56,7 @@ class ChatMessage {
   final String senderType;
   final String senderName;
   final String senderAvatar;
-  final String message;
+  final String content;
   final int datePost;
   final String dateFormatted;
   final bool isRead;
@@ -68,7 +68,7 @@ class ChatMessage {
     required this.senderType,
     required this.senderName,
     required this.senderAvatar,
-    required this.message,
+    required this.content,
     required this.datePost,
     required this.dateFormatted,
     required this.isRead,
@@ -82,7 +82,7 @@ class ChatMessage {
       senderType: json['sender_type'] ?? '',
       senderName: json['sender_name'] ?? '',
       senderAvatar: json['sender_avatar'] ?? '/images/user.png',
-      message: json['message'] ?? '',
+      content: json['content'] ?? '',
       datePost: json['date_post'] ?? 0,
       dateFormatted: json['date_formatted'] ?? '',
       isRead: json['is_read'] == 1,
@@ -97,7 +97,7 @@ class ChatMessage {
       'sender_type': senderType,
       'sender_name': senderName,
       'sender_avatar': senderAvatar,
-      'message': message,
+      'content': content,
       'date_post': datePost,
       'date_formatted': dateFormatted,
       'is_read': isRead ? 1 : 0,
