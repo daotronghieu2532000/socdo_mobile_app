@@ -10,6 +10,7 @@ import '../../checkout/checkout_screen.dart';
 import '../../../core/models/product_detail.dart';
 import '../../../core/services/cart_service.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/cached_api_service.dart';
 
 class ShopProductsSection extends StatelessWidget {
   final List<ShopProduct> products;
@@ -277,7 +278,8 @@ class ShopProductsSection extends StatelessWidget {
 
   void _showPurchaseDialog(BuildContext context, ShopProduct product) async {
     try {
-      final productDetail = await ApiService().getProductDetail(product.id);
+      // Ưu tiên dùng cache cho chi tiết sản phẩm
+      final productDetail = await CachedApiService().getProductDetailCached(product.id);
       final parentContext = Navigator.of(context).context;
       
       if (parentContext.mounted && productDetail != null) {

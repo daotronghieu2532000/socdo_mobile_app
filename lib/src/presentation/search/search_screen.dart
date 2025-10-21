@@ -5,6 +5,7 @@ import '../../core/services/cached_api_service.dart';
 import '../../core/models/search_result.dart';
 import '../../core/utils/format_utils.dart';
 import 'widgets/search_product_card_horizontal.dart';
+import '../common/widgets/go_top_button.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -367,7 +368,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 // Search field
                 Expanded(
                   child: Container(
-                    height: 40,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: Colors.grey[50],
                       borderRadius: BorderRadius.circular(12),
@@ -393,19 +394,22 @@ class _SearchScreenState extends State<SearchScreen> {
                               hintStyle: TextStyle(
                                 color: Color(0xFF999999),
                                 fontSize: 14,
-                                height: 1.2,
+                                height: 1.3,
                               ),
-                              contentPadding: EdgeInsets.symmetric(vertical: 13),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(vertical: 10),
                             ),
                             onSubmitted: _onSearchSubmitted,
                             autofocus: true,
                             textInputAction: TextInputAction.search,
                             keyboardType: TextInputType.text,
                             textAlignVertical: TextAlignVertical.center,
+                            maxLines: 1,
+                            strutStyle: StrutStyle(height: 1.3, forceStrutHeight: true),
                             style: const TextStyle(
                               fontSize: 14,
                               color: Colors.black87,
-                              height: 1.2,
+                              height: 1.3,
                             ),
                           ),
                         ),
@@ -466,7 +470,16 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
       ),
-      body: _buildBody(),
+      body: Stack(
+        children: [
+          _buildBody(),
+          // Go Top Button
+          GoTopButton(
+            scrollController: _scrollController,
+            showAfterScrollDistance: 1000.0, // Khoảng 2.5 màn hình
+          ),
+        ],
+      ),
     );
   }
 

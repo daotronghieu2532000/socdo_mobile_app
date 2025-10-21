@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/cached_api_service.dart';
 import '../../core/models/shop_detail.dart';
 import '../product/product_detail_screen.dart';
 import '../cart/cart_screen.dart';
@@ -31,6 +32,7 @@ class ShopDetailScreen extends StatefulWidget {
 class _ShopDetailScreenState extends State<ShopDetailScreen>
     with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
+  final CachedApiService _cachedApiService = CachedApiService();
   ShopDetail? _shopDetail;
   bool _isLoading = true;
   String? _error;
@@ -56,7 +58,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
         _error = null;
       });
 
-      final shopDetail = await _apiService.getShopDetail(
+      final shopDetail = await _cachedApiService.getShopDetailCached(
         shopId: widget.shopId,
         username: widget.shopUsername,
         includeProducts: 1,

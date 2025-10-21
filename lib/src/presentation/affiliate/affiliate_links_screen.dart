@@ -10,6 +10,7 @@ import '../../core/services/cached_api_service.dart';
 import '../../core/models/affiliate_link.dart';
 import '../../core/utils/format_utils.dart';
 import '../product/product_detail_screen.dart';
+import '../common/widgets/go_top_button.dart';
 
 class AffiliateLinksScreen extends StatefulWidget {
   const AffiliateLinksScreen({super.key});
@@ -22,6 +23,7 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
   final AffiliateService _affiliateService = AffiliateService();
   final AuthService _authService = AuthService();
   final CachedApiService _cachedApiService = CachedApiService();
+  final ScrollController _scrollController = ScrollController();
   List<AffiliateLink> _links = [];
   List<AffiliateLink> _filteredLinks = [];
   bool _isLoading = true;

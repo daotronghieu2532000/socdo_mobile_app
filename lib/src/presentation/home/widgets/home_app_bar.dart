@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../account/account_screen.dart';
 import '../../auth/login_screen.dart';
 import '../../search/search_screen.dart';
@@ -19,6 +20,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
   User? _currentUser;
   bool _isLoading = true;
   int _unread = 0;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -27,12 +29,20 @@ class _HomeAppBarState extends State<HomeAppBar> {
     
     // Thêm listener để cập nhật khi trạng thái đăng nhập thay đổi
     _authService.addAuthStateListener(_checkLoginStatus);
+    
+    // Cập nhật thông báo mỗi 10 giây
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted && _currentUser != null) {
+        _loadUnread();
+      }
+    });
   }
 
   @override
   void dispose() {
     // Xóa listener khi dispose
     _authService.removeAuthStateListener(_checkLoginStatus);
+    _timer?.cancel();
     super.dispose();
   }
 

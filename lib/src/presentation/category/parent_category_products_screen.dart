@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
 import 'widgets/category_product_card_horizontal.dart';
+import '../common/widgets/go_top_button.dart';
 
 class ParentCategoryProductsScreen extends StatefulWidget {
   final int parentCategoryId;
@@ -361,7 +362,16 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
           ),
         ),
       ),
-      body: _buildBody(),
+      body: Stack(
+        children: [
+          _buildBody(),
+          // Go Top Button
+          GoTopButton(
+            scrollController: _scrollController,
+            showAfterScrollDistance: 1000.0, // Khoảng 2.5 màn hình
+          ),
+        ],
+      ),
     );
   }
 

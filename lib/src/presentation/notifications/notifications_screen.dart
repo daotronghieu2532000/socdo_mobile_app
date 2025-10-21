@@ -54,7 +54,33 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _markAllRead() async {
     if (_userId == null) return;
     final ok = await _api.markAllNotificationsRead(userId: _userId!);
-    if (ok) await _load();
+    if (ok) {
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã đánh dấu tất cả thông báo là đã đọc'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAllNotifications() async {
+    if (_userId == null) return;
+    final ok = await _api.deleteAllNotifications(userId: _userId!);
+    if (ok) {
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã xóa tất cả thông báo'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _markRead(int id) async {
@@ -127,13 +153,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ],
                   ),
                 ),
-                TextButton(
-                  onPressed: _unread > 0 ? _markAllRead : null,
-                  child: const Text(
-                    'Đánh dấu tất cả đã đọc',
-                    style: TextStyle(fontSize: 12),
-                  ),
+            TextButton(
+              onPressed: _unread > 0 ? _markAllRead : null,
+              style: TextButton.styleFrom(
+                foregroundColor: _unread > 0 ? Colors.blue : Colors.grey,
+              ),
+              child: Text(
+                'Đánh dấu tất cả đã đọc',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _unread > 0 ? Colors.blue : Colors.grey,
                 ),
+              ),
+            ),
               ],
             ),
           ),
@@ -155,12 +187,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       for (int i = 0; i < _items.length; i++) ...[
                         _buildNotificationItem(
                           id: _items[i]['id'] ?? 0,
-                          icon: Icons.notifications,
-                          iconColor: Colors.blueGrey,
+                          icon: _getNotificationIcon(_items[i]['type']?.toString()),
+                          iconColor: _getNotificationColor(_items[i]['type']?.toString()),
                           title: _items[i]['title']?.toString() ?? 'Thông báo',
                           subtitle: _items[i]['content']?.toString() ?? '',
                           time: _items[i]['time_ago']?.toString() ?? '',
                           isRead: (_items[i]['is_read'] as bool?) ?? false,
+                          priority: _items[i]['priority']?.toString() ?? 'medium',
+                          data: _items[i]['data'] as Map<String, dynamic>?,
                         ),
                         if (i < _items.length - 1) const Divider(height: 1),
                       ],
@@ -174,9 +208,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: _items.isNotEmpty ? () {
                 _showDeleteConfirmDialog(context);
-              },
+              } : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red[50],
                 foregroundColor: Colors.red[600],
@@ -213,6 +247,44 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  IconData _getNotificationIcon(String? type) {
+    switch (type) {
+      case 'order':
+        return Icons.shopping_cart;
+      case 'affiliate_order':
+        return Icons.handshake;
+      case 'deposit':
+        return Icons.add_circle;
+      case 'withdrawal':
+        return Icons.remove_circle;
+      case 'voucher_new':
+        return Icons.card_giftcard;
+      case 'voucher_expiring':
+        return Icons.access_time;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  Color _getNotificationColor(String? type) {
+    switch (type) {
+      case 'order':
+        return Colors.blue;
+      case 'affiliate_order':
+        return Colors.green;
+      case 'deposit':
+        return Colors.cyan;
+      case 'withdrawal':
+        return Colors.orange;
+      case 'voucher_new':
+        return Colors.red;
+      case 'voucher_expiring':
+        return Colors.purple;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
   Widget _buildNotificationItem({
     required int id,
     required IconData icon,
@@ -221,60 +293,131 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     required String subtitle,
     required String time,
     required bool isRead,
+    required String priority,
+    Map<String, dynamic>? data,
   }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          icon,
-          color: iconColor,
-          size: 20,
-        ),
+    // Lấy thông tin sản phẩm từ data
+    String? productImage;
+    String? productTitle;
+    if (data != null) {
+      productImage = data['product_image']?.toString();
+      productTitle = data['product_title']?.toString();
+    }
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: priority == 'high' && !isRead 
+            ? Colors.red[50] 
+            : priority == 'medium' && !isRead 
+                ? Colors.orange[50] 
+                : Colors.white,
+        border: priority == 'high' && !isRead 
+            ? Border(left: BorderSide(color: Colors.red, width: 3))
+            : null,
       ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: isRead ? FontWeight.w500 : FontWeight.w600,
-          color: isRead ? Colors.grey[600] : Colors.black87,
-        ),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            time,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[500],
-            ),
-          ),
-        ],
-      ),
-      trailing: isRead 
-          ? null 
-          : Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
+      child: ListTile(
+        leading: productImage != null && productImage.isNotEmpty
+            ? Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  image: DecorationImage(
+                    image: NetworkImage(productImage),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              )
+            : Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: iconColor,
+                  size: 20,
+                ),
+              ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: isRead ? FontWeight.w500 : FontWeight.w600,
+                  color: isRead ? Colors.grey[600] : Colors.black87,
+                ),
               ),
             ),
-      onTap: () => _markRead(id),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            if (priority == 'high' && !isRead)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Quan trọng',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+              ),
+            ),
+            if (productTitle != null && productTitle.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Sản phẩm: $productTitle',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                const Spacer(),
+                if (!isRead)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: priority == 'high' ? Colors.red : Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        onTap: () => _markRead(id),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
     );
   }
 
@@ -293,13 +436,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // TODO: Xóa tất cả thông báo
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Đã xóa tất cả thông báo'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
+                _deleteAllNotifications();
               },
               child: const Text(
                 'Xóa',

@@ -10,6 +10,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/cached_api_service.dart';
 import '../../core/utils/format_utils.dart';
 import '../product/product_detail_screen.dart';
+import '../common/widgets/go_top_button.dart';
 
 
 class AffiliateProductsScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
   final AffiliateService _affiliateService = AffiliateService();
   final AuthService _authService = AuthService();
   final CachedApiService _cachedApiService = CachedApiService();
+  final ScrollController _scrollController = ScrollController();
   List<AffiliateProduct> _products = [];
   List<AffiliateProduct> _filteredProducts = [];
   bool _isLoading = true;
@@ -42,20 +44,10 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
   DateTime _lastSearchChange = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
-  void initState() {
-    super.initState();
-    _initUser();
-    _searchController.addListener(() {
-      _searchQuery = _searchController.text.trim();
-      // Debounce search ~500ms
-      final now = DateTime.now();
-      _lastSearchChange = now;
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (now == _lastSearchChange) {
-          _loadProducts(refresh: true);
-        }
-      });
-    });
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   // Lấy thông tin user đang đăng nhập
@@ -345,87 +337,97 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Filter Panel
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            height: _isFilterVisible ? null : 0,
-            child: _isFilterVisible ? _buildModernFilterPanel() : const SizedBox.shrink(),
-          ),
-          
-          // Main Content
-          Expanded(
-            child: _isLoading && _products.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null && _products.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(_error!),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () => _loadProducts(refresh: true),
-                              child: const Text('Thử lại'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _filteredProducts.isEmpty
+          Column(
+            children: [
+              // Filter Panel
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                height: _isFilterVisible ? null : 0,
+                child: _isFilterVisible ? _buildModernFilterPanel() : const SizedBox.shrink(),
+              ),
+              
+              // Main Content
+              Expanded(
+                child: _isLoading && _products.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null && _products.isEmpty
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.inventory_2_outlined,
-                                  size: 64,
-                                  color: Colors.grey[400],
-                                ),
+                                Text(_error!),
                                 const SizedBox(height: 16),
-                                Text(
-                                  'Không có sản phẩm affiliate',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Hiện tại chưa có sản phẩm nào trong chương trình affiliate',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[500],
-                                  ),
-                                  textAlign: TextAlign.center,
+                                ElevatedButton(
+                                  onPressed: () => _loadProducts(refresh: true),
+                                  child: const Text('Thử lại'),
                                 ),
                               ],
                             ),
                           )
-                        : RefreshIndicator(
-                            onRefresh: () => _loadProducts(refresh: true),
-                            child: ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              itemCount: _filteredProducts.length + (_hasMoreData ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == _filteredProducts.length) {
-                                  // Load more indicator
-                                  if (_hasMoreData && !_isLoading) {
-                                    _loadProducts();
-                                  }
-                                  return const Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: Center(child: CircularProgressIndicator()),
-                                  );
-                                }
+                        : _filteredProducts.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.inventory_2_outlined,
+                                      size: 64,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Không có sản phẩm affiliate',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Hiện tại chưa có sản phẩm nào trong chương trình affiliate',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[500],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: () => _loadProducts(refresh: true),
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  itemCount: _filteredProducts.length + (_hasMoreData ? 1 : 0),
+                                  itemBuilder: (context, index) {
+                                    if (index == _filteredProducts.length) {
+                                      // Load more indicator
+                                      if (_hasMoreData && !_isLoading) {
+                                        _loadProducts();
+                                      }
+                                      return const Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child: Center(child: CircularProgressIndicator()),
+                                      );
+                                    }
 
-                                final product = _filteredProducts[index];
-                                return _buildProductCard(product);
-                              },
-                            ),
-                          ),
+                                    final product = _filteredProducts[index];
+                                    return _buildProductCard(product);
+                                  },
+                                ),
+                              ),
+              ),
+            ],
+          ),
+          // Go Top Button
+          GoTopButton(
+            scrollController: _scrollController,
+            showAfterScrollDistance: 1000.0, // Khoảng 2.5 màn hình
           ),
         ],
       ),

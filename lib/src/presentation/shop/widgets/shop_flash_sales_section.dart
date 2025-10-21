@@ -11,6 +11,7 @@ import '../../checkout/checkout_screen.dart';
 import '../../../core/models/product_detail.dart';
 import '../../../core/services/cart_service.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/cached_api_service.dart';
 
 class ShopFlashSalesSection extends StatefulWidget {
   final List<ShopFlashSale> flashSales;
@@ -287,7 +288,7 @@ class _ShopFlashSalesSectionState extends State<ShopFlashSalesSection> {
     return GestureDetector(
       onTap: () {
         // Navigate to product detail
-        Navigator.push(
+    Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ProductDetailScreen(
@@ -530,7 +531,8 @@ class _ShopFlashSalesSectionState extends State<ShopFlashSalesSection> {
 
   void _showPurchaseDialog(BuildContext context, int productId) async {
     try {
-      final productDetail = await ApiService().getProductDetail(productId);
+      // Dùng cache cho chi tiết sản phẩm để thống nhất với các nơi khác
+      final productDetail = await CachedApiService().getProductDetailCached(productId);
       final parentContext = Navigator.of(context).context;
       
       if (parentContext.mounted && productDetail != null) {

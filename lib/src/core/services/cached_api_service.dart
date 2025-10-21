@@ -3,6 +3,7 @@ import 'api_service.dart';
 import 'memory_cache_service.dart';
 import '../models/product_detail.dart';
 import '../models/voucher.dart';
+import '../models/shop_detail.dart';
 
 /// Enhanced API Service với Memory Cache
 /// Tự động cache dữ liệu API để giảm số lần gọi và cải thiện performance
@@ -28,6 +29,70 @@ class CachedApiService {
   /// Dispose service
   void dispose() {
     _cache.dispose();
+  }
+
+  /// Lấy chi tiết shop với cache
+  Future<ShopDetail?> getShopDetailCached({
+    int? shopId,
+    String? username,
+    int includeProducts = 1,
+    int includeFlashSale = 1,
+    int includeVouchers = 1,
+    int includeWarehouses = 1,
+    int includeCategories = 1,
+    int productsLimit = 20,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey(
+      CacheKeys.shopDetail,
+      {
+        if (shopId != null) 'shopId': shopId,
+        if (username != null) 'username': username,
+        'p': includeProducts,
+        'fs': includeFlashSale,
+        'v': includeVouchers,
+        'w': includeWarehouses,
+        'c': includeCategories,
+        'limit': productsLimit,
+      },
+    );
+
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cached = _cache.get<ShopDetail>(cacheKey);
+      if (cached != null) {
+        print('🏪 Using cached shop detail for $shopId/$username');
+        return cached;
+      }
+    }
+
+    try {
+      print('🌐 Fetching shop detail from API for $shopId/$username...');
+      final detail = await _apiService.getShopDetail(
+        shopId: shopId,
+        username: username,
+        includeProducts: includeProducts,
+        includeFlashSale: includeFlashSale,
+        includeVouchers: includeVouchers,
+        includeWarehouses: includeWarehouses,
+        includeCategories: includeCategories,
+        productsLimit: productsLimit,
+      );
+
+      if (detail != null) {
+        _cache.set(cacheKey, detail, duration: cacheDuration ?? _defaultCacheDuration);
+        print('✅ Shop detail cached successfully for $shopId/$username');
+      }
+      return detail;
+    } catch (e) {
+      print('❌ Error fetching shop detail: $e');
+      final cached = _cache.get<ShopDetail>(cacheKey);
+      if (cached != null) {
+        print('🔄 Using stale cache for shop detail $shopId/$username');
+        return cached;
+      }
+      rethrow;
+    }
   }
 
   /// Lấy banners cho trang chủ với cache

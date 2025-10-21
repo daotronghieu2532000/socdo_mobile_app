@@ -179,7 +179,7 @@ class ApiService {
         if (type != null) 'type': type,
         if (unreadOnly) 'unread_only': 'true',
       };
-      final uri = Uri.parse('$baseUrl/notifications_list').replace(queryParameters: query);
+      final uri = Uri.parse('$baseUrl/notifications_mobile').replace(queryParameters: query);
       final token = await getValidToken();
       final response = await http.get(uri, headers: {
         'Authorization': token != null ? 'Bearer $token' : '',
@@ -198,7 +198,7 @@ class ApiService {
     required int notificationId,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/notification_mark_read');
+      final uri = Uri.parse('$baseUrl/notification_mark_read_mobile');
       final token = await getValidToken();
       final request = http.MultipartRequest('POST', uri);
       if (token != null) request.headers['Authorization'] = 'Bearer $token';
@@ -221,7 +221,7 @@ class ApiService {
     String? type,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/notification_mark_read');
+      final uri = Uri.parse('$baseUrl/notification_mark_read_mobile');
       final token = await getValidToken();
       final request = http.MultipartRequest('POST', uri);
       if (token != null) request.headers['Authorization'] = 'Bearer $token';
@@ -237,6 +237,85 @@ class ApiService {
       return false;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Xóa tất cả thông báo
+  Future<bool> deleteAllNotifications({required int userId}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/notification_delete_mobile');
+      final token = await getValidToken();
+      final request = http.MultipartRequest('POST', uri);
+      if (token != null) request.headers['Authorization'] = 'Bearer $token';
+      request.fields['user_id'] = userId.toString();
+      request.fields['delete_all'] = 'true';
+      
+      print('DEBUG: Delete all notifications - URL: $uri');
+      print('DEBUG: Token: ${token != null ? 'Present' : 'Missing'}');
+      print('DEBUG: Fields: ${request.fields}');
+      
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      
+      print('DEBUG: Response status: ${response.statusCode}');
+      print('DEBUG: Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('DEBUG: Error deleting notifications: $e');
+      return false;
+    }
+  }
+
+  // Xóa thông báo cụ thể
+  Future<bool> deleteNotification({required int userId, required int notificationId}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/notification_delete_mobile');
+      final token = await getValidToken();
+      final request = http.MultipartRequest('POST', uri);
+      if (token != null) request.headers['Authorization'] = 'Bearer $token';
+      request.fields['user_id'] = userId.toString();
+      request.fields['notification_id'] = notificationId.toString();
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Lấy số lượng thông báo chưa đọc
+  Future<int> getUnreadNotificationCount({required int userId}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/notifications_mobile').replace(
+        queryParameters: {
+          'user_id': userId.toString(),
+          'unread_only': 'true',
+          'limit': '1',
+        },
+      );
+      final token = await getValidToken();
+      final response = await http.get(
+        uri,
+        headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['data']['unread_count'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      return 0;
     }
   }
 

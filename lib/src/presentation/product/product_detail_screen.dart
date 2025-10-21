@@ -28,6 +28,7 @@ import '../checkout/checkout_screen.dart';
 import '../shop/shop_detail_screen.dart';
 import '../chat/chat_screen.dart';
 import '../../core/services/cart_service.dart';
+import '../common/widgets/go_top_button.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int? productId;
@@ -66,6 +67,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ProductVariant? _selectedVariant;
   int _currentImageIndex = 0;
   final PageController _pageController = PageController();
+  final ScrollController _scrollController = ScrollController();
   final CartService _cartService = CartService();
   
   void _showSnack(String message, {SnackBarAction? action, Color? background}) {
@@ -154,6 +156,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -623,8 +626,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         onBuyNow: _showPurchaseDialog,
         onAddToCart: _showPurchaseDialog,
       ),
-      body: CustomScrollView(
-        slivers: [
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: [
           SliverAppBar(
             pinned: true,
             expandedHeight: 340,
@@ -1167,6 +1173,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+          // Go Top Button
+          GoTopButton(
+            scrollController: _scrollController,
+            showAfterScrollDistance: 1000.0, // Khoảng 2.5 màn hình
           ),
         ],
       ),

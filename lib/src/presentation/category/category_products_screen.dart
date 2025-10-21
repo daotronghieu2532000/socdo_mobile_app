@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/cached_api_service.dart';
 import 'widgets/category_product_card_horizontal.dart';
+import '../common/widgets/go_top_button.dart';
 
 class CategoryProductsScreen extends StatefulWidget {
   final int categoryId;
@@ -285,7 +286,16 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
           ),
         ),
       ),
-      body: _buildBody(),
+      body: Stack(
+        children: [
+          _buildBody(),
+          // Go Top Button
+          GoTopButton(
+            scrollController: _scrollController,
+            showAfterScrollDistance: 1000.0, // Khoảng 2.5 màn hình
+          ),
+        ],
+      ),
     );
   }
 

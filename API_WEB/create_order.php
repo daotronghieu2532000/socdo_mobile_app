@@ -116,6 +116,18 @@ try {
 		mysqli_query($conn, "INSERT INTO notification (user_id, sp_id, noi_dung, doc, bo_phan, admin, date_post) VALUES ('$first_shop','0','$noidung_notification','','donhang','0','$hientai')");
 	}
 
+	// Tạo thông báo cho user đặt hàng (Mobile App)
+	require_once './notification_mobile_helper.php';
+	$notificationHelper = new NotificationMobileHelper($conn);
+	$order_id = mysqli_insert_id($conn); // Lấy ID đơn hàng vừa tạo
+	
+	$notificationHelper->notifyNewOrder(
+		$user_id, 
+		$order_id, 
+		$ma_don, 
+		$tongtien
+	);
+
 	$response = [
 		'success' => true,
 		'message' => 'Tạo đơn hàng thành công',
