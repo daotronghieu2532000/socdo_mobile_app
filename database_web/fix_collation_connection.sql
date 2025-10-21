@@ -1,6 +1,8 @@
 -- ========================================
--- XÓA TẤT CẢ TRIGGER CŨ TRƯỚC KHI TẠO MỚI
+-- SỬA HOÀN TOÀN COLLATION CONNECTION
 -- ========================================
+
+-- Xóa tất cả trigger cũ
 DROP TRIGGER IF EXISTS tr_donhang_status_update;
 DROP TRIGGER IF EXISTS tr_lichsu_chitieu_insert;
 DROP TRIGGER IF EXISTS tr_coupon_insert;
@@ -28,15 +30,12 @@ BEGIN
         SET first_product_id = '';
         
         -- Parse JSON để lấy ID sản phẩm đầu tiên
-        -- JSON format thực tế: {"1258": {"tieu_de":"...","minh_hoa":"...","gia_moi":"230,000",...}}
-        -- Lấy key đầu tiên (product ID)
         SET first_product_id = SUBSTRING_INDEX(
             SUBSTRING_INDEX(NEW.sanpham, '":', 1), 
             '"', -1
         );
         
-        -- Lấy thông tin sản phẩm từ JSON thay vì từ bảng sanpham
-        -- JSON format: {"1258": {"tieu_de":"Nồi áp suất...","minh_hoa":"/uploads/...","gia_moi":"230,000",...}}
+        -- Lấy thông tin sản phẩm từ JSON
         SET product_title = SUBSTRING_INDEX(
             SUBSTRING_INDEX(NEW.sanpham, '"tieu_de":"', 2), 
             '"tieu_de":"', -1
@@ -54,7 +53,6 @@ BEGIN
             '"gia_moi":"', -1
         );
         SET product_price = SUBSTRING_INDEX(product_price, '"', 1);
-        -- Loại bỏ dấu phẩy và chuyển thành số
         SET product_price = REPLACE(product_price, ',', '');
         SET product_price = CAST(product_price AS UNSIGNED);
         
@@ -64,6 +62,7 @@ BEGIN
             SET product_price = NEW.tongtien;
         END IF;
         
+        -- Tạo nội dung thông báo với COLLATE utf8_general_ci
         CASE NEW.status
             WHEN 1 THEN
                 SET notification_title = 'Đơn hàng đã được xác nhận';
@@ -90,23 +89,22 @@ BEGIN
                 SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được cập nhật trạng thái. Vui lòng kiểm tra chi tiết trong ứng dụng.');
         END CASE;
         
+        -- Insert notification với COLLATE utf8_general_ci
         INSERT INTO notification_mobile (
             user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
         ) VALUES (
-            NEW.user_id, 'order', notification_title, notification_content,
-            CONCAT('{"order_id":', NEW.id, ',"order_code":"', NEW.ma_don, '","product_title":"', product_title, '","product_image":"', product_image, '","product_price":', product_price, ',"old_status":', OLD.status, ',"new_status":', NEW.status, ',"total_amount":', NEW.tongtien, '}'),
+            NEW.user_id, 'order', 
+            notification_title COLLATE utf8_general_ci,
+            notification_content COLLATE utf8_general_ci,
+            CONCAT('{"order_id":', NEW.id, ',"order_code":"', NEW.ma_don, '","product_title":"', product_title COLLATE utf8_general_ci, '","product_image":"', product_image COLLATE utf8_general_ci, '","product_price":', product_price, ',"old_status":', OLD.status, ',"new_status":', NEW.status, ',"total_amount":', NEW.tongtien, '}') COLLATE utf8_general_ci,
             NEW.id, 'order', priority, 0, UNIX_TIMESTAMP()
         );
     END IF;
 END$$
 
-DELIMITER ;
-
 -- ========================================
 -- 2. TRIGGER CHO BẢNG LICHSU_CHITIEU (Nạp/Rút tiền)
 -- ========================================
-DELIMITER $$
-
 CREATE TRIGGER tr_lichsu_chitieu_insert 
 AFTER INSERT ON lichsu_chitieu 
 FOR EACH ROW 
@@ -125,8 +123,8 @@ BEGIN
         INSERT INTO notification_mobile (
             user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
         ) VALUES (
-            NEW.user_id, notification_type, notification_title, notification_content,
-            CONCAT('{"amount":', NEW.sotien, ',"method":"Chuyển khoản","transaction_type":"deposit","balance_after":', NEW.sotien, '}'),
+            NEW.user_id, notification_type COLLATE utf8_general_ci, notification_title COLLATE utf8_general_ci, notification_content COLLATE utf8_general_ci,
+            CONCAT('{"amount":', NEW.sotien, ',"method":"Chuyển khoản","transaction_type":"deposit","balance_after":', NEW.sotien, '}') COLLATE utf8_general_ci,
             NEW.id, 'transaction', priority, 0, UNIX_TIMESTAMP()
         );
         
@@ -139,54 +137,50 @@ BEGIN
         INSERT INTO notification_mobile (
             user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
         ) VALUES (
-            NEW.user_id, notification_type, notification_title, notification_content,
-            CONCAT('{"amount":', NEW.sotien, ',"status":"pending","method":"Chuyển khoản","transaction_type":"withdrawal","estimated_time":"1-3 ngày làm việc"}'),
+            NEW.user_id, notification_type COLLATE utf8_general_ci, notification_title COLLATE utf8_general_ci, notification_content COLLATE utf8_general_ci,
+            CONCAT('{"amount":', NEW.sotien, ',"status":"pending","method":"Chuyển khoản","transaction_type":"withdrawal","estimated_time":"1-3 ngày làm việc"}') COLLATE utf8_general_ci,
             NEW.id, 'transaction', priority, 0, UNIX_TIMESTAMP()
         );
     END IF;
 END$$
 
-DELIMITER ;
-
 -- ========================================
--- 3. TRIGGER CHO BẢNG COUPON (Voucher)
+-- 3. TRIGGER CHO BẢNG COUPON (Voucher mới)
 -- ========================================
-DELIMITER $$
-
 CREATE TRIGGER tr_coupon_insert 
 AFTER INSERT ON coupon 
 FOR EACH ROW 
 BEGIN
     INSERT INTO notification_mobile (
         user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
-    )
+    ) 
     SELECT 
-        u.user_id, 'voucher_new', CONCAT('Voucher mới: ', NEW.ma),
-        CONCAT('🎉 Tin vui! Bạn có voucher mới "', NEW.ma, '" giảm ', FORMAT(NEW.giam, 0), '₫. Hạn sử dụng đến ', DATE_FORMAT(FROM_UNIXTIME(NEW.expired), '%d/%m/%Y'), '. Đừng bỏ lỡ cơ hội tiết kiệm này nhé!'),
-        CONCAT('{"voucher_code":"', NEW.ma, '","discount_amount":', NEW.giam, ',"expired_date":', NEW.expired, ',"shop_id":', NEW.shop, ',"min_order":', IFNULL(NEW.dieu_kien, 0), '}'),
+        u.user_id, 
+        'voucher_new' COLLATE utf8_general_ci,
+        CONCAT('Voucher mới: ', NEW.ma COLLATE utf8_general_ci) COLLATE utf8_general_ci,
+        CONCAT('🎉 Tin vui! Bạn có voucher mới "', NEW.ma COLLATE utf8_general_ci, '" giảm ', FORMAT(NEW.giam, 0), '₫. Hạn sử dụng đến ', DATE_FORMAT(FROM_UNIXTIME(NEW.expired), '%d/%m/%Y'), '. Đừng bỏ lỡ cơ hội tiết kiệm này nhé!') COLLATE utf8_general_ci,
+        CONCAT('{"voucher_code":"', NEW.ma COLLATE utf8_general_ci, '","discount_amount":', NEW.giam, ',"expired_date":', NEW.expired, ',"shop_id":', NEW.shop, ',"min_order":', IFNULL(NEW.dieu_kien, 0), '}') COLLATE utf8_general_ci,
         NEW.id, 'coupon', 'medium', 0, UNIX_TIMESTAMP()
     FROM user_info u 
     WHERE u.shop = NEW.shop AND u.active = 1;
 END$$
 
-DELIMITER ;
-
 -- ========================================
 -- 4. TRIGGER CHO BẢNG SANPHAM_AFF (Affiliate)
 -- ========================================
-DELIMITER $$
-
 CREATE TRIGGER tr_sanpham_aff_insert 
 AFTER INSERT ON sanpham_aff 
 FOR EACH ROW 
 BEGIN
     INSERT INTO notification_mobile (
         user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
-    )
+    ) 
     SELECT 
-        u.user_id, 'affiliate_order', CONCAT('Sản phẩm Affiliate mới: ', NEW.tieu_de),
-        CONCAT('💰 Cơ hội kiếm tiền mới! Sản phẩm "', NEW.tieu_de, '" đã được thêm vào chương trình affiliate với hoa hồng hấp dẫn. Hãy chia sẻ ngay để kiếm thêm thu nhập nhé!'),
-        CONCAT('{"product_title":"', NEW.tieu_de, '","shop_id":', NEW.shop, ',"date_start":', NEW.date_start, ',"date_end":', NEW.date_end, ',"commission_rate":"10%"}'),
+        u.user_id, 
+        'affiliate_order' COLLATE utf8_general_ci,
+        CONCAT('Sản phẩm Affiliate mới: ', NEW.tieu_de COLLATE utf8_general_ci) COLLATE utf8_general_ci,
+        CONCAT('💰 Cơ hội kiếm tiền mới! Sản phẩm "', NEW.tieu_de COLLATE utf8_general_ci, '" đã được thêm vào chương trình affiliate với hoa hồng hấp dẫn. Hãy chia sẻ ngay để kiếm thêm thu nhập nhé!') COLLATE utf8_general_ci,
+        CONCAT('{"product_title":"', NEW.tieu_de COLLATE utf8_general_ci, '","shop_id":', NEW.shop, ',"date_start":', NEW.date_start, ',"date_end":', NEW.date_end, ',"commission_rate":"10%"}') COLLATE utf8_general_ci,
         NEW.id, 'affiliate_product', 'high', 0, UNIX_TIMESTAMP()
     FROM user_info u 
     WHERE u.aff = '1' AND u.active = 1;
@@ -195,93 +189,5 @@ END$$
 DELIMITER ;
 
 -- ========================================
--- 5. STORED PROCEDURE CHO VOUCHER SẮP HẾT HẠN
+-- HOÀN THÀNH SỬA COLLATION CONNECTION
 -- ========================================
-DELIMITER $$
-
-CREATE PROCEDURE sp_check_expiring_vouchers()
-BEGIN
-    DECLARE done INT DEFAULT FALSE;
-    DECLARE v_user_id BIGINT;
-    DECLARE v_ma VARCHAR(255);
-    DECLARE v_giam INT;
-    DECLARE v_expired INT;
-    DECLARE v_shop_id INT;
-    
-    DECLARE cur CURSOR FOR 
-        SELECT DISTINCT u.user_id, c.ma, c.giam, c.expired, c.shop
-        FROM coupon c 
-        JOIN user_info u ON c.shop = u.shop 
-        WHERE c.expired > UNIX_TIMESTAMP() 
-        AND c.expired <= (UNIX_TIMESTAMP() + 24*3600)
-        AND c.status = 1
-        AND NOT EXISTS (
-            SELECT 1 FROM notification_mobile n 
-            WHERE n.user_id = u.user_id 
-            AND n.type = 'voucher_expiring' 
-            AND n.data LIKE CONCAT('%"voucher_code":"', c.ma, '"%')
-            AND n.created_at > (UNIX_TIMESTAMP() - 3600)
-        );
-    
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    OPEN cur;
-    
-    read_loop: LOOP
-        FETCH cur INTO v_user_id, v_ma, v_giam, v_expired, v_shop_id;
-        IF done THEN
-            LEAVE read_loop;
-        END IF;
-        
-        INSERT INTO notification_mobile (
-            user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
-        ) VALUES (
-            v_user_id, 'voucher_expiring', CONCAT('Voucher sắp hết hạn: ', v_ma),
-            CONCAT('⏰ Cảnh báo! Voucher "', v_ma, '" giảm ', FORMAT(v_giam, 0), '₫ sẽ hết hạn vào ', DATE_FORMAT(FROM_UNIXTIME(v_expired), '%d/%m/%Y %H:%i'), '. Hãy sử dụng ngay để không bỏ lỡ cơ hội tiết kiệm!'),
-            CONCAT('{"voucher_code":"', v_ma, '","discount_amount":', v_giam, ',"expired_date":', v_expired, ',"hours_left":', CEIL((v_expired - UNIX_TIMESTAMP()) / 3600), ',"shop_id":', v_shop_id, '}'),
-            NULL, 'coupon', 'high', 0, UNIX_TIMESTAMP()
-        );
-        
-    END LOOP;
-    
-    CLOSE cur;
-END$$
-
-DELIMITER ;
-
--- ========================================
--- 6. EVENT SCHEDULER CHO VOUCHER EXPIRING
--- ========================================
-SET GLOBAL event_scheduler = ON;
-
-CREATE EVENT IF NOT EXISTS ev_check_expiring_vouchers
-ON SCHEDULE EVERY 1 HOUR
-STARTS CURRENT_TIMESTAMP
-DO
-  CALL sp_check_expiring_vouchers();
-
--- ========================================
--- HƯỚNG DẪN TEST
--- ========================================
-
-/*
-TEST CÁC TRIGGER:
-
-1. Đơn hàng:
-   UPDATE donhang SET status = 2 WHERE id = 1;
-
-2. Nạp tiền:
-   INSERT INTO lichsu_chitieu (user_id, noidung, sotien) VALUES (1, 'nạp tiền', 100000);
-
-3. Rút tiền:
-   INSERT INTO lichsu_chitieu (user_id, noidung, sotien) VALUES (1, 'rút tiền', 50000);
-
-4. Voucher:
-   INSERT INTO coupon (ma, giam, expired, shop, status) VALUES ('TEST123', 50000, UNIX_TIMESTAMP() + 3600, 1, 1);
-
-5. Affiliate:
-   INSERT INTO sanpham_aff (tieu_de, shop, date_start, date_end, hoa_hong) VALUES ('Sản phẩm test', 1, UNIX_TIMESTAMP(), UNIX_TIMESTAMP() + 86400, 10);
-
-6. Kiểm tra:
-   SELECT * FROM notification_mobile ORDER BY created_at DESC LIMIT 10;
-*/

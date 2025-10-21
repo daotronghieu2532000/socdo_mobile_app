@@ -250,15 +250,8 @@ class ApiService {
       request.fields['user_id'] = userId.toString();
       request.fields['delete_all'] = 'true';
       
-      print('DEBUG: Delete all notifications - URL: $uri');
-      print('DEBUG: Token: ${token != null ? 'Present' : 'Missing'}');
-      print('DEBUG: Fields: ${request.fields}');
-      
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
-      
-      print('DEBUG: Response status: ${response.statusCode}');
-      print('DEBUG: Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -266,7 +259,6 @@ class ApiService {
       }
       return false;
     } catch (e) {
-      print('DEBUG: Error deleting notifications: $e');
       return false;
     }
   }

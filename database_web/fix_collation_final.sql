@@ -1,4 +1,14 @@
 -- ========================================
+-- SET COLLATION CONNECTION TRƯỚC KHI TẠO TRIGGER
+-- ========================================
+
+-- Set collation connection để đồng nhất với database
+SET collation_connection = 'utf8_general_ci';
+
+-- Kiểm tra collation hiện tại
+SELECT @@collation_connection as 'Current Collation Connection';
+
+-- ========================================
 -- XÓA TẤT CẢ TRIGGER CŨ TRƯỚC KHI TẠO MỚI
 -- ========================================
 DROP TRIGGER IF EXISTS tr_donhang_status_update;
@@ -28,15 +38,12 @@ BEGIN
         SET first_product_id = '';
         
         -- Parse JSON để lấy ID sản phẩm đầu tiên
-        -- JSON format thực tế: {"1258": {"tieu_de":"...","minh_hoa":"...","gia_moi":"230,000",...}}
-        -- Lấy key đầu tiên (product ID)
         SET first_product_id = SUBSTRING_INDEX(
             SUBSTRING_INDEX(NEW.sanpham, '":', 1), 
             '"', -1
         );
         
-        -- Lấy thông tin sản phẩm từ JSON thay vì từ bảng sanpham
-        -- JSON format: {"1258": {"tieu_de":"Nồi áp suất...","minh_hoa":"/uploads/...","gia_moi":"230,000",...}}
+        -- Lấy thông tin sản phẩm từ JSON
         SET product_title = SUBSTRING_INDEX(
             SUBSTRING_INDEX(NEW.sanpham, '"tieu_de":"', 2), 
             '"tieu_de":"', -1
@@ -54,7 +61,6 @@ BEGIN
             '"gia_moi":"', -1
         );
         SET product_price = SUBSTRING_INDEX(product_price, '"', 1);
-        -- Loại bỏ dấu phẩy và chuyển thành số
         SET product_price = REPLACE(product_price, ',', '');
         SET product_price = CAST(product_price AS UNSIGNED);
         
@@ -64,6 +70,7 @@ BEGIN
             SET product_price = NEW.tongtien;
         END IF;
         
+        -- Tạo nội dung thông báo
         CASE NEW.status
             WHEN 1 THEN
                 SET notification_title = 'Đơn hàng đã được xác nhận';
@@ -90,6 +97,7 @@ BEGIN
                 SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được cập nhật trạng thái. Vui lòng kiểm tra chi tiết trong ứng dụng.');
         END CASE;
         
+        -- Insert notification
         INSERT INTO notification_mobile (
             user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
         ) VALUES (
@@ -100,13 +108,9 @@ BEGIN
     END IF;
 END$$
 
-DELIMITER ;
-
 -- ========================================
 -- 2. TRIGGER CHO BẢNG LICHSU_CHITIEU (Nạp/Rút tiền)
 -- ========================================
-DELIMITER $$
-
 CREATE TRIGGER tr_lichsu_chitieu_insert 
 AFTER INSERT ON lichsu_chitieu 
 FOR EACH ROW 
@@ -146,20 +150,16 @@ BEGIN
     END IF;
 END$$
 
-DELIMITER ;
-
 -- ========================================
--- 3. TRIGGER CHO BẢNG COUPON (Voucher)
+-- 3. TRIGGER CHO BẢNG COUPON (Voucher mới)
 -- ========================================
-DELIMITER $$
-
 CREATE TRIGGER tr_coupon_insert 
 AFTER INSERT ON coupon 
 FOR EACH ROW 
 BEGIN
     INSERT INTO notification_mobile (
         user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
-    )
+    ) 
     SELECT 
         u.user_id, 'voucher_new', CONCAT('Voucher mới: ', NEW.ma),
         CONCAT('🎉 Tin vui! Bạn có voucher mới "', NEW.ma, '" giảm ', FORMAT(NEW.giam, 0), '₫. Hạn sử dụng đến ', DATE_FORMAT(FROM_UNIXTIME(NEW.expired), '%d/%m/%Y'), '. Đừng bỏ lỡ cơ hội tiết kiệm này nhé!'),
@@ -169,20 +169,16 @@ BEGIN
     WHERE u.shop = NEW.shop AND u.active = 1;
 END$$
 
-DELIMITER ;
-
 -- ========================================
 -- 4. TRIGGER CHO BẢNG SANPHAM_AFF (Affiliate)
 -- ========================================
-DELIMITER $$
-
 CREATE TRIGGER tr_sanpham_aff_insert 
 AFTER INSERT ON sanpham_aff 
 FOR EACH ROW 
 BEGIN
     INSERT INTO notification_mobile (
         user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
-    )
+    ) 
     SELECT 
         u.user_id, 'affiliate_order', CONCAT('Sản phẩm Affiliate mới: ', NEW.tieu_de),
         CONCAT('💰 Cơ hội kiếm tiền mới! Sản phẩm "', NEW.tieu_de, '" đã được thêm vào chương trình affiliate với hoa hồng hấp dẫn. Hãy chia sẻ ngay để kiếm thêm thu nhập nhé!'),
@@ -195,93 +191,11 @@ END$$
 DELIMITER ;
 
 -- ========================================
--- 5. STORED PROCEDURE CHO VOUCHER SẮP HẾT HẠN
+-- KIỂM TRA COLLATION SAU KHI TẠO TRIGGER
 -- ========================================
-DELIMITER $$
-
-CREATE PROCEDURE sp_check_expiring_vouchers()
-BEGIN
-    DECLARE done INT DEFAULT FALSE;
-    DECLARE v_user_id BIGINT;
-    DECLARE v_ma VARCHAR(255);
-    DECLARE v_giam INT;
-    DECLARE v_expired INT;
-    DECLARE v_shop_id INT;
-    
-    DECLARE cur CURSOR FOR 
-        SELECT DISTINCT u.user_id, c.ma, c.giam, c.expired, c.shop
-        FROM coupon c 
-        JOIN user_info u ON c.shop = u.shop 
-        WHERE c.expired > UNIX_TIMESTAMP() 
-        AND c.expired <= (UNIX_TIMESTAMP() + 24*3600)
-        AND c.status = 1
-        AND NOT EXISTS (
-            SELECT 1 FROM notification_mobile n 
-            WHERE n.user_id = u.user_id 
-            AND n.type = 'voucher_expiring' 
-            AND n.data LIKE CONCAT('%"voucher_code":"', c.ma, '"%')
-            AND n.created_at > (UNIX_TIMESTAMP() - 3600)
-        );
-    
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-    
-    OPEN cur;
-    
-    read_loop: LOOP
-        FETCH cur INTO v_user_id, v_ma, v_giam, v_expired, v_shop_id;
-        IF done THEN
-            LEAVE read_loop;
-        END IF;
-        
-        INSERT INTO notification_mobile (
-            user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
-        ) VALUES (
-            v_user_id, 'voucher_expiring', CONCAT('Voucher sắp hết hạn: ', v_ma),
-            CONCAT('⏰ Cảnh báo! Voucher "', v_ma, '" giảm ', FORMAT(v_giam, 0), '₫ sẽ hết hạn vào ', DATE_FORMAT(FROM_UNIXTIME(v_expired), '%d/%m/%Y %H:%i'), '. Hãy sử dụng ngay để không bỏ lỡ cơ hội tiết kiệm!'),
-            CONCAT('{"voucher_code":"', v_ma, '","discount_amount":', v_giam, ',"expired_date":', v_expired, ',"hours_left":', CEIL((v_expired - UNIX_TIMESTAMP()) / 3600), ',"shop_id":', v_shop_id, '}'),
-            NULL, 'coupon', 'high', 0, UNIX_TIMESTAMP()
-        );
-        
-    END LOOP;
-    
-    CLOSE cur;
-END$$
-
-DELIMITER ;
+SELECT @@collation_connection as 'Final Collation Connection';
+SHOW TRIGGERS;
 
 -- ========================================
--- 6. EVENT SCHEDULER CHO VOUCHER EXPIRING
+-- HOÀN THÀNH SỬA COLLATION CONNECTION
 -- ========================================
-SET GLOBAL event_scheduler = ON;
-
-CREATE EVENT IF NOT EXISTS ev_check_expiring_vouchers
-ON SCHEDULE EVERY 1 HOUR
-STARTS CURRENT_TIMESTAMP
-DO
-  CALL sp_check_expiring_vouchers();
-
--- ========================================
--- HƯỚNG DẪN TEST
--- ========================================
-
-/*
-TEST CÁC TRIGGER:
-
-1. Đơn hàng:
-   UPDATE donhang SET status = 2 WHERE id = 1;
-
-2. Nạp tiền:
-   INSERT INTO lichsu_chitieu (user_id, noidung, sotien) VALUES (1, 'nạp tiền', 100000);
-
-3. Rút tiền:
-   INSERT INTO lichsu_chitieu (user_id, noidung, sotien) VALUES (1, 'rút tiền', 50000);
-
-4. Voucher:
-   INSERT INTO coupon (ma, giam, expired, shop, status) VALUES ('TEST123', 50000, UNIX_TIMESTAMP() + 3600, 1, 1);
-
-5. Affiliate:
-   INSERT INTO sanpham_aff (tieu_de, shop, date_start, date_end, hoa_hong) VALUES ('Sản phẩm test', 1, UNIX_TIMESTAMP(), UNIX_TIMESTAMP() + 86400, 10);
-
-6. Kiểm tra:
-   SELECT * FROM notification_mobile ORDER BY created_at DESC LIMIT 10;
-*/
