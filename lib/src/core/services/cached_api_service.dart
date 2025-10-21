@@ -693,28 +693,32 @@ class CachedApiService {
   /// Lấy chi tiết sản phẩm với cache
   Future<ProductDetail?> getProductDetailCached(
     int productId, {
+    int? userId,
     bool forceRefresh = false,
     Duration? cacheDuration,
   }) async {
-    final cacheKey = MemoryCacheService.createKey(CacheKeys.productDetail, {'id': productId});
+    final cacheKey = MemoryCacheService.createKey(CacheKeys.productDetail, {
+      'id': productId,
+      'userId': userId ?? 'anonymous',
+    });
     
     // Kiểm tra cache trước
     if (!forceRefresh && _cache.has(cacheKey)) {
       final cachedProduct = _cache.get<ProductDetail>(cacheKey);
       if (cachedProduct != null) {
-        print('📦 Using cached product detail for ID: $productId');
+        print('📦 Using cached product detail for ID: $productId, userId: $userId');
         return cachedProduct;
       }
     }
 
     try {
-      print('🌐 Fetching product detail from API for ID: $productId...');
-      final product = await _apiService.getProductDetail(productId);
+      print('🌐 Fetching product detail from API for ID: $productId, userId: $userId...');
+      final product = await _apiService.getProductDetail(productId, userId: userId);
       
       // Lưu trực tiếp ProductDetail object vào cache
       if (product != null) {
         _cache.set(cacheKey, product, duration: cacheDuration ?? _longCacheDuration);
-        print('✅ Product detail cached successfully for ID: $productId');
+        print('✅ Product detail cached successfully for ID: $productId, userId: $userId');
       }
       
       return product;
@@ -724,7 +728,7 @@ class CachedApiService {
       // Fallback về cache cũ nếu có
       final cachedProduct = _cache.get<ProductDetail>(cacheKey);
       if (cachedProduct != null) {
-        print('🔄 Using stale cache for product detail ID: $productId');
+        print('🔄 Using stale cache for product detail ID: $productId, userId: $userId');
         return cachedProduct;
       }
       

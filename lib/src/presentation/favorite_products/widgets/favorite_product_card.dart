@@ -147,193 +147,202 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              // Box ảnh bên trái
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF4F6FB),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Stack(
-                  children: [
-                    ClipRRect(
+              // Layout chính với Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Box ảnh bên trái
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F6FB),
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        _buildImageUrl(widget.product.imageUrl),
-                        width: 120,
-                        height: 120,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
-                      ),
                     ),
-                    // Discount badge (góc phải trên)
-                    if (widget.product.discountPercent > 0)
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '-${widget.product.discountPercent}%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    // Favorite button (góc trái trên)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: GestureDetector(
-                        onTap: _removeFromFavorites,
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: _isRemoving
-                              ? const SizedBox(
-                                  width: 12,
-                                  height: 12,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.favorite,
-                                  size: 14,
-                                  color: Colors.red,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Box thông tin bên phải
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tên sản phẩm
-                    Text(
-                      widget.product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    // Giá
-                    Row(
+                    child: Stack(
                       children: [
-                        Text(
-                          FormatUtils.formatCurrency(widget.product.price),
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            _buildImageUrl(widget.product.imageUrl),
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                           ),
                         ),
-                        if (widget.product.oldPrice != null && widget.product.oldPrice! > widget.product.price) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            FormatUtils.formatCurrency(widget.product.oldPrice!),
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              decoration: TextDecoration.lineThrough,
-                              fontSize: 12,
+                        // Discount badge (góc phải trên)
+                        if (widget.product.discountPercent > 0)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '-${widget.product.discountPercent}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
-                        ],
+                        // Favorite button (góc trái trên)
+                        Positioned(
+                          top: 4,
+                          left: 4,
+                          child: GestureDetector(
+                            onTap: _removeFromFavorites,
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.15),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: _isRemoving
+                                  ? const SizedBox(
+                                      width: 12,
+                                      height: 12,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.favorite,
+                                      size: 14,
+                                      color: Colors.red,
+                                    ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    // Rating và đã bán
-                    Builder(
-                      builder: (context) {
-                        final fakeData = _generateFakeData(widget.product.price);
-                        return Row(
-                          children: [
-                            const Icon(Icons.star, size: 14, color: Colors.amber),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${fakeData['rating']} (${fakeData['reviews']}) | Đã bán ${fakeData['sold']}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 6),
-                    // Badges
-                    ProductIconsRow(
-                      voucherIcon: widget.product.voucherIcon,
-                      freeshipIcon: widget.product.freeshipIcon,
-                      chinhhangIcon: widget.product.chinhhangIcon,
-                      fontSize: 9,
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    ),
-                    const SizedBox(height: 6),
-                    // Location info
-                    ProductLocationBadge(
-                      locationText: null,
-                      // warehouseName: widget.product.warehouseName,
-                      provinceName: widget.product.provinceName,
-                      fontSize: 10,
-                      iconColor: Colors.black,
-                      textColor: Colors.black,
-                    ),
-                  ],
-                ),
-              ),
-              // Cart icon bên phải
-              GestureDetector(
-                onTap: () => _showPurchaseDialog(context),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withOpacity(0.3),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
                   ),
-                  child: const Icon(
-                    Icons.add_shopping_cart,
-                    size: 22,
-                    color: Colors.white,
+                  const SizedBox(width: 12),
+                  // Box thông tin bên phải
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Tên sản phẩm
+                        Text(
+                          widget.product.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Giá
+                        Row(
+                          children: [
+                            Text(
+                              FormatUtils.formatCurrency(widget.product.price),
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            if (widget.product.oldPrice != null && widget.product.oldPrice! > widget.product.price) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                FormatUtils.formatCurrency(widget.product.oldPrice!),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  decoration: TextDecoration.lineThrough,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // Rating và đã bán
+                        Builder(
+                          builder: (context) {
+                            final fakeData = _generateFakeData(widget.product.price);
+                            return Row(
+                              children: [
+                                const Icon(Icons.star, size: 14, color: Colors.amber),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${fakeData['rating']} (${fakeData['reviews']}) | Đã bán ${fakeData['sold']}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 6),
+                        // Badges
+                        ProductIconsRow(
+                          voucherIcon: widget.product.voucherIcon,
+                          freeshipIcon: widget.product.freeshipIcon,
+                          chinhhangIcon: widget.product.chinhhangIcon,
+                          fontSize: 9,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        ),
+                        const SizedBox(height: 6),
+                        // Location info
+                        ProductLocationBadge(
+                          locationText: null,
+                          // warehouseName: widget.product.warehouseName,
+                          provinceName: widget.product.provinceName,
+                          fontSize: 10,
+                          iconColor: Colors.black,
+                          textColor: Colors.black,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              // Cart icon ở góc dưới bên phải
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: () => _showPurchaseDialog(context),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.add_shopping_cart,
+                      size: 22,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

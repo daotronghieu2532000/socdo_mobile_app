@@ -52,7 +52,8 @@ try {
                   COALESCE(pc.total_reviews, 0) AS total_reviews,
                   COALESCE(pc.avg_rating, 0) AS avg_rating,
                   t.ten_kho AS warehouse_name,
-                  tm.tieu_de AS province_name
+                  tm.tieu_de AS province_name,
+                  CASE WHEN y.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorited
                   FROM sanpham s
                   LEFT JOIN (
                       SELECT product_id, COUNT(*) AS total_reviews, AVG(rating) AS avg_rating
@@ -62,6 +63,7 @@ try {
                   ) AS pc ON s.id = pc.product_id
                   LEFT JOIN transport t ON s.kho_id = t.id
                   LEFT JOIN tinh_moi tm ON t.province = tm.id
+                  LEFT JOIN yeu_thich_san_pham y ON s.id = y.product_id AND y.user_id = '$user_id'
                   WHERE s.id = $product_id
                   LIMIT 1";
         
@@ -298,13 +300,12 @@ try {
             $product['price_thanhvien'] = '';
         }
         
-        // Kiểm tra user đã yêu thích sản phẩm này chưa
-        $is_favorited = false;
-        if ($user_id > 0) {
-            $favorite_check = mysqli_query($conn, "SELECT id FROM yeu_thich_san_pham WHERE user_id = '$user_id' AND product_id = '$product_id' LIMIT 1");
-            $is_favorited = mysqli_num_rows($favorite_check) > 0;
-        }
+        // Kiểm tra user đã yêu thích sản phẩm này chưa (đã được JOIN trong query chính)
+        $is_favorited = ($user_id > 0) ? (intval($product['is_favorited']) === 1) : false;
         $product['is_favorited'] = $is_favorited;
+        
+        // Debug logging
+        error_log("DEBUG: Product ID $product_id - User ID: $user_id - Is Favorited: " . ($is_favorited ? 'true' : 'false'));
         
         // Lấy danh sách phân loại sản phẩm từ bảng phanloai_sanpham
         $variants_query = "SELECT * FROM phanloai_sanpham WHERE sp_id = '$product_id' ORDER BY gia_moi ASC";

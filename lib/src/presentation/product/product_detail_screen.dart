@@ -215,13 +215,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         _currentImageIndex = 0; // Reset image index
       });
 
-            // Sử dụng cached API service cho product detail
-            final productDetail = await _cachedApiService.getProductDetailCached(widget.productId!);
+            // Sử dụng cached API service cho product detail với user_id
+            final currentUser = await _authService.getCurrentUser();
+            final productDetail = await _cachedApiService.getProductDetailCached(
+              widget.productId!,
+              userId: currentUser?.userId,
+            );
       
       if (mounted) {
         setState(() {
           _isLoading = false;
           _productDetail = productDetail;
+          // Cập nhật trạng thái yêu thích từ API
+          _isFavorite = productDetail?.isFavorited ?? false;
           // Khởi tạo biến thể đầu tiên nếu có
           if (productDetail?.variants.isNotEmpty == true) {
             _selectedVariant = productDetail!.variants.first;

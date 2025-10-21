@@ -10,7 +10,6 @@ import '../../core/services/cached_api_service.dart';
 import '../../core/models/affiliate_link.dart';
 import '../../core/utils/format_utils.dart';
 import '../product/product_detail_screen.dart';
-import '../common/widgets/go_top_button.dart';
 
 class AffiliateLinksScreen extends StatefulWidget {
   const AffiliateLinksScreen({super.key});

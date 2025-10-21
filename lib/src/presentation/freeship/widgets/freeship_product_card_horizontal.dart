@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import '../../../core/services/api_service.dart';
 import '../../../core/services/cached_api_service.dart';
 import '../../../core/models/freeship_product.dart';
 import '../../../core/models/product_detail.dart';

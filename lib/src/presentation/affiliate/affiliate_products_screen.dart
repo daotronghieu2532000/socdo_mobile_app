@@ -41,7 +41,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
   bool _onlyHasLink = false;
   String _sortBy = 'newest';
   bool _isFilterVisible = false;
-  DateTime _lastSearchChange = DateTime.fromMillisecondsSinceEpoch(0);
+  final DateTime _lastSearchChange = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void initState() {

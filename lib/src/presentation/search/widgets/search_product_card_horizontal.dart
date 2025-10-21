@@ -3,7 +3,6 @@ import 'dart:math';
 import '../../../core/models/search_result.dart';
 import '../../../core/models/product_detail.dart';
 import '../../../core/utils/format_utils.dart';
-import '../../../core/services/api_service.dart';
 import '../../../core/services/cached_api_service.dart';
 import '../../product/product_detail_screen.dart';
 import '../../product/widgets/variant_selection_dialog.dart';

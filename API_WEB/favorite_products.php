@@ -77,8 +77,7 @@ try {
                 COALESCE(pc.total_reviews, 0) AS total_reviews,
                 COALESCE(pc.avg_rating, 0) AS avg_rating,
                 y.id as favorite_id,
-                t.ten_kho as warehouse_name, tm.tieu_de as province_name,
-                t.free_ship_all, t.free_ship_min_order, t.free_ship_discount
+                t.ten_kho as warehouse_name, tm.tieu_de as province_name
                 FROM yeu_thich_san_pham y
                 JOIN sanpham s ON y.product_id = s.id
                 LEFT JOIN phanloai_sanpham p ON s.id = p.sp_id
@@ -141,7 +140,6 @@ try {
             $r_sp['gia_ctv_formatted'] = number_format($gia_ctv_main);
             $r_sp['discount_percent'] = $giam;
             $r_sp['date_post_formatted'] = date('d/m/Y H:i:s', $r_sp['date_post']);
-            $r_sp['favorite_id'] = $r_sp['favorite_id'];
             
             // Xử lý hình ảnh
             $original_image = $r_sp['minh_hoa'];
@@ -174,46 +172,62 @@ try {
                 }
             }
             
-            // Logic freeship chi tiết với 4 mode
+            // Logic freeship chi tiết với 4 mode - Sử dụng query riêng như product_suggest.php
             $freeship_icon = '';
-            $mode = intval($r_sp['free_ship_all'] ?? 0);
-            $base_price = $gia_moi_main;
-            $minOrder = intval($r_sp['free_ship_min_order'] ?? 0);
-            $discount = intval($r_sp['free_ship_discount'] ?? 0);
+            $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
+            $freeship_result = mysqli_query($conn, $freeship_query);
+            $freeship_label = '';
             
-            if ($mode === 1) {
-                $freeship_icon = 'Freeship 100%';
-            } elseif ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
-                $freeship_icon = 'Giảm ' . number_format($discount) . 'đ';
-            } elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
-                $freeship_icon = 'Giảm ' . $discount . '%';
-            } elseif ($mode === 3) {
-                $freeship_icon = 'Ưu đãi ship';
-            } elseif ($mode === 0 && $discount == 0) {
-                $freeship_icon = 'Freeship';
+            if ($freeship_result && mysqli_num_rows($freeship_result) > 0) {
+                $freeship_data = mysqli_fetch_assoc($freeship_result);
+                $mode = intval($freeship_data['free_ship_all'] ?? 0);
+                $discount = intval($freeship_data['free_ship_discount'] ?? 0);
+                $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
+                
+                // Lấy giá sản phẩm để kiểm tra điều kiện min_order
+                $base_price = $gia_moi_main;
+                
+                // Mode 0: Giảm cố định (VD: -15,000đ) - Cần kiểm tra điều kiện min_order
+                if ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
+                    $freeship_label = 'Giảm ' . number_format($discount) . 'đ';
+                }
+                // Mode 1: Freeship toàn bộ (100%)
+                elseif ($mode === 1) {
+                    $freeship_label = 'Freeship 100%';
+                }
+                // Mode 2: Giảm theo % (VD: -50%) - Cần kiểm tra điều kiện min_order
+                elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
+                    $freeship_label = 'Giảm ' . intval($discount) . '% ship';
+                }
+                // Mode 3: Freeship theo sản phẩm cụ thể
+                elseif ($mode === 3) {
+                    $freeship_label = 'Ưu đãi ship';
+                }
+                
+                $freeship_icon = $freeship_label ?: 'Freeship';
             }
             
-            // Logic chính hãng
-            $chinhhang_icon = '';
-            if (!empty($r_sp['thuong_hieu'])) {
-                $chinhhang_icon = 'Chính hãng';
-            }
+            // Logic chính hãng - Luôn hiển thị như product_suggest.php
+            $chinhhang_icon = 'Chính hãng';
             
             // Warehouse info
             $warehouse_name = $r_sp['warehouse_name'] ?? '';
             $province_name = $r_sp['province_name'] ?? '';
             
-            // Thêm badges
+            // Thêm badges - Giống với product_suggest.php
             $badges = array();
+            if ($r_sp['box_banchay'] == 1) $badges[] = 'Bán chạy';
+            if ($r_sp['box_noibat'] == 1) $badges[] = 'Nổi bật';
+            if (isset($r_sp['box_flash']) && $r_sp['box_flash'] == 1) $badges[] = 'Flash sale';
             if ($giam > 0) $badges[] = "-$giam%";
             if (!empty($voucher_icon)) $badges[] = $voucher_icon;
             if (!empty($freeship_icon)) $badges[] = $freeship_icon;
-            if (!empty($chinhhang_icon)) $badges[] = $chinhhang_icon;
+            $badges[] = 'Chính hãng';
             
             $r_sp['badges'] = $badges;
             $r_sp['voucher_icon'] = $voucher_icon;
             $r_sp['freeship_icon'] = $freeship_icon;
-            $r_sp['chinhhang_icon'] = $chinhhang_icon;
+            $r_sp['chinhhang_icon'] = 'Chính hãng';
             $r_sp['warehouse_name'] = $warehouse_name;
             $r_sp['province_name'] = $province_name;
             

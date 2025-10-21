@@ -8,7 +8,6 @@ import '../../product/widgets/simple_purchase_dialog.dart';
 import '../../../core/services/cart_service.dart';
 import '../../cart/cart_screen.dart';
 import '../../checkout/checkout_screen.dart';
-import '../../../core/services/api_service.dart';
 import '../../../core/services/cached_api_service.dart';
 import '../../shared/widgets/product_badges.dart';
 
