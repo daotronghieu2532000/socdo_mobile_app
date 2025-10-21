@@ -7,6 +7,7 @@ import 'presentation/profile/address_book_screen.dart';
 import 'presentation/orders/orders_screen.dart';
 import 'presentation/notifications/notifications_screen.dart';
 import 'presentation/orders/order_success_screen.dart';
+import 'presentation/auth/login_screen.dart';
 
 class SocdoApp extends StatelessWidget {
   const SocdoApp({super.key});
@@ -19,6 +20,7 @@ class SocdoApp extends StatelessWidget {
       theme: buildAppTheme(),
       home: const SplashScreen(),
       routes: {
+        '/login': (context) => const LoginScreen(),
         '/profile/edit': (context) => const ProfileEditScreen(),
         '/profile/address': (context) => const AddressBookScreen(),
         '/orders': (context) => const OrdersScreen(),

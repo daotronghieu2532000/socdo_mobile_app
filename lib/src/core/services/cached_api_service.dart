@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'api_service.dart';
+import 'affiliate_service.dart';
 import 'memory_cache_service.dart';
 import '../models/product_detail.dart';
 import '../models/voucher.dart';
@@ -13,6 +14,7 @@ class CachedApiService {
   CachedApiService._internal();
 
   final ApiService _apiService = ApiService();
+  final AffiliateService _affiliateService = AffiliateService();
   final MemoryCacheService _cache = MemoryCacheService();
   
   // Cache duration cho từng loại API
@@ -509,17 +511,22 @@ class CachedApiService {
 
     try {
       print('🌐 Fetching affiliate dashboard from API...');
-      // Note: Cần import AffiliateService hoặc tạo method trong ApiService
-      // final dashboard = await _apiService.getAffiliateDashboard(userId: userId);
+      final dashboard = await _affiliateService.getDashboard(userId: userId);
       
-      // Placeholder - cần implement actual API call
-      final dashboard = <String, dynamic>{}; // await _apiService.getAffiliateDashboard(userId: userId);
+      if (dashboard != null) {
+        // Convert AffiliateDashboard object to Map for caching
+        final dashboardMap = {
+          'success': true,
+          'data': dashboard.toJson(),
+        };
+        
+        // Lưu vào cache với thời gian ngắn vì dashboard thay đổi thường xuyên
+        _cache.set(cacheKey, dashboardMap, duration: cacheDuration ?? _shortCacheDuration);
+        print('✅ Affiliate dashboard cached successfully');
+        return dashboardMap;
+      }
       
-      // Lưu vào cache với thời gian ngắn vì dashboard thay đổi thường xuyên
-      _cache.set(cacheKey, dashboard, duration: cacheDuration ?? _shortCacheDuration);
-      
-      print('✅ Affiliate dashboard cached successfully');
-      return dashboard;
+      return null;
     } catch (e) {
       print('❌ Error fetching affiliate dashboard: $e');
       
@@ -565,13 +572,21 @@ class CachedApiService {
 
     try {
       print('🌐 Fetching affiliate links from API (page $page)...');
-      // Placeholder - cần implement actual API call
-      final result = <String, dynamic>{}; // await _apiService.getAffiliateLinks(...);
+      final result = await _affiliateService.getMyLinks(
+        userId: userId,
+        page: page,
+        limit: limit,
+        search: search,
+        sortBy: sortBy,
+        onlyHasLink: onlyHasLink,
+      );
       
-      // Lưu vào cache
-      _cache.set(cacheKey, result, duration: cacheDuration ?? _defaultCacheDuration);
+      if (result != null) {
+        // Lưu vào cache
+        _cache.set(cacheKey, result, duration: cacheDuration ?? _defaultCacheDuration);
+        print('✅ Affiliate links cached successfully (page $page)');
+      }
       
-      print('✅ Affiliate links cached successfully (page $page)');
       return result;
     } catch (e) {
       print('❌ Error fetching affiliate links: $e');
@@ -618,13 +633,32 @@ class CachedApiService {
 
     try {
       print('🌐 Fetching affiliate products from API (page $page)...');
-      // Placeholder - cần implement actual API call
-      final result = <String, dynamic>{}; // await _apiService.getAffiliateProducts(...);
+      print('🔍 Cache key: $cacheKey');
+      print('🔍 Parameters: userId=$userId, page=$page, limit=$limit, search=$search, sortBy=$sortBy, onlyFollowing=$onlyFollowing');
       
-      // Lưu vào cache
-      _cache.set(cacheKey, result, duration: cacheDuration ?? _defaultCacheDuration);
+      final result = await _affiliateService.getProducts(
+        userId: userId,
+        page: page,
+        limit: limit,
+        search: search,
+        sortBy: sortBy,
+        onlyFollowing: onlyFollowing,
+      );
       
-      print('✅ Affiliate products cached successfully (page $page)');
+      print('🔍 API result: $result');
+      print('🔍 API result type: ${result.runtimeType}');
+      print('🔍 API result is null: ${result == null}');
+      print('🔍 API result isEmpty: ${result?.isEmpty}');
+      
+      if (result != null) {
+        print('🔍 Products in result: ${result['products']?.length ?? 0}');
+        // Lưu vào cache
+        _cache.set(cacheKey, result, duration: cacheDuration ?? _defaultCacheDuration);
+        print('✅ Affiliate products cached successfully (page $page)');
+      } else {
+        print('❌ API returned null result');
+      }
+      
       return result;
     } catch (e) {
       print('❌ Error fetching affiliate products: $e');

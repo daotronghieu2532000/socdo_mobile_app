@@ -44,6 +44,12 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
   DateTime _lastSearchChange = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
+  void initState() {
+    super.initState();
+    _initUser();
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     _searchController.dispose();
@@ -130,6 +136,12 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
 
     try {
       // Sử dụng cached API service cho products
+      print('🔍 Starting _loadProducts: refresh=$refresh, page=$_currentPage');
+      print('🔍 User ID: $_currentUserId');
+      print('🔍 Search query: "$_searchQuery"');
+      print('🔍 Sort by: $_sortBy');
+      print('🔍 Only following: $_onlyFollowed');
+      
       final productsData = await _cachedApiService.getAffiliateProducts(
         userId: _currentUserId,
         page: _currentPage,
@@ -139,10 +151,22 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
         onlyFollowing: _onlyFollowed,
       );
       
-      // Nếu cache không có data, fallback về AffiliateService
-      if (productsData == null || productsData.isEmpty) {
+      print('🔍 Cached API returned: $productsData');
+      print('🔍 Cached API result type: ${productsData.runtimeType}');
+      print('🔍 Cached API result is null: ${productsData == null}');
+      print('🔍 Cached API result isEmpty: ${productsData?.isEmpty}');
+      
+      // Xử lý dữ liệu từ cache hoặc API
+      Map<String, dynamic>? result;
+      
+      if (productsData != null && productsData.isNotEmpty) {
+        // Sử dụng dữ liệu từ cache
+        print('📦 Using cached products data');
+        result = productsData;
+      } else {
+        // Cache miss, gọi API trực tiếp
         print('🔄 Cache miss, fetching from AffiliateService...');
-        final result = await _affiliateService.getProducts(
+        result = await _affiliateService.getProducts(
           userId: _currentUserId,
           page: _currentPage,
           limit: 50,
@@ -150,41 +174,37 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
           sortBy: _sortBy,
           onlyFollowing: _onlyFollowed,
         );
-
-        if (mounted) {
-          setState(() {
-            if (result != null) {
-              final newProducts = result['products'] as List<AffiliateProduct>;
-              if (refresh) {
-                _products = newProducts;
-              } else {
-                _products.addAll(newProducts);
-              }
-              _applyFilters();
-              
-              final pagination = result['pagination'];
-              _hasMoreData = _currentPage < pagination['total_pages'];
-              _currentPage++;
-              
-              // Debug: Check if products have links
-              for (final product in newProducts) {
-                print('📦 Product ${product.id}: hasLink=${product.hasLink}, shortLink=${product.shortLink}');
-              }
+        print('🔍 Direct API result: $result');
+      }
+      
+      print('🔍 Final result: $result');
+      print('🔍 Final result products: ${result?['products']?.length ?? 0}');
+      
+      if (mounted) {
+        setState(() {
+          if (result != null && result['products'] != null) {
+            final newProducts = result['products'] as List<AffiliateProduct>;
+            print('📦 Loaded ${newProducts.length} products from API');
+            if (refresh) {
+              _products = newProducts;
+            } else {
+              _products.addAll(newProducts);
             }
-            _isLoading = false;
-          });
-        }
-      } else {
-        // Convert cached data to AffiliateProduct models
-        print('📦 Using cached products data');
-        if (mounted) {
-          setState(() {
-            // Convert cached data to AffiliateProduct list
-            // _products = productsData['products'].map((data) => AffiliateProduct.fromJson(data)).toList();
             _applyFilters();
-            _isLoading = false;
-          });
-        }
+            
+            final pagination = result['pagination'];
+            _hasMoreData = _currentPage < pagination['total_pages'];
+            _currentPage++;
+            
+            // Debug: Check if products have links
+            for (final product in newProducts) {
+              print('📦 Product ${product.id}: hasLink=${product.hasLink}, shortLink=${product.shortLink}');
+            }
+          } else {
+            print('❌ No products found in result: $result');
+          }
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {

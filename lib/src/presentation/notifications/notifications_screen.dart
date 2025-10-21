@@ -554,8 +554,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-
-
   void _showDeleteConfirmDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -741,12 +739,15 @@ class _NotificationItemWidgetState extends State<_NotificationItemWidget> {
             : widget.iconWidget,
         title: Row(
           children: [
+            // Icon trạng thái đơn hàng
+            _getOrderStatusIconForTitle(widget.title),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 widget.title,
                 style: TextStyle(
                   fontWeight: widget.isRead ? FontWeight.w500 : FontWeight.w600,
-                  color: widget.isRead ? Colors.grey[600] : Colors.black87,
+                  color: _getOrderStatusColor(widget.title),
                 ),
               ),
             ),
@@ -902,6 +903,113 @@ class _NotificationItemWidgetState extends State<_NotificationItemWidget> {
       ),
     );
   }
+
+  // Hàm tạo icon nhỏ cho tiêu đề trạng thái đơn hàng
+  Widget _getOrderStatusIconForTitle(String title) {
+    if (title.contains('đã được xác nhận')) {
+      return Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2196F3),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.check_circle_outlined,
+          color: Colors.white,
+          size: 12,
+        ),
+      );
+    } else if (title.contains('đang được giao')) {
+      return Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF9800),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.local_shipping_outlined,
+          color: Colors.white,
+          size: 12,
+        ),
+      );
+    } else if (title.contains('đã giao thành công')) {
+      return Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: const Color(0xFF4CAF50),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.done_all_outlined,
+          color: Colors.white,
+          size: 12,
+        ),
+      );
+    } else if (title.contains('đã bị hủy')) {
+      return Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF44336),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.cancel_outlined,
+          color: Colors.white,
+          size: 12,
+        ),
+      );
+    } else if (title.contains('đã hoàn trả')) {
+      return Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: const Color(0xFF9C27B0),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.undo_outlined,
+          color: Colors.white,
+          size: 12,
+        ),
+      );
+    } else {
+      // Trạng thái mặc định
+      return Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: const Color(0xFF607D8B),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.shopping_bag_outlined,
+          color: Colors.white,
+          size: 12,
+        ),
+      );
+    }
+  }
+
+  // Hàm tạo màu sắc cho tiêu đề trạng thái đơn hàng
+  Color _getOrderStatusColor(String title) {
+    if (title.contains('đã được xác nhận')) {
+      return const Color(0xFF2196F3); // Xanh dương
+    } else if (title.contains('đang được giao')) {
+      return const Color(0xFFFF9800); // Cam
+    } else if (title.contains('đã giao thành công')) {
+      return const Color(0xFF4CAF50); // Xanh lá
+    } else if (title.contains('đã bị hủy')) {
+      return const Color(0xFFF44336); // Đỏ
+    } else if (title.contains('đã hoàn trả')) {
+      return const Color(0xFF9C27B0); // Tím
+    } else {
+      return Colors.black87; // Mặc định
+    }
+  }
 }
 
 class _LoggedOutView extends StatelessWidget {
@@ -911,27 +1019,131 @@ class _LoggedOutView extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Bạn chưa đăng nhập'),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: () async {
-              final result = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-              
-              // Nếu đăng nhập thành công, refresh trạng thái
-              if (result == true) {
-                onLoginSuccess();
-              }
-            },
-            child: const Text('Đăng nhập'),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Background Image with opacity
+        Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('lib/src/core/assets/images/logo_socdo.png'),
+              fit: BoxFit.cover,
+              opacity: 0.15, // Mờ mờ cho đẹp
+            ),
           ),
-        ],
-      ),
+        ),
+        // Subtle overlay
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withOpacity(0.8),
+                Colors.white.withOpacity(0.9),
+              ],
+            ),
+          ),
+        ),
+        // Content
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Logo/Icon
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(40),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.notifications_outlined,
+                  size: 40,
+                  color: Color(0xFFDC3545),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Bạn chưa đăng nhập',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Đăng nhập để xem thông báo của bạn',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(horizontal: 40),
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFDC3545),
+                      Color(0xFFC82333),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFDC3545).withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    );
+                    
+                    // Nếu đăng nhập thành công, refresh trạng thái
+                    if (result == true) {
+                      onLoginSuccess();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Đăng nhập',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

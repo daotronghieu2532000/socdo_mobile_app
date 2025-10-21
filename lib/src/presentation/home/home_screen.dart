@@ -60,7 +60,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Suggested products grid
                     Container(
                       color: Colors.white,
-                      padding: const EdgeInsets.all(12),
                       child: const ProductGrid(title: 'Gợi ý cho bạn'),
                     ),
                   ],

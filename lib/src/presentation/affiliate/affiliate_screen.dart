@@ -318,28 +318,27 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
         userId: _currentUserId,
       );
       
-      // Nếu cache không có data, fallback về AffiliateService
-      if (dashboardData == null || dashboardData.isEmpty) {
-        print('🔄 Cache miss, fetching from AffiliateService...');
-        final dashboard = await _affiliateService.getDashboard(userId: _currentUserId);
-        print('📊 Dashboard loaded: $dashboard');
-        
-        if (mounted) {
-          setState(() {
-            _dashboard = dashboard;
-            _isLoading = false;
-          });
+      // Xử lý dữ liệu từ cache hoặc API
+      AffiliateDashboard? dashboard;
+      
+      if (dashboardData != null && dashboardData.isNotEmpty) {
+        // Sử dụng dữ liệu từ cache
+        print('💰 Using cached dashboard data');
+        if (dashboardData['data'] != null) {
+          dashboard = AffiliateDashboard.fromJson(dashboardData['data']);
         }
       } else {
-        // Convert cached data to AffiliateDashboard model
-        // Note: Cần implement conversion từ Map sang AffiliateDashboard
-        print('💰 Using cached dashboard data');
-        if (mounted) {
-          setState(() {
-            // _dashboard = AffiliateDashboard.fromJson(dashboardData);
-            _isLoading = false;
-          });
-        }
+        // Cache miss, gọi API trực tiếp
+        print('🔄 Cache miss, fetching from AffiliateService...');
+        dashboard = await _affiliateService.getDashboard(userId: _currentUserId);
+        print('📊 Dashboard loaded: $dashboard');
+      }
+      
+      if (mounted) {
+        setState(() {
+          _dashboard = dashboard;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {

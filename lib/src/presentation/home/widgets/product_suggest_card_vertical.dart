@@ -48,7 +48,7 @@ class ProductSuggestCardVertical extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4), // Giảm từ 12 xuống 6 để thu hẹp khoảng cách
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Đồng bộ với flash sale
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8), // Giảm từ 12 xuống 8

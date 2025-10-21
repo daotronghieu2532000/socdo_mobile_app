@@ -91,10 +91,17 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
         onlyHasLink: _onlyHasLink,
       );
       
-      // Nếu cache không có data, fallback về AffiliateService
-      if (linksData == null || linksData.isEmpty) {
+      // Xử lý dữ liệu từ cache hoặc API
+      Map<String, dynamic>? result;
+      
+      if (linksData != null && linksData.isNotEmpty) {
+        // Sử dụng dữ liệu từ cache
+        print('🔗 Using cached links data');
+        result = linksData;
+      } else {
+        // Cache miss, gọi API trực tiếp
         print('🔄 Cache miss, fetching from AffiliateService...');
-        final result = await _affiliateService.getMyLinks(
+        result = await _affiliateService.getMyLinks(
           userId: _currentUserId,
           page: _currentPage,
           limit: 50,
@@ -102,35 +109,24 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
           sortBy: _sortBy,
           onlyHasLink: _onlyHasLink,
         );
-        
-        if (mounted) {
-          setState(() {
-            if (result != null) {
-              final newLinks = result['links'] as List<AffiliateLink>;
-              if (refresh) {
-                _links = newLinks;
-              } else {
-                _links.addAll(newLinks);
-              }
-              _applyFilters();
-              final pagination = result['pagination'];
-              _hasMoreData = _currentPage < pagination['total_pages'];
-              _currentPage++;
+      }
+      
+      if (mounted) {
+        setState(() {
+          if (result != null && result['links'] != null) {
+            final newLinks = result['links'] as List<AffiliateLink>;
+            if (refresh) {
+              _links = newLinks;
+            } else {
+              _links.addAll(newLinks);
             }
-            _isLoading = false;
-          });
-        }
-      } else {
-        // Convert cached data to AffiliateLink models
-        print('🔗 Using cached links data');
-        if (mounted) {
-          setState(() {
-            // Convert cached data to AffiliateLink list
-            // _links = linksData['links'].map((data) => AffiliateLink.fromJson(data)).toList();
             _applyFilters();
-            _isLoading = false;
-          });
-        }
+            final pagination = result['pagination'];
+            _hasMoreData = _currentPage < pagination['total_pages'];
+            _currentPage++;
+          }
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {

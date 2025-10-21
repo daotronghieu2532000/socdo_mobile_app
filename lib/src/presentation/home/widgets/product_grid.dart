@@ -68,7 +68,7 @@ class _ProductGridState extends State<ProductGrid> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
         ),
         _buildProductsList(),
