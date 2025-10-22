@@ -159,12 +159,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (_productDetail == null) return;
     
     final shopId = int.tryParse(_productDetail!.shopId ?? '0');
-    print('💬 [DEBUG] Navigating to chat:');
-    print('   Product Detail: $_productDetail');
-    print('   Shop ID from product: ${_productDetail!.shopId}');
-    print('   Parsed Shop ID: $shopId');
-    print('   Shop Name: ${_productDetail!.shopNameFromInfo}');
-    print('   Initial Shop Name: ${widget.initialShopName}');
+  
     
     if (shopId == null || shopId == 0) {
       print('❌ [DEBUG] Invalid shop ID, showing error');
@@ -182,7 +177,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ? _productDetail!.shopNameFromInfo 
               : widget.initialShopName ?? 'Shop',
           shopAvatar: _productDetail!.shopAvatar,
-          productId: widget.productId,
         ),
       ),
     );
@@ -1030,8 +1024,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             shopUrl: product?.shopUrl,
             totalProducts: () {
               final totalProducts = product?.shopInfo?['total_products'] as int?;
-              print('🔍 Debug ShopBar totalProducts: $totalProducts');
-              print('🔍 Debug ShopBar shopInfo: ${product?.shopInfo}');
+            
               return totalProducts;
             }(), // Truyền số sản phẩm từ shopInfo với debug
             onViewShop: _navigateToShop,

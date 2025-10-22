@@ -48,13 +48,13 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET') {
     // Get parameters
     $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-    $limit = isset($_GET['limit']) ? max(1, min(500, intval($_GET['limit']))) : 20;
+    $limit = isset($_GET['limit']) ? max(1, min(500, intval($_GET['limit']))) : 500;
     $get_all = isset($_GET['all']) && $_GET['all'] == '1';
     $status_filter = isset($_GET['status']) ? intval($_GET['status']) : -1; // -1 = all, 0 = pending, 1 = approved, 2 = rejected
     
     // Validate parameters
     if ($page < 1) $page = 1;
-    if ($limit < 1 || $limit > 500) $limit = 20;
+    if ($limit < 1 || $limit > 500) $limit = 400;
     
     // Override limit nếu get_all = true
     if ($get_all) {

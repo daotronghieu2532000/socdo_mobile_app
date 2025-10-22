@@ -57,8 +57,6 @@ class AffiliateService {
         },
       );
       
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -131,8 +129,6 @@ class AffiliateService {
         headers: {'Content-Type': 'application/json'},
       );
       
-      print('🔗 Products API Response status: ${response.statusCode}');
-      print('🔗 Products API Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -213,9 +209,7 @@ int? userId,
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
-      
-      print('🔗 Orders API Response status: ${response.statusCode}');
-      print('🔗 Orders API Response body: ${response.body}');
+    
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -288,8 +282,6 @@ int? userId,
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('🔗 My Links API Response status: ${response.statusCode}');
-      print('🔗 My Links API Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -373,8 +365,6 @@ int? userId,
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('🔗 Commission History API Response status: ${response.statusCode}');
-      print('🔗 Commission History API Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -413,8 +403,6 @@ int? userId,
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('🔗 Withdrawal History API Response status: ${response.statusCode}');
-      print('🔗 Withdrawal History API Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -444,8 +432,6 @@ int? userId,
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('🔗 Balance Info API Response status: ${response.statusCode}');
-      print('🔗 Balance Info API Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -478,8 +464,6 @@ int? userId,
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('🔗 Bank Accounts API Response status: ${response.statusCode}');
-      print('🔗 Bank Accounts API Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -507,9 +491,6 @@ int? userId,
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
-
-      print('🔗 Banks List API Response status: ${response.statusCode}');
-      print('🔗 Banks List API Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -551,8 +532,6 @@ int? userId,
         }),
       );
 
-      print('🔗 Add Bank Account API Response status: ${response.statusCode}');
-      print('🔗 Add Bank Account API Response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);

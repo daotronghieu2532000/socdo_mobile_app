@@ -37,7 +37,7 @@ try {
         $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
         $category_id = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
         $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
-        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 40;
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 500;
         $exclude_ids = isset($_GET['exclude_ids']) ? addslashes($_GET['exclude_ids']) : '';
         $is_member = isset($_GET['is_member']) ? intval($_GET['is_member']) : 0;
         
@@ -45,7 +45,7 @@ try {
         $get_all = isset($_GET['all']) && $_GET['all'] == '1';
         
         if ($limit > 500) $limit = 500;
-        if ($limit < 1) $limit = 40;
+        if ($limit < 1) $limit = 400;
         
         // Override limit nếu get_all = true
         if ($get_all) {

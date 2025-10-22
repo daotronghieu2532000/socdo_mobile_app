@@ -34,7 +34,7 @@ try {
     
     if ($method === 'GET') {
         $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 100;
         $menu_vitri = isset($_GET['menu_vitri']) ? trim($_GET['menu_vitri']) : '';
         $menu_loai = isset($_GET['menu_loai']) ? trim($_GET['menu_loai']) : '';
         $sort = isset($_GET['sort']) ? trim($_GET['sort']) : 'thutu-asc'; // thutu-asc, thutu-desc, id-desc, id-asc
@@ -43,7 +43,7 @@ try {
         $get_all = isset($_GET['all']) && $_GET['all'] == '1';
         
         if ($page < 1) $page = 1;
-        if ($limit < 1 || $limit > 500) $limit = 20;
+        if ($limit < 1 || $limit > 500) $limit = 100;
         
         // Override limit nếu get_all = true
         if ($get_all) {

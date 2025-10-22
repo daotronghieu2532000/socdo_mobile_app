@@ -29,18 +29,28 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
     _loadFlashSaleDeals();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeLeft.inSeconds > 0) {
-        setState(() {
-          _timeLeft = Duration(seconds: _timeLeft.inSeconds - 1);
-        });
+        if (mounted) {
+          setState(() {
+            _timeLeft = Duration(seconds: _timeLeft.inSeconds - 1);
+          });
+        }
       } else {
         // Khi hết giờ, reload flash sale để lấy timeline mới
         // Tắt logging để tránh spam terminal
         // print('⏰ Timeline ended, reloading flash sale...');
-        _loadFlashSaleDeals();
+        if (mounted) {
+          _loadFlashSaleDeals();
+        }
         // Reset timer để tránh gọi liên tục
         _timeLeft = const Duration(hours: 1); // Tạm thời set 1 giờ
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
   }
 
   Future<void> _loadFlashSaleDeals() async {
@@ -110,12 +120,6 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
     } else {
       return DateTime(now.year, now.month, now.day, 23, 59, 59);
     }
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
   }
 
   String _formatTime(int seconds) {

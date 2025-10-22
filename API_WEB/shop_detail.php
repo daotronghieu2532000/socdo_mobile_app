@@ -40,7 +40,7 @@ try {
         $include_vouchers = isset($_GET['include_vouchers']) ? intval($_GET['include_vouchers']) : 1;
         $include_warehouses = isset($_GET['include_warehouses']) ? intval($_GET['include_warehouses']) : 1;
         $include_categories = isset($_GET['include_categories']) ? intval($_GET['include_categories']) : 1;
-        $products_limit = isset($_GET['products_limit']) ? intval($_GET['products_limit']) : 20;
+        $products_limit = isset($_GET['products_limit']) ? intval($_GET['products_limit']) : 500;
         
         // Validate parameters
         if ($shop_id <= 0 && empty($username)) {
@@ -52,7 +52,7 @@ try {
             exit;
         }
         
-        if ($products_limit < 1 || $products_limit > 100) $products_limit = 20;
+        if ($products_limit < 1 || $products_limit > 100) $products_limit = 500;
         
         $current_time = time();
         

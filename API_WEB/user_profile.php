@@ -177,7 +177,6 @@ function handle_upload_avatar() {
         echo json_encode(["success" => false, "message" => "Vui lòng truyền user_id"]);
         return;
     }
-    
     $user_id = (int)$_POST['user_id'];
     
     if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
@@ -454,7 +453,6 @@ function handle_address_delete() {
     }
     $stmt->close();
 }
-
 ?>
 
 

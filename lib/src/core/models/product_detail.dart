@@ -126,31 +126,31 @@ class ProductDetail {
 
     // Parse images array
     List<String> parseImages(dynamic imagesData) {
-      print('🔍 parseImages input: $imagesData');
-      print('🔍 parseImages type: ${imagesData.runtimeType}');
+      // print('🔍 parseImages input: $imagesData');
+      // print('🔍 parseImages type: ${imagesData.runtimeType}');
       
       if (imagesData == null) {
-        print('🔍 parseImages: null data, returning empty list');
+        // print('🔍 parseImages: null data, returning empty list');
         return [];
       }
       if (imagesData is List) {
         final result = imagesData.map((e) => _fixImageUrl(e.toString())).toList();
-        print('🔍 parseImages: List result: $result');
+        // print('🔍 parseImages: List result: $result');
         return result;
       }
       if (imagesData is String) {
         // Check if string contains comma-separated paths
         if (imagesData.contains(',')) {
           final result = imagesData.split(',').map((e) => _fixImageUrl(e.trim())).where((e) => e.isNotEmpty).toList();
-          print('🔍 parseImages: Comma-separated string result: $result');
+          // print('🔍 parseImages: Comma-separated string result: $result');
           return result;
         } else {
           final result = [_fixImageUrl(imagesData)];
-          print('🔍 parseImages: Single string result: $result');
+          // print('🔍 parseImages: Single string result: $result');
           return result;
         }
       }
-      print('🔍 parseImages: Unknown type, returning empty list');
+      // print('🔍 parseImages: Unknown type, returning empty list');
       return [];
     }
 
@@ -188,19 +188,19 @@ class ProductDetail {
       shortDescription: json['short_description'] as String? ?? json['mo_ta_ngan'] as String?,
       highlights: json['noi_bat'] as String?,
       images: () {
-        print('🔍 API Response - images: ${json['images']}');
-        print('🔍 API Response - anh: ${json['anh']}');
-        print('🔍 API Response - minh_hoa: ${json['minh_hoa']}');
+        // print('🔍 API Response - images: ${json['images']}');
+        // print('🔍 API Response - anh: ${json['anh']}');
+        // print('🔍 API Response - minh_hoa: ${json['minh_hoa']}');
         // Ưu tiên lấy từ anh (gallery images), sau đó từ images.gallery, cuối cùng từ minh_hoa
         final galleryData = json['anh'] ?? json['images']?['gallery'] ?? json['minh_hoa'];
-        print('🔍 Gallery data to parse: $galleryData');
+        // print('🔍 Gallery data to parse: $galleryData');
         return parseImages(galleryData);
       }(),
       thumbnail: () {
-        print('🔍 Thumbnail data: ${json['images']?['main']}');
+        // print('🔍 Thumbnail data: ${json['images']?['main']}');
         final thumbnailUrl = json['images']?['main'] as String? ?? json['images']?['thumb'] as String? ?? json['thumbnail'] as String? ?? json['hinh_dai_dien'] as String?;
         final fixedUrl = thumbnailUrl != null ? _fixImageUrl(thumbnailUrl) : null;
-        print('🔍 Fixed thumbnail URL: $fixedUrl');
+        // print('🔍 Fixed thumbnail URL: $fixedUrl');
         return fixedUrl;
       }(),
       price: safeParseInt(json['price']) ?? safeParseInt(json['gia_moi']) ?? safeParseInt(json['gia']) ?? 0,

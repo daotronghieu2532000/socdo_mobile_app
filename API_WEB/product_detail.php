@@ -304,9 +304,6 @@ try {
         $is_favorited = ($user_id > 0) ? (intval($product['is_favorited']) === 1) : false;
         $product['is_favorited'] = $is_favorited;
         
-        // Debug logging
-        error_log("DEBUG: Product ID $product_id - User ID: $user_id - Is Favorited: " . ($is_favorited ? 'true' : 'false'));
-        
         // Lấy danh sách phân loại sản phẩm từ bảng phanloai_sanpham
         $variants_query = "SELECT * FROM phanloai_sanpham WHERE sp_id = '$product_id' ORDER BY gia_moi ASC";
         $variants_result = mysqli_query($conn, $variants_query);

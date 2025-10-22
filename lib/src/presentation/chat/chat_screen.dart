@@ -1,24 +1,24 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../core/services/chat_service.dart';
-import '../../core/services/token_manager.dart';
+import '../../core/services/socketio_service.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/models/chat.dart';
 
 class ChatScreen extends StatefulWidget {
   final int shopId;
   final String shopName;
   final String? shopAvatar;
-  final int? productId;
+  final int? sessionId;
+  final String? phien;
 
   const ChatScreen({
     super.key,
     required this.shopId,
     required this.shopName,
     this.shopAvatar,
-    this.productId,
+    this.sessionId,
+    this.phien,
   });
 
   @override
@@ -27,6 +27,8 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
+  final SocketIOService _socketIOService = SocketIOService();
+  final AuthService _authService = AuthService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
@@ -35,12 +37,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isSending = false;
   String? _error;
   String? _phien;
-  int? _sessionId;
   bool _isConnected = false;
-  
-  // SSE
-  HttpClient? _httpClient;
-  StreamSubscription? _sseSubscription;
 
   @override
   void initState() {
@@ -50,82 +47,232 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _socketIOService.disconnect();
     _messageController.dispose();
     _scrollController.dispose();
-    _disconnectSSE();
     super.dispose();
   }
 
   Future<void> _initializeChat() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      print('🚀 [DEBUG] Initializing chat:');
-      print('   Shop ID: ${widget.shopId}');
-      print('   Shop Name: ${widget.shopName}');
-      print('   Shop Avatar: ${widget.shopAvatar}');
-      print('   Product ID: ${widget.productId}');
-
-      // Lấy userId từ token
-      final tokenManager = TokenManager();
-      final token = await tokenManager.getToken();
-      if (token == null) {
-        throw Exception('Không có token');
-      }
       
-      final payload = tokenManager.getTokenPayload(token);
-      if (payload == null || payload['user_id'] == null) {
-        throw Exception('Token không hợp lệ');
-      }
-      
-      final userId = int.parse(payload['user_id'].toString());
-      print('   User ID: $userId');
-
-      // Tạo phiên chat
-      final sessionResponse = await _chatService.createSession(widget.shopId, userId);
-      
-      if (sessionResponse.success) {
-        setState(() {
-          _sessionId = sessionResponse.sessionId;
-          _phien = sessionResponse.phien;
-        });
-
-        // Load tin nhắn
-        await _loadMessages();
-        
-        // Kết nối SSE
-        _connectSSE();
+      // Use existing session or create new one
+      if (widget.phien != null) {
+        _phien = widget.phien;
       } else {
-        setState(() {
-          _error = 'Không thể tạo phiên chat';
-          _isLoading = false;
-        });
+        // Create new session
+        final response = await _chatService.createSession(
+          shopId: widget.shopId,
+        );
+        
+        if (response.success) {
+          _phien = response.phien;
+        } else {
+          setState(() {
+            _error = 'Failed to create session';
+            _isLoading = false;
+          });
+          return;
+        }
       }
+      
+      
+      // Load existing messages
+      await _loadMessages();
+      
+      // Connect to Socket.io
+      _connectSocketIO();
+      
+      setState(() {
+        _isLoading = false;
+      });
+      
     } catch (e) {
       setState(() {
-        _error = 'Lỗi khởi tạo chat: $e';
+        _error = 'Không thể khởi tạo chat: $e';
         _isLoading = false;
       });
     }
   }
 
   Future<void> _loadMessages() async {
+    if (_phien == null) return;
+    
     try {
-      final response = await _chatService.getMessages(
-        phien: _phien!,
-        limit: 50,
-      );
-
+      final response = await _chatService.getMessages(_phien!);
+      
       if (response.success) {
+        // Get current user to determine isOwn for each message
+        final currentUser = await _authService.getCurrentUser();
+        
+        // Update isOwn for each message
+        final updatedMessages = response.messages.map((message) {
+          final isOwn = currentUser != null && message.senderId == currentUser.userId;
+          return ChatMessage(
+            id: message.id,
+            senderId: message.senderId,
+            senderType: message.senderType,
+            senderName: message.senderName,
+            senderAvatar: message.senderAvatar,
+            content: message.content,
+            datePost: message.datePost,
+            dateFormatted: message.dateFormatted,
+            isRead: message.isRead,
+            isOwn: isOwn,
+          );
+        }).toList();
+        
         setState(() {
-          _messages = response.messages;
-          _isLoading = false;
+          _messages = updatedMessages;
         });
         
-        // Scroll xuống cuối
+        // Scroll to bottom
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  void _connectSocketIO() {
+    if (_phien == null) return;
+
+    // Set up Socket.io callbacks
+    _socketIOService.onConnected = () {
+      print('🔌 [Socket.io] Connected successfully');
+      setState(() { _isConnected = true; });
+    };
+
+    _socketIOService.onDisconnected = () {
+      print('🔌 [Socket.io] Disconnected');
+      setState(() { _isConnected = false; });
+    };
+
+    _socketIOService.onError = (error) {
+      print('❌ [Socket.io] Error: $error');
+      setState(() { _isConnected = false; });
+    };
+
+    _socketIOService.onMessage = (message) {
+      print('📨 [Socket.io] Received message: $message');
+      _handleSocketIOMessage(message);
+    };
+
+    // Connect to Socket.io
+    print('🔌 [Socket.io] Connecting to phien: $_phien');
+    _socketIOService.connect(_phien!);
+  }
+
+  void _handleSocketIOMessage(Map<String, dynamic> message) {
+    // Handle new message from Socket.io
+    _handleNewMessage(message);
+  }
+
+  void _handleNewMessage(Map<String, dynamic> message) async {
+    print('🔄 [ChatScreen] _handleNewMessage called with: $message');
+    
+    // Socket.io có thể gửi message trực tiếp hoặc trong 'message' field
+    final messageData = message['message'] ?? message;
+    if (messageData == null) {
+      print('❌ [ChatScreen] messageData is null');
+      return;
+    }
+    
+    print('📝 [ChatScreen] Processing messageData: $messageData');
+    
+    // Get current user to determine if message is own
+    final currentUser = await _authService.getCurrentUser();
+    final senderId = int.tryParse(messageData['sender_id']?.toString() ?? '0') ?? 0;
+    final isOwn = currentUser != null && senderId == currentUser.userId;
+    
+    print('👤 [ChatScreen] Current user: ${currentUser?.userId}, Sender: $senderId, IsOwn: $isOwn');
+    
+    // Create ChatMessage object
+    final chatMessage = ChatMessage(
+      id: int.tryParse(messageData['id']?.toString() ?? '0') ?? 0,
+      senderId: senderId,
+      senderType: messageData['sender_type'] ?? 'customer',
+      senderName: messageData['sender_name'] ?? 'Unknown',
+      senderAvatar: messageData['sender_avatar'] ?? '',
+      content: messageData['content'] ?? messageData['message'] ?? '',
+      datePost: int.tryParse(messageData['date_post']?.toString() ?? '0') ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      dateFormatted: messageData['date_formatted'] ?? DateTime.now().toString(),
+      isRead: messageData['is_read'] == 1 || messageData['is_read'] == '1' || messageData['is_read'] == true,
+      isOwn: isOwn,
+    );
+    
+    print('💬 [ChatScreen] Created ChatMessage: ${chatMessage.content}');
+    
+    setState(() {
+      _messages.add(chatMessage);
+      print('📊 [ChatScreen] Total messages: ${_messages.length}');
+    });
+    
+    // Scroll to bottom
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _sendMessage() async {
+    final content = _messageController.text.trim();
+    if (content.isEmpty || _isSending || _phien == null) return;
+    
+    print('📤 [ChatScreen] Sending message: $content');
+    setState(() { _isSending = true; });
+    
+    try {
+      // Send via API first (to save to database)
+      print('🌐 [ChatScreen] Sending via API...');
+      final response = await _chatService.sendMessage(
+        phien: _phien!,
+        content: content,
+        senderType: 'customer',
+      );
+      
+      if (response.success) {
+        print('✅ [ChatScreen] API send successful');
+        // Clear input
+        _messageController.clear();
+        
+        // Also send via Socket.io for real-time
+        print('📡 [ChatScreen] Sending via Socket.io...');
+        _socketIOService.sendMessage(content, senderType: 'customer');
+        
+        // Add message to UI immediately
+        final newMessage = ChatMessage(
+          id: response.message?.id ?? 0,
+          senderId: 0, // Will be updated when received from server
+          senderType: 'customer',
+          senderName: 'Bạn',
+          senderAvatar: '',
+          content: content,
+          datePost: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          dateFormatted: DateTime.now().toString(),
+          isRead: false,
+          isOwn: true,
+        );
+        
+        setState(() {
+          _messages.add(newMessage);
+          print('📊 [ChatScreen] Added message to UI, total: ${_messages.length}');
+        });
+        
+        // Scroll to bottom
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
@@ -136,270 +283,52 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         });
       } else {
-        setState(() {
-          _error = 'Không thể tải tin nhắn';
-          _isLoading = false;
-        });
+        throw Exception(response.message ?? 'Failed to send message');
       }
+      
+      setState(() { _isSending = false; });
+      
     } catch (e) {
-      setState(() {
-        _error = 'Lỗi tải tin nhắn: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _connectSSE() async {
-    if (_phien == null) return;
-
-    try {
-      final sseUrl = await _chatService.getSseUrl(phien: _phien!, sessionId: _sessionId);
+      print('❌ [ChatScreen] Send message error: $e');
+      setState(() { _isSending = false; });
       
-      _httpClient = HttpClient();
-      final request = await _httpClient!.getUrl(Uri.parse(sseUrl));
-      
-      request.headers.set('Accept', 'text/event-stream');
-      request.headers.set('Cache-Control', 'no-cache');
-      
-      request.close().then((response) {
-        if (response.statusCode == 200) {
-          setState(() {
-            _isConnected = true;
-          });
-          
-          _sseSubscription = response.transform(utf8.decoder).listen(
-            _handleSSEData,
-            onError: (error) {
-              print('SSE Error: $error');
-              _reconnectSSE();
-            },
-            onDone: () {
-              print('SSE Connection closed');
-              _reconnectSSE();
-            },
-          );
-        } else {
-          print('SSE Connection failed: ${response.statusCode}');
-          _reconnectSSE();
-        }
-      }).catchError((error) {
-        print('SSE Request error: $error');
-        _reconnectSSE();
-      });
-    } catch (e) {
-      print('SSE Connection error: $e');
-      _reconnectSSE();
-    }
-  }
-
-  void _disconnectSSE() {
-    _sseSubscription?.cancel();
-    _httpClient?.close();
-    _sseSubscription = null;
-    _httpClient = null;
-    setState(() {
-      _isConnected = false;
-    });
-  }
-
-  void _reconnectSSE() {
-    _disconnectSSE();
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted && _phien != null) {
-        _connectSSE();
-      }
-    });
-  }
-
-  void _handleSSEData(String data) {
-    try {
-      final lines = data.split('\n');
-      
-      for (final line in lines) {
-        if (line.startsWith('data: ')) {
-          final jsonData = line.substring(6);
-          if (jsonData.trim().isEmpty) continue;
-          
-          final eventData = json.decode(jsonData);
-          _handleSSEEvent(eventData);
-        }
-      }
-    } catch (e) {
-      print('SSE Data parsing error: $e');
-    }
-  }
-
-  void _handleSSEEvent(Map<String, dynamic> eventData) {
-    switch (eventData['type']) {
-      case 'connected':
-        print('SSE Connected');
-        setState(() {
-          _isConnected = true;
-        });
-        break;
-        
-      case 'new_message':
-        final messageData = eventData['message'];
-        if (messageData != null) {
-          final message = ChatMessage.fromJson(messageData);
-          setState(() {
-            _messages.add(message);
-          });
-          
-          // Scroll xuống cuối
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_scrollController.hasClients) {
-              _scrollController.animateTo(
-                _scrollController.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-              );
-            }
-          });
-        }
-        break;
-        
-      case 'message_read':
-        final messageId = eventData['message_id'];
-        if (messageId != null) {
-          setState(() {
-            for (int i = 0; i < _messages.length; i++) {
-              if (_messages[i].id == messageId) {
-                _messages[i] = ChatMessage(
-                  id: _messages[i].id,
-                  senderId: _messages[i].senderId,
-                  senderType: _messages[i].senderType,
-                  senderName: _messages[i].senderName,
-                  senderAvatar: _messages[i].senderAvatar,
-                  content: _messages[i].content,
-                  datePost: _messages[i].datePost,
-                  dateFormatted: _messages[i].dateFormatted,
-                  isRead: true,
-                  isOwn: _messages[i].isOwn,
-                );
-                break;
-              }
-            }
-          });
-        }
-        break;
-        
-      case 'ping':
-        // Giữ kết nối
-        break;
-        
-      case 'error':
-        print('SSE Error: ${eventData['message']}');
-        break;
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    final message = _messageController.text.trim();
-    if (message.isEmpty || _isSending) return;
-
-    setState(() {
-      _isSending = true;
-    });
-
-    try {
-      final response = await _chatService.sendMessage(
-        phien: _phien!,
-        content: message,
-        senderType: 'customer',
-        productId: widget.productId ?? 0,
+      // Show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể gửi tin nhắn: $e')),
       );
-
-      if (response.success && response.message != null) {
-        _messageController.clear();
-        
-        // Tin nhắn sẽ được thêm qua SSE, không cần thêm thủ công
-        HapticFeedback.lightImpact();
-      } else {
-        _showSnackBar('Không thể gửi tin nhắn');
-      }
-    } catch (e) {
-      _showSnackBar('Lỗi gửi tin nhắn: $e');
-    } finally {
-      setState(() {
-        _isSending = false;
-      });
     }
-  }
-
-  Future<void> _markAsRead() async {
-    try {
-      await _chatService.markAsRead(phien: _phien!);
-    } catch (e) {
-      print('Error marking as read: $e');
-    }
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final String? safeAvatar = (widget.shopAvatar != null &&
-            widget.shopAvatar!.trim().isNotEmpty &&
-            (widget.shopAvatar!.startsWith('http://') || widget.shopAvatar!.startsWith('https://')))
-        ? widget.shopAvatar
-        : null;
     return Scaffold(
       appBar: AppBar(
-        title: Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundImage: safeAvatar != null
-                  ? NetworkImage(safeAvatar)
-                  : null,
-              child: safeAvatar == null
-                  ? const Icon(Icons.store, size: 16)
-                  : null,
+            Text(
+              widget.shopName,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.shopName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  Row(
-                    children: [
-                      Icon(
-                        _isConnected ? Icons.circle : Icons.circle_outlined,
-                        size: 8,
-                        color: _isConnected ? Colors.green : Colors.grey,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _isConnected ? 'Đang hoạt động' : 'Đang kết nối...',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _isConnected ? Colors.green : Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            Text(
+              _isConnected ? 'Socket.io Connected' : 'Connecting...',
+              style: TextStyle(
+                fontSize: 12,
+                color: _isConnected ? Colors.green : Colors.red,
               ),
             ),
           ],
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
-            onPressed: _markAsRead,
-            icon: const Icon(Icons.done_all),
-            tooltip: 'Đánh dấu đã đọc',
+            icon: const Icon(Icons.more_vert),
+            onPressed: () {
+              // Show more options
+            },
           ),
         ],
       ),
@@ -410,9 +339,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(_error!, style: const TextStyle(color: Colors.grey)),
+                      Text(_error!),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _initializeChat,
@@ -423,6 +350,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 )
               : Column(
                   children: [
+                    // Messages list
                     Expanded(
                       child: ListView.builder(
                         controller: _scrollController,
@@ -434,116 +362,160 @@ class _ChatScreenState extends State<ChatScreen> {
                         },
                       ),
                     ),
-                    _buildMessageInput(),
+                    
+                    // Message input
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 5,
+                            offset: const Offset(0, -1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _messageController,
+                              decoration: const InputDecoration(
+                                hintText: 'Nhập tin nhắn...',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(25)),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                              maxLines: null,
+                              onSubmitted: (_) => _sendMessage(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          CircleAvatar(
+                            backgroundColor: _isSending ? Colors.grey : Colors.blue,
+                            child: _isSending
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(Icons.send, color: Colors.white),
+                                    onPressed: _sendMessage,
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
     );
   }
 
   Widget _buildMessageBubble(ChatMessage message) {
-    return Align(
-      alignment: message.isOwn ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: message.isOwn ? const Color(0xFF0FC6FF) : Colors.grey[200],
-          borderRadius: BorderRadius.circular(20),
-        ),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              message.content,
-              style: TextStyle(
-                color: message.isOwn ? Colors.white : Colors.black87,
-                fontSize: 16,
+    final isOwn = message.isOwn;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: isOwn ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          if (!isOwn) ...[
+            _buildShopAvatar(),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isOwn ? Colors.blue : Colors.grey[200],
+                borderRadius: BorderRadius.circular(20),
               ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  message.dateFormatted,
-                  style: TextStyle(
-                    color: message.isOwn ? Colors.white70 : Colors.grey[600],
-                    fontSize: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message.content,
+                    style: TextStyle(
+                      color: isOwn ? Colors.white : Colors.black87,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-                if (message.isOwn) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    message.isRead ? Icons.done_all : Icons.done,
-                    size: 12,
-                    color: message.isRead ? Colors.white70 : Colors.white70,
+                  const SizedBox(height: 4),
+                  Text(
+                    message.dateFormatted,
+                    style: TextStyle(
+                      color: isOwn ? Colors.white70 : Colors.grey[600],
+                      fontSize: 10,
+                    ),
                   ),
                 ],
-              ],
+              ),
             ),
+          ),
+          if (isOwn) ...[
+            const SizedBox(width: 8),
+            _buildUserAvatar(),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: const InputDecoration(
-                hintText: 'Nhập tin nhắn...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(25)),
-                ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              maxLines: null,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _isSending ? null : _sendMessage,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _isSending ? Colors.grey : const Color(0xFF0FC6FF),
-                shape: BoxShape.circle,
-              ),
-              child: _isSending
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.send, color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildShopAvatar() {
+    if (widget.shopAvatar != null && widget.shopAvatar!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 16,
+        backgroundImage: NetworkImage(widget.shopAvatar!),
+        backgroundColor: Colors.pink[100],
+        child: widget.shopAvatar!.startsWith('http') 
+            ? null 
+            : const Icon(Icons.store, size: 16, color: Colors.pink),
+      );
+    }
+    
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: Colors.pink[100],
+      child: const Icon(Icons.store, size: 16, color: Colors.pink),
+    );
+  }
+
+  Widget _buildUserAvatar() {
+    return FutureBuilder(
+      future: _authService.getCurrentUser(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          final user = snapshot.data!;
+          final avatarUrl = _authService.getAvatarUrl(user.avatar);
+          
+          return CircleAvatar(
+            radius: 16,
+            backgroundImage: avatarUrl.startsWith('http') 
+                ? NetworkImage(avatarUrl)
+                : null,
+            backgroundColor: Colors.blue[100],
+            child: avatarUrl.startsWith('http') 
+                ? null 
+                : const Icon(Icons.person, size: 16, color: Colors.blue),
+          );
+        }
+        
+        return CircleAvatar(
+          radius: 16,
+          backgroundColor: Colors.blue[100],
+          child: const Icon(Icons.person, size: 16, color: Colors.blue),
+        );
+      },
     );
   }
 }

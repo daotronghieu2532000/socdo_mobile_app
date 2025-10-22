@@ -41,6 +41,32 @@ class TokenManager {
     }
   }
 
+  /// Lấy userId từ token
+  Future<int?> getUserId() async {
+    try {
+      final token = await getToken();
+      if (token == null) return null;
+      
+      // Decode JWT payload
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      
+      // Decode payload (part 1)
+      final payload = parts[1];
+      // Add padding if needed
+      final paddedPayload = payload + '=' * (4 - payload.length % 4);
+      
+      final decodedBytes = base64Url.decode(paddedPayload);
+      final decodedPayload = utf8.decode(decodedBytes);
+      final payloadMap = json.decode(decodedPayload);
+      
+      return payloadMap['user_id'] as int?;
+    } catch (e) {
+      print('❌ Lỗi khi decode userId từ token: $e');
+      return null;
+    }
+  }
+
   /// Kiểm tra token có hợp lệ không (chưa hết hạn)
   bool isTokenValid(String token) {
     try {

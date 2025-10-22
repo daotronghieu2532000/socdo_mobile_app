@@ -33,13 +33,13 @@ try {
     // Lấy tham số tìm kiếm - CHỈ KEYWORD
     $keyword = isset($_GET['keyword']) ? addslashes(strip_tags($_GET['keyword'])) : '';
     $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
-    
+    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 1000;
+
     // Validate limit
     $get_all = isset($_GET['all']) && $_GET['all'] == '1';
     
-    if ($limit > 500) $limit = 500;
-    if ($limit < 1) $limit = 20;
+    if ($limit > 500) $limit = 1000;
+    if ($limit < 1) $limit = 400;
     if ($page < 1) $page = 1;
     
     // Override limit nếu get_all = true

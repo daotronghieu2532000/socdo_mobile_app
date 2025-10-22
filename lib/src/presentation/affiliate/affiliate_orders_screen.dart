@@ -168,7 +168,7 @@ class _AffiliateOrdersScreenState extends State<AffiliateOrdersScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Mã đơn: ${order['ma_don'] ?? ''}',
+                  'Mã: ${order['ma_don'] ?? ''}',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

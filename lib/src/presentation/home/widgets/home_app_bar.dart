@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../account/account_screen.dart';
 import '../../auth/login_screen.dart';
 import '../../search/search_screen.dart';
+import '../../chat/chat_list_screen.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/chat_service.dart';
 import '../../../core/models/user.dart';
@@ -105,6 +106,20 @@ class _HomeAppBarState extends State<HomeAppBar> {
     );
   }
 
+  void _handleChatTap() {
+    if (_currentUser != null) {
+      // Đã đăng nhập - vào danh sách chat
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ChatListScreen()),
+      ).then((_) => _loadUnread());
+    } else {
+      // Chưa đăng nhập - vào trang đăng nhập
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      ).then((_) => _checkLoginStatus());
+    }
+  }
+
   Future<void> _handleAvatarTap() async {
     if (_currentUser != null) {
       // Đã đăng nhập - vào trang tài khoản
@@ -197,7 +212,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
             const SizedBox(width: 8),
             // Chat icon with unread badge
             GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/chat').then((_) => _loadUnread()),
+              onTap: _handleChatTap,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [

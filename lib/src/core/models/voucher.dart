@@ -134,10 +134,10 @@ class Voucher {
     if (value == null) return 'percentage';
     final str = value.toString().toLowerCase();
     
-    // API trả về 'phantram' hoặc 'giatien'
+    // API trả về 'phantram', 'percentage' hoặc 'tru' (giảm trực tiếp)
     if (str == 'phantram' || str == 'percentage') {
       return 'percentage';
-    } else if (str == 'giatien' || str == 'fixed' || str == 'amount') {
+    } else if (str == 'giatien' || str == 'fixed' || str == 'amount' || str == 'tru') {
       return 'fixed';
     }
     

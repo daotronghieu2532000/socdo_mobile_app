@@ -23,15 +23,15 @@ class ChatSession {
 
   factory ChatSession.fromJson(Map<String, dynamic> json) {
     return ChatSession(
-      sessionId: json['session_id'] ?? 0,
+      sessionId: int.tryParse(json['session_id']?.toString() ?? '0') ?? 0,
       phien: json['phien'] ?? '',
-      shopId: json['shop_id'] ?? 0,
+      shopId: int.tryParse(json['shop_id']?.toString() ?? '0') ?? 0,
       shopName: json['shop_name'] ?? '',
       shopAvatar: json['shop_avatar'] ?? '/images/user.png',
       lastMessage: json['last_message'],
-      lastMessageTime: json['last_message_time'] ?? 0,
+      lastMessageTime: int.tryParse(json['last_message_time']?.toString() ?? '0') ?? 0,
       lastMessageFormatted: json['last_message_formatted'] ?? '',
-      unreadCount: json['unread_count'] ?? 0,
+      unreadCount: int.tryParse(json['unread_count']?.toString() ?? '0') ?? 0,
     );
   }
 
@@ -77,15 +77,15 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
-      id: json['id'] ?? 0,
-      senderId: json['sender_id'] ?? 0,
+      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      senderId: int.tryParse(json['sender_id']?.toString() ?? '0') ?? 0,
       senderType: json['sender_type'] ?? '',
       senderName: json['sender_name'] ?? '',
       senderAvatar: json['sender_avatar'] ?? '/images/user.png',
       content: json['content'] ?? '',
-      datePost: json['date_post'] ?? 0,
+      datePost: int.tryParse(json['date_post']?.toString() ?? '0') ?? 0,
       dateFormatted: json['date_formatted'] ?? '',
-      isRead: json['is_read'] == 1,
+      isRead: json['is_read'] == 1 || json['is_read'] == '1' || json['is_read'] == true,
       isOwn: json['is_own'] == true,
     );
   }
@@ -122,7 +122,7 @@ class ChatSessionResponse {
   factory ChatSessionResponse.fromJson(Map<String, dynamic> json) {
     return ChatSessionResponse(
       success: json['success'] ?? false,
-      sessionId: json['session_id'] ?? 0,
+      sessionId: int.tryParse(json['session_id']?.toString() ?? '0') ?? 0,
       phien: json['phien'] ?? '',
       shopInfo: json['shop_info'] ?? {},
     );
@@ -188,7 +188,9 @@ class ChatSendResponse {
   factory ChatSendResponse.fromJson(Map<String, dynamic> json) {
     return ChatSendResponse(
       success: json['success'] ?? false,
-      message: json['message'] != null ? ChatMessage.fromJson(json['message']) : null,
+      message: json['message'] != null && json['message'] is Map<String, dynamic> 
+          ? ChatMessage.fromJson(json['message']) 
+          : null,
     );
   }
 }
@@ -205,7 +207,7 @@ class ChatUnreadResponse {
   factory ChatUnreadResponse.fromJson(Map<String, dynamic> json) {
     return ChatUnreadResponse(
       success: json['success'] ?? false,
-      unreadCount: json['unread_count'] ?? 0,
+      unreadCount: int.tryParse(json['unread_count']?.toString() ?? '0') ?? 0,
     );
   }
 }

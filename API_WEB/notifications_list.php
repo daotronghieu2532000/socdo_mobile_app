@@ -1,7 +1,11 @@
 <?php
 header("Access-Control-Allow-Methods: GET");
 require_once './vendor/autoload.php';
-require_once './includes/config.php';
+$config_path = '/home/api.socdo.vn/public_html/includes/config.php';
+if (!file_exists($config_path)) {
+	$config_path = '../../../../../includes/config.php';
+}
+require_once $config_path;
 use \Firebase\JWT\JWT;
 use \Firebase\JWT\Key;
 
@@ -41,7 +45,7 @@ try {
     
     if ($method === 'GET') {
         $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-        $limit = isset($_GET['limit']) ? min(1000, max(1, intval($_GET['limit']))) : 20;
+        $limit = isset($_GET['limit']) ? min(500, max(1, intval($_GET['limit']))) : 100;
         $get_all = isset($_GET['all']) && $_GET['all'] == '1';
         
         // Override limit nếu get_all = true

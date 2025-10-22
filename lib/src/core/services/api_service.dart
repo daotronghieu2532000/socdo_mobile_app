@@ -769,7 +769,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 API Response: $data'); // Debug log
+        // print('🔍 API Response: $data'); // Debug log
         
         if (data['success'] == true && data['data'] != null) {
           // Kiểm tra kiểu dữ liệu trả về
@@ -1421,7 +1421,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Product Suggest Response: $data');
+        // print('🔍 Product Suggest Response: $data');
         
         return _parseProductSuggestResponse(data);
       } else {
@@ -3248,7 +3248,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Vouchers Response: $data');
+        // print('🔍 Vouchers Response: $data');
         
         if (data['success'] == true && data['data'] != null) {
           final vouchersData = data['data']['vouchers'] as List?;
@@ -3325,7 +3325,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Product Suggestions Response: $data');
+        // print('🔍 Product Suggestions Response: $data');
         
         if (data['success'] == true && data['data'] != null) {
           final productsData = data['data']['products'] as List?;
@@ -3370,7 +3370,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);
-        print('🔍 Product Detail Response: $decoded');
+        // print('🔍 Product Detail Response: $decoded');
 
         // Trường hợp đặc biệt: API trả về List ở top-level
         if (decoded is List) {
@@ -3448,7 +3448,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Products Same Shop Response: $data');
+        // print('🔍 Products Same Shop Response: $data');
         
         if (data['success'] == true && data['data'] != null) {
           print('✅ Lấy sản phẩm cùng shop thành công');
@@ -3487,7 +3487,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Related Products Response: $data');
+     
         
         if (data['success'] == true && data['data'] != null) {
           final productsData = data['data']['products'] as List<dynamic>?;
@@ -3539,7 +3539,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Banners Response: $data');
+     
         
         if (data['success'] == true && data['data'] != null) {
           final bannersData = data['data']['banners'] as List<dynamic>?;
@@ -3620,8 +3620,6 @@ class ApiService {
         },
       );
 
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -3681,8 +3679,6 @@ class ApiService {
         },
       );
 
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -3729,9 +3725,6 @@ class ApiService {
         }),
       );
 
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
-
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         if (data['success'] == true) {
@@ -3777,8 +3770,6 @@ class ApiService {
         }),
       );
 
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -3824,9 +3815,6 @@ class ApiService {
           'product_id': productId,
         }),
       );
-
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;

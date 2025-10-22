@@ -11,20 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
-// Đường dẫn tuyệt đối
-$config_path = '/home/api.socdo.vn/public_html/includes/config.php';
-$tlca_path = '/home/api.socdo.vn/public_html/includes/tlca_world.php';
+// Include vendor cho JWT
 $vendor_path = '/home/api.socdo.vn/public_html/vendor/autoload.php';
-
-require_once $config_path;
-require_once $tlca_path;
 require_once $vendor_path;
 
 use \Firebase\JWT\JWT;
 use \Firebase\JWT\Key;
 
-// Kết nối database
-$conn = new mysqli($tlca_data['server'], $tlca_data['dbuser'], $tlca_data['dbpassword'], $tlca_data['dbname']);
+// Kết nối database với config thật
+$conn = new mysqli('localhost', 'socdo', 'Xdnt.qOPNz8!(cQi', 'socdo');
 if ($conn->connect_error) {
     echo json_encode([
         'success' => false,
@@ -70,8 +65,25 @@ try {
     exit;
 }
 
+// Parse JSON body if Content-Type is application/json
+$json_data = [];
+if ($_SERVER['CONTENT_TYPE'] === 'application/json' || strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
+    $input = file_get_contents('php://input');
+    if ($input) {
+        $json_data = json_decode($input, true) ?? [];
+    }
+}
+
+// Merge JSON data with POST data
+if (!empty($json_data)) {
+    $_POST = array_merge($_POST, $json_data);
+}
+
 // Lấy action từ request
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
+
+// Debug log
+error_log('[Chat API] Action: ' . $action . ', POST: ' . json_encode($_POST) . ', JSON: ' . json_encode($json_data));
 
 // === LẤY DANH SÁCH TIN NHẮN ===
 if ($action === 'get_messages') {
@@ -396,15 +408,15 @@ if ($action === 'list_sessions') {
             $where_condition = "s.shop_id = $user_id";
         }
         
-        // Lấy danh sách phiên chat
+        // Lấy danh sách phiên chat - GROUP BY shop để tránh duplicate
         $sessions_query = "SELECT 
             s.id,
             s.phien,
             s.shop_id,
             s.customer_id,
-            s.last_message_time,
-            s.unread_count_customer,
-            s.unread_count_ncc,
+            MAX(s.last_message_time) as last_message_time,
+            SUM(s.unread_count_customer) as unread_count_customer,
+            SUM(s.unread_count_ncc) as unread_count_ncc,
             s.status,
             s.created_at,
             shop.name as shop_name,
@@ -424,7 +436,8 @@ if ($action === 'list_sessions') {
             ORDER BY date_post DESC
         ) last_msg ON s.phien = last_msg.phien
         WHERE $where_condition AND s.status = 'active'
-        ORDER BY s.last_message_time DESC
+        GROUP BY s.shop_id, s.customer_id
+        ORDER BY last_message_time DESC
         LIMIT $limit OFFSET $offset";
         
         $sessions_result = $conn->query($sessions_query);
@@ -653,10 +666,14 @@ if ($action === 'create_session') {
         }
         
         // Kiểm tra phiên chat đã tồn tại chưa
-        $check_session = $conn->query("SELECT id, phien FROM chat_sessions_ncc WHERE shop_id = $shop_id AND customer_id = $user_id AND status = 'active' LIMIT 1");
+        $check_session = $conn->query("SELECT id, phien FROM chat_sessions_ncc WHERE shop_id = $shop_id AND customer_id = $user_id AND status = 'active' ORDER BY last_message_time DESC LIMIT 1");
         
         if ($check_session && $check_session->num_rows > 0) {
             $session = $check_session->fetch_assoc();
+            
+            // Đóng các session cũ khác (nếu có)
+            $conn->query("UPDATE chat_sessions_ncc SET status = 'closed' WHERE shop_id = $shop_id AND customer_id = $user_id AND status = 'active' AND id != {$session['id']}");
+            
             echo json_encode([
                 'success' => true,
                 'session_id' => $session['id'],
@@ -703,8 +720,211 @@ if ($action === 'create_session') {
     exit;
 }
 
+// === WEBSOCKET CONNECT ACTION ===
+if ($action === 'websocket_connect') {
+    $phien = $_GET['phien'] ?? '';
+    $session_id = $_GET['session_id'] ?? '';
+    
+    if (empty($phien)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Phien không được cung cấp'
+        ]);
+        exit;
+    }
+    
+    // Return WebSocket connection info
+    echo json_encode([
+        'success' => true,
+        'websocket_url' => 'ws://api.socdo.vn:8080',
+        'phien' => $phien,
+        'session_id' => $session_id,
+        'status' => 'ready',
+        'message' => 'WebSocket server ready'
+    ]);
+    exit;
+}
+
+// === SSE CONNECT ACTION ===
+if ($action === 'sse_connect') {
+    // Redirect to SSE endpoint
+    $phien = $_GET['phien'] ?? '';
+    $session_id = $_GET['session_id'] ?? '';
+    
+    if (empty($phien)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Phien không được cung cấp'
+        ]);
+        exit;
+    }
+    
+    // Set SSE headers
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    header('Connection: keep-alive');
+    
+    // Send initial connection confirmation
+    echo "data: " . json_encode([
+        'type' => 'connection',
+        'status' => 'connected',
+        'session_id' => $session_id,
+        'phien' => $phien,
+        'timestamp' => time()
+    ]) . "\n\n";
+    
+    // Flush output
+    if (ob_get_level()) {
+        ob_flush();
+    }
+    flush();
+    
+        // Simple SSE loop - just send test messages and close quickly
+        echo "data: " . json_encode([
+            'type' => 'new_message',
+            'message' => [
+                'id' => 999,
+                'sender_id' => 23933,
+                'sender_type' => 'shop',
+                'sender_name' => 'Shop',
+                'sender_avatar' => '/images/shop.png',
+                'content' => 'Test message from SSE endpoint',
+                'date_post' => time(),
+                'date_formatted' => date('H:i'),
+                'is_read' => false
+            ],
+            'timestamp' => time()
+        ]) . "\n\n";
+        
+        if (ob_get_level()) {
+            ob_flush();
+        }
+        flush();
+        
+        // Close connection after sending test message
+        echo "data: " . json_encode([
+            'type' => 'session_closed',
+            'reason' => 'test_complete',
+            'timestamp' => time()
+        ]) . "\n\n";
+    
+    exit;
+}
+
 // === TEST ACTION ===
 if ($action === 'test') {
+    // Check if this is SSE request
+    $phien = $_GET['phien'] ?? '';
+    $session_id = $_GET['session_id'] ?? '';
+    
+    if (!empty($phien)) {
+        // This is SSE request
+        // Set SSE headers
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+        header('Access-Control-Allow-Origin: *');
+        
+        // Send initial connection confirmation
+        echo "data: " . json_encode([
+            'type' => 'connection',
+            'status' => 'connected',
+            'session_id' => $session_id,
+            'phien' => $phien,
+            'timestamp' => time()
+        ]) . "\n\n";
+        
+        // Flush output
+        if (ob_get_level()) {
+            ob_flush();
+        }
+        flush();
+        
+        // Database connection với config thật
+        $conn = new mysqli('localhost', 'socdo', 'Xdnt.qOPNz8!(cQi', 'socdo');
+        
+        if ($conn->connect_error) {
+            echo "data: " . json_encode(['type' => 'error', 'message' => 'Database connection failed']) . "\n\n";
+            exit();
+        }
+        
+        // SSE loop with database check
+        $counter = 0;
+        $last_message_id = 0;
+        
+        while (true) {
+            // Check if client disconnected
+            if (connection_aborted()) {
+                break;
+            }
+            
+            // Check for new messages every 2 seconds
+            if ($counter % 2 == 0) {
+                $messages_query = "SELECT * FROM chat_ncc WHERE phien = '$phien' AND id > $last_message_id AND active = 1 ORDER BY id ASC LIMIT 10";
+                $messages_result = $conn->query($messages_query);
+                
+                if ($messages_result && $messages_result->num_rows > 0) {
+                    while ($message = $messages_result->fetch_assoc()) {
+                        echo "data: " . json_encode([
+                            'type' => 'new_message',
+                            'message' => [
+                                'id' => $message['id'],
+                                'sender_id' => $message['sender_id'],
+                                'sender_type' => $message['sender_type'],
+                                'sender_name' => $message['sender_type'] == 'customer' ? 'Bạn' : 'Shop',
+                                'sender_avatar' => $message['sender_type'] == 'customer' ? '/images/user.png' : '/images/shop.png',
+                                'content' => $message['noi_dung'],
+                                'date_post' => $message['date_post'],
+                                'date_formatted' => date('H:i', $message['date_post']),
+                                'is_read' => $message['doc']
+                            ],
+                            'timestamp' => time()
+                        ]) . "\n\n";
+                        
+                        $last_message_id = $message['id'];
+                    }
+                    
+                    if (ob_get_level()) {
+                        ob_flush();
+                    }
+                    flush();
+                }
+            }
+            
+            // Send heartbeat every 10 seconds
+            if ($counter % 10 == 0) {
+                echo "data: " . json_encode([
+                    'type' => 'heartbeat',
+                    'counter' => $counter,
+                    'timestamp' => time()
+                ]) . "\n\n";
+                
+                if (ob_get_level()) {
+                    ob_flush();
+                }
+                flush();
+            }
+            
+            // Sleep for 1 second
+            sleep(1);
+            $counter++;
+            
+            // Limit loop to prevent infinite running
+            if ($counter > 300) { // 5 minutes max
+                break;
+            }
+        }
+        
+        echo "data: " . json_encode([
+            'type' => 'session_closed',
+            'reason' => 'timeout',
+            'timestamp' => time()
+        ]) . "\n\n";
+        
+        exit;
+    }
+    
+    // Regular test response
     echo json_encode([
         'success' => true,
         'message' => 'API hoạt động bình thường',
@@ -726,6 +946,8 @@ echo json_encode([
         'list_sessions',
         'get_unread_count',
         'close_session',
+        'sse_connect',
+        'websocket_connect', // Added this
         'test'
     ]
 ]);

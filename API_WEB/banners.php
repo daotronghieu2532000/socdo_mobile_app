@@ -17,7 +17,11 @@
 
 header("Access-Control-Allow-Methods: GET");
 require_once './vendor/autoload.php';
-require_once './includes/config.php';
+$config_path = '/home/api.socdo.vn/public_html/includes/config.php';
+if (!file_exists($config_path)) {
+	$config_path = '../../../../../includes/config.php';
+}
+require_once $config_path;
 
 $method = $_SERVER['REQUEST_METHOD'];
 

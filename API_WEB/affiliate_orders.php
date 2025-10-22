@@ -16,7 +16,11 @@
  */
 
 require_once './vendor/autoload.php';
-require_once './includes/config.php';
+$config_path = '/home/api.socdo.vn/public_html/includes/config.php';
+if (!file_exists($config_path)) {
+	$config_path = '../../../../../includes/config.php';
+}
+require_once $config_path;
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -26,7 +30,7 @@ header('Content-Type: application/json; charset=utf-8');
 // Get parameters
 $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-$limit = isset($_GET['limit']) ? max(1, min(1000, intval($_GET['limit']))) : 20;
+$limit = isset($_GET['limit']) ? max(1, min(500, intval($_GET['limit']))) : 100;
 $get_all = isset($_GET['all']) && $_GET['all'] == '1';
 
 if ($user_id <= 0) {

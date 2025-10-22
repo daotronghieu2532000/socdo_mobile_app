@@ -4,7 +4,11 @@
  * Chạy mỗi giờ để kiểm tra voucher sắp hết hạn trong 24h
  */
 
-require_once './includes/config.php';
+$config_path = '/home/api.socdo.vn/public_html/includes/config.php';
+if (!file_exists($config_path)) {
+	$config_path = '../../../../../includes/config.php';
+}
+require_once $config_path;
 require_once './notification_mobile_helper.php';
 
 // Chỉ cho phép chạy từ command line hoặc với secret key

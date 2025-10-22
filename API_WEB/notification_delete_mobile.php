@@ -16,7 +16,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once './vendor/autoload.php';
-require_once './includes/config.php';
+$config_path = '/home/api.socdo.vn/public_html/includes/config.php';
+if (!file_exists($config_path)) {
+	$config_path = '../../../../../includes/config.php';
+}
+require_once $config_path;
 use \Firebase\JWT\JWT;
 use \Firebase\JWT\Key;
 
@@ -51,9 +55,15 @@ try {
     $notification_id = isset($_POST['notification_id']) ? intval($_POST['notification_id']) : null;
     $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
     
+    // Debug log
+    error_log("DEBUG: Delete notification API - user_id from POST: $user_id, delete_all: " . ($delete_all ? 'true' : 'false') . ", notification_id: $notification_id");
+    error_log("DEBUG: POST data: " . print_r($_POST, true));
+    error_log("DEBUG: Database connection: " . (isset($conn) ? 'OK' : 'FAILED'));
+    
     // Nếu không có user_id từ POST, lấy từ token
     if ($user_id <= 0 && $jwt) {
         $user_id = isset($decoded->user_id) ? intval($decoded->user_id) : 0;
+        error_log("DEBUG: user_id from token: $user_id");
     }
     
     if ($user_id <= 0) {
@@ -70,8 +80,10 @@ try {
     
     if ($delete_all) {
         // Xóa tất cả thông báo của user
+        error_log("DEBUG: Attempting to delete all notifications for user_id: $user_id");
         $stmt = $conn->prepare("DELETE FROM notification_mobile WHERE user_id = ?");
         if (!$stmt) {
+            error_log("DEBUG: Prepare failed: " . $conn->error);
             http_response_code(500);
             echo json_encode(['error' => 'Prepare failed: ' . $conn->error]);
             exit;
@@ -81,12 +93,14 @@ try {
         
         if ($stmt->execute()) {
             $deleted_count = $stmt->affected_rows;
+            error_log("DEBUG: Successfully deleted $deleted_count notifications");
             echo json_encode([
                 'success' => true,
                 'message' => "Đã xóa $deleted_count thông báo",
                 'deleted_count' => $deleted_count
             ]);
         } else {
+            error_log("DEBUG: Execute failed: " . $stmt->error);
             http_response_code(500);
             echo json_encode(['error' => 'Failed to delete notifications: ' . $stmt->error]);
         }
@@ -94,8 +108,10 @@ try {
         $stmt->close();
     } else {
         // Xóa thông báo cụ thể
+        error_log("DEBUG: Attempting to delete notification_id: $notification_id for user_id: $user_id");
         $stmt = $conn->prepare("DELETE FROM notification_mobile WHERE id = ? AND user_id = ?");
         if (!$stmt) {
+            error_log("DEBUG: Prepare failed: " . $conn->error);
             http_response_code(500);
             echo json_encode(['error' => 'Prepare failed: ' . $conn->error]);
             exit;
@@ -105,15 +121,18 @@ try {
         
         if ($stmt->execute()) {
             if ($stmt->affected_rows > 0) {
+                error_log("DEBUG: Successfully deleted notification");
                 echo json_encode([
                     'success' => true,
                     'message' => 'Đã xóa thông báo'
                 ]);
             } else {
+                error_log("DEBUG: No notification found to delete");
                 http_response_code(404);
                 echo json_encode(['error' => 'Notification not found']);
             }
         } else {
+            error_log("DEBUG: Execute failed: " . $stmt->error);
             http_response_code(500);
             echo json_encode(['error' => 'Failed to delete notification: ' . $stmt->error]);
         }

@@ -136,7 +136,7 @@ try {
             $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
             $status = isset($_GET['status']) ? intval($_GET['status']) : -1;
             $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-            $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
+            $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 100;
             $date_from = isset($_GET['date_from']) ? addslashes($_GET['date_from']) : '';
             $date_to = isset($_GET['date_to']) ? addslashes($_GET['date_to']) : '';
             $search = isset($_GET['search']) ? addslashes(strip_tags($_GET['search'])) : '';
@@ -145,7 +145,7 @@ try {
             $get_all = isset($_GET['all']) && $_GET['all'] == '1';
             
             if ($limit > 500) $limit = 500;
-            if ($limit < 1) $limit = 20;
+            if ($limit < 1) $limit = 100;
             if ($page < 1) $page = 1;
             
             // Override limit nếu get_all = true

@@ -88,6 +88,337 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
     });
   }
 
+  void _showFreeshipDialog(BuildContext context) async {
+    // Lấy thông tin freeship từ shipping quote
+    final u = await _auth.getCurrentUser();
+    if (u == null) return;
+    
+    final cart = cart_service.CartService();
+    final items = cart.items
+        .map((i) => {
+              'product_id': i.id,
+              'quantity': i.quantity,
+            })
+        .toList();
+    
+    if (items.isEmpty) return;
+    
+    // Debug: Log để kiểm tra
+    print('🔍 FREESHIP DIALOG DEBUG:');
+    print('  - Items: $items');
+    
+    Map<String, dynamic>? shopFreeshipDetails;
+    
+    try {
+      final quote = await _api.getShippingQuote(userId: u.userId, items: items);
+      print('  - Quote response: ${quote != null ? "Success" : "Failed"}');
+      
+      if (quote != null && quote['success'] == true) {
+        final debug = quote['data']?['debug'];
+        print('  - Debug available: ${debug != null}');
+        
+        shopFreeshipDetails = debug?['shop_freeship_details'] as Map<String, dynamic>?;
+        print('  - Shop freeship details: ${shopFreeshipDetails?.keys.toList()}');
+        
+        if (shopFreeshipDetails != null) {
+          for (final entry in shopFreeshipDetails.entries) {
+            print('    Shop ${entry.key}: ${entry.value}');
+          }
+        }
+      } else {
+        print('  - Quote failed: ${quote?['message']}');
+      }
+    } catch (e) {
+      print('  - Error getting quote: $e');
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+            minHeight: 300,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey[200]!),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.local_shipping,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Ưu đãi vận chuyển',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1D1D1F),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, size: 20),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Debug info
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('🔍 DEBUG INFO:', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text('shopFreeshipDetails: ${shopFreeshipDetails?.toString() ?? 'null'}'),
+                            Text('Is empty: ${shopFreeshipDetails?.isEmpty ?? true}'),
+                            Text('Keys: ${shopFreeshipDetails?.keys.toList() ?? []}'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      if (shopFreeshipDetails != null && shopFreeshipDetails.isNotEmpty) ...[
+                        Text('✅ Found ${shopFreeshipDetails.length} shop(s) with freeship config', 
+                             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                        const SizedBox(height: 8),
+                        for (final entry in shopFreeshipDetails.entries) ...[
+                          _buildFreeshipInfo(entry.key, entry.value),
+                          const SizedBox(height: 16),
+                        ],
+                      ] else ...[
+                        Text('❌ No freeship details found', 
+                             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                        const SizedBox(height: 16),
+                        const Center(
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Hiện tại chưa có ưu đãi vận chuyển nào',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Footer note
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFE9ECEF),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.tips_and_updates,
+                              color: Color(0xFF28A745),
+                              size: 20,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Thêm sản phẩm vào giỏ hàng để được hưởng ưu đãi vận chuyển tốt nhất.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF6C757D),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFreeshipInfo(String shopId, Map<String, dynamic> config) {
+    final mode = config['mode'] as int? ?? 0;
+    final subtotal = config['subtotal'] as int? ?? 0;
+    final minOrder = config['min_order'] as int? ?? 0;
+    final discount = config['discount'] as double? ?? 0.0;
+    final applied = config['applied'] as bool? ?? false;
+    
+    String title = '';
+    String description = '';
+    Color statusColor = Colors.grey;
+    
+    switch (mode) {
+      case 0:
+        title = 'Giảm phí ship cố định';
+        description = 'Giảm ${_formatCurrency(discount.toInt())} phí ship';
+        statusColor = applied ? Colors.green : Colors.orange;
+        break;
+      case 1:
+        title = 'Miễn phí ship 100%';
+        description = 'Miễn phí ship toàn bộ đơn hàng';
+        statusColor = applied ? Colors.green : Colors.orange;
+        break;
+      case 2:
+        title = 'Giảm phí ship theo %';
+        description = 'Giảm ${discount.toInt()}% phí ship';
+        statusColor = applied ? Colors.green : Colors.orange;
+        break;
+      case 3:
+        title = 'Miễn phí ship theo sản phẩm';
+        description = 'Miễn phí ship cho sản phẩm cụ thể';
+        statusColor = applied ? Colors.green : Colors.orange;
+        break;
+      default:
+        title = 'Ưu đãi vận chuyển';
+        description = 'Có ưu đãi vận chuyển đặc biệt';
+        statusColor = Colors.grey;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: statusColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                applied ? Icons.check_circle : Icons.info_outline,
+                color: statusColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  applied ? 'Đã áp dụng' : 'Chưa áp dụng',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF6C757D),
+            ),
+          ),
+          if (minOrder > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Đơn hàng tối thiểu: ${_formatCurrency(minOrder)}',
+              style: TextStyle(
+                fontSize: 13,
+                color: subtotal >= minOrder ? Colors.green : Colors.orange,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          Text(
+            'Giá trị đơn hàng hiện tại: ${_formatCurrency(subtotal)}',
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6C757D),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showInspectionDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -267,7 +598,32 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
             children: [
               const Icon(Icons.mobile_friendly_rounded, color: Colors.grey),
               const SizedBox(width: 8),
-              Text('Phí vận chuyển: ${_shipFee != null ? _formatCurrency(_shipFee!) : 'đang tính...'}'),
+              Expanded(
+                child: Text('Phí vận chuyển: ${_shipFee != null ? _formatCurrency(_shipFee!) : 'đang tính...'}'),
+              ),
+              if (_shipFee != null && _shipFee! > 0)
+                GestureDetector(
+                  onTap: () => _showFreeshipDialog(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.red.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Text(
+                      ' Ưu đãi! Xem ngay',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),

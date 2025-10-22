@@ -34,9 +34,7 @@ class AuthService {
       });
 
       if (response != null) {
-        print('🔍 Register response status: ${response.statusCode}');
-        print('🔍 Register response body: ${response.body}');
-        
+   
         try {
           final data = jsonDecode(response.body);
           
@@ -84,9 +82,8 @@ class AuthService {
       });
 
       if (response != null) {
-        print('🔍 Login response status: ${response.statusCode}');
-        print('🔍 Login response body: ${response.body}');
-        
+
+
         try {
           final data = jsonDecode(response.body);
           

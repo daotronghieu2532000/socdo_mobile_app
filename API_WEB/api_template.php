@@ -6,7 +6,11 @@
 
 header("Access-Control-Allow-Methods: GET");
 require_once './vendor/autoload.php';
-require_once './includes/config.php';
+$config_path = '/home/api.socdo.vn/public_html/includes/config.php';
+if (!file_exists($config_path)) {
+	$config_path = '../../../../../includes/config.php';
+}
+require_once $config_path;
 require_once './cache_helper.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -15,7 +19,7 @@ if ($method === 'GET') {
     // Get parameters
     $param1 = isset($_GET['param1']) ? trim($_GET['param1']) : '';
     $param2 = isset($_GET['param2']) ? intval($_GET['param2']) : 0;
-    $limit = isset($_GET['limit']) ? max(1, min(2000, intval($_GET['limit']))) : 50;
+    $limit = isset($_GET['limit']) ? max(1, min(2000, intval($_GET['limit']))) : 150;
     
     // Tạo cache key
     $cache_key = $cache->createKey('api_name', [

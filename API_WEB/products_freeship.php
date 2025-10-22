@@ -34,7 +34,7 @@ try {
     
     if ($method === 'GET') {
         $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 650;
         $category_id = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
         $shop_id = isset($_GET['shop_id']) ? intval($_GET['shop_id']) : 0;
         $sort = isset($_GET['sort']) ? trim($_GET['sort']) : 'time-desc'; // time-desc, time-asc, price-asc, price-desc
@@ -43,7 +43,7 @@ try {
         
         // Validate parameters
         if ($page < 1) $page = 1;
-        if ($limit < 1 || $limit > 100) $limit = 20;
+        if ($limit < 1 || $limit > 1000) $limit = 60;
         
         $offset = ($page - 1) * $limit;
         

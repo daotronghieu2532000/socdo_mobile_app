@@ -38,11 +38,11 @@ try {
         $include_children = isset($_GET['include_children']) ? intval($_GET['include_children']) : 1;
         $include_products_count = isset($_GET['include_products_count']) ? intval($_GET['include_products_count']) : 0;
         $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 500;
         
         // Validate parameters
         if ($page < 1) $page = 1;
-        if ($limit < 1 || $limit > 200) $limit = 50;
+        if ($limit < 1 || $limit > 1000) $limit = 500;
         
         $offset = ($page - 1) * $limit;
         

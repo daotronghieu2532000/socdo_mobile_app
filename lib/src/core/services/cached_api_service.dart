@@ -723,7 +723,7 @@ class CachedApiService {
       
       return product;
     } catch (e) {
-      print('❌ Error fetching product detail: $e');
+      // print('❌ Error fetching product detail: $e');
       
       // Fallback về cache cũ nếu có
       final cachedProduct = _cache.get<ProductDetail>(cacheKey);

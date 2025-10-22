@@ -13,7 +13,11 @@
 
 header("Access-Control-Allow-Methods: GET");
 require_once './vendor/autoload.php';
-require_once './includes/config.php';
+$config_path = '/home/api.socdo.vn/public_html/includes/config.php';
+if (!file_exists($config_path)) {
+	$config_path = '../../../../../includes/config.php';
+}
+require_once $config_path;
 
 use \Firebase\JWT\JWT;
 use \Firebase\JWT\Key;
@@ -28,7 +32,7 @@ if ($method === 'GET') {
     // Get parameters
     $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
     $shop_id = isset($_GET['shop_id']) ? intval($_GET['shop_id']) : 0;
-    $limit = isset($_GET['limit']) ? max(1, min(50, intval($_GET['limit']))) : 15;
+    $limit = isset($_GET['limit']) ? max(1, min(50, intval($_GET['limit']))) : 45;
     $type = isset($_GET['type']) ? $_GET['type'] : 'auto'; // auto, same_shop, same_category, same_brand
     
     if ($product_id <= 0) {

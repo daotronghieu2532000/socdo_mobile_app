@@ -77,13 +77,13 @@ try {
             $vi_tri = isset($_GET['vi_tri']) ? addslashes($_GET['vi_tri']) : '';
             $shop_id = isset($_GET['shop_id']) ? intval($_GET['shop_id']) : -1;
             $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-            $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
+            $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
             
             // Validate parameters
             $get_all = isset($_GET['all']) && $_GET['all'] == '1';
             
             if ($limit > 500) $limit = 500;
-            if ($limit < 1) $limit = 20;
+            if ($limit < 1) $limit = 50;
             if ($page < 1) $page = 1;
             
             // Override limit nếu get_all = true

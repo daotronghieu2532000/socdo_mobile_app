@@ -35,7 +35,7 @@ try {
     if ($method === 'GET') {
         $category_id = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
         $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 500;
         $sort = isset($_GET['sort']) ? addslashes($_GET['sort']) : 'newest'; // newest, price_asc, price_desc, popular
         
         // Validate parameters
@@ -48,10 +48,11 @@ try {
             exit;
         }
         
+        
         $get_all = isset($_GET['all']) && $_GET['all'] == '1';
         
-        if ($limit > 500) $limit = 500;
-        if ($limit < 1) $limit = 20;
+        if ($limit > 500) $limit = 1000;
+        if ($limit < 1) $limit = 420;
         if ($page < 1) $page = 1;
         
         // Override limit nếu get_all = true

@@ -151,25 +151,25 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
             children: [
               // Layout chính với Row
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
                   // Box ảnh bên trái
                   Container(
                     width: 120,
                     height: 120,
-                    decoration: BoxDecoration(
+              decoration: BoxDecoration(
                       color: const Color(0xFFF4F6FB),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                borderRadius: BorderRadius.circular(8),
+              ),
                     child: Stack(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8),
                           child: Image.network(
                             _buildImageUrl(widget.product.imageUrl),
                             width: 120,
                             height: 120,
-                            fit: BoxFit.cover,
+                        fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
                           ),
                         ),
@@ -232,57 +232,57 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+            ),
+          ),
+          const SizedBox(width: 12),
                   // Box thông tin bên phải
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+          Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                         // Tên sản phẩm
-                        Text(
-                          widget.product.name,
+                  Text(
+                    widget.product.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                             height: 1.2,
                           ),
                         ),
                         const SizedBox(height: 6),
                         // Giá
-                        Row(
-                          children: [
-                            Text(
-                              FormatUtils.formatCurrency(widget.product.price),
-                              style: const TextStyle(
+                  Row(
+                    children: [
+                      Text(
+                        FormatUtils.formatCurrency(widget.product.price),
+                        style: const TextStyle(
                                 color: Colors.red,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
+                          fontSize: 16,
+                        ),
+                      ),
                             if (widget.product.oldPrice != null && widget.product.oldPrice! > widget.product.price) ...[
                               const SizedBox(width: 6),
-                              Text(
-                                FormatUtils.formatCurrency(widget.product.oldPrice!),
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  decoration: TextDecoration.lineThrough,
+                        Text(
+                          FormatUtils.formatCurrency(widget.product.oldPrice!),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            decoration: TextDecoration.lineThrough,
                                   fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
+                      ],
+                    ],
+                  ),
                         const SizedBox(height: 6),
                         // Rating và đã bán
                         Builder(
                           builder: (context) {
                             final fakeData = _generateFakeData(widget.product.price);
                             return Row(
-                              children: [
+                    children: [
                                 const Icon(Icons.star, size: 14, color: Colors.amber),
                                 const SizedBox(width: 2),
                                 Text(
@@ -295,7 +295,7 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
                           },
                         ),
                         const SizedBox(height: 6),
-                        // Badges
+                  // Badges
                         ProductIconsRow(
                           voucherIcon: widget.product.voucherIcon,
                           freeshipIcon: widget.product.freeshipIcon,
@@ -309,7 +309,7 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
                           locationText: null,
                           // warehouseName: widget.product.warehouseName,
                           provinceName: widget.product.provinceName,
-                          fontSize: 10,
+                              fontSize: 10,
                           iconColor: Colors.black,
                           textColor: Colors.black,
                         ),
@@ -341,11 +341,11 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
                     child: const Icon(
                       Icons.add_shopping_cart,
                       size: 22,
-                      color: Colors.white,
+                        color: Colors.white,
                     ),
                   ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

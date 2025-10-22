@@ -36,7 +36,7 @@ try {
         $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
         $shop_id = isset($_GET['shop_id']) ? intval($_GET['shop_id']) : 0;
         $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 20;
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
         $category_id = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
         $sort = isset($_GET['sort']) ? trim($_GET['sort']) : 'time-desc'; // time-desc, time-asc, price-asc, price-desc
         $exclude_product_id = isset($_GET['exclude_product_id']) ? intval($_GET['exclude_product_id']) : 0;
@@ -45,7 +45,7 @@ try {
         $get_all = isset($_GET['all']) && $_GET['all'] == '1';
         
         if ($page < 1) $page = 1;
-        if ($limit < 1 || $limit > 500) $limit = 20;
+        if ($limit < 1 || $limit > 500) $limit = 500;
         
         // Override limit nếu get_all = true
         if ($get_all) {

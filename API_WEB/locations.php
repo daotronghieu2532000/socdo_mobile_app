@@ -41,10 +41,10 @@ try {
     $huyen = isset($_GET['huyen']) ? intval($_GET['huyen']) : 0;    // district id (for ward)
     $keyword = isset($_GET['keyword']) ? trim($_GET['keyword']) : '';
     $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 500;
 
     if ($page < 1) $page = 1;
-    if ($limit < 1 || $limit > 200) $limit = 50;
+    if ($limit < 1 || $limit > 1000) $limit = 500;
     $offset = ($page - 1) * $limit;
 
     // Build query by type
