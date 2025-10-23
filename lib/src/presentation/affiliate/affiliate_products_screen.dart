@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -41,7 +42,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
   bool _onlyHasLink = false;
   String _sortBy = 'newest';
   bool _isFilterVisible = false;
-  final DateTime _lastSearchChange = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _searchDebounceTimer;
 
   @override
   void initState() {
@@ -53,6 +54,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
   void dispose() {
     _scrollController.dispose();
     _searchController.dispose();
+    _searchDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -63,6 +65,25 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
       _currentUserId = user?.userId;
     });
     _loadProducts();
+  }
+
+  // Debounced search method
+  void _onSearchChanged(String value) {
+    print('🔍 [SEARCH] Text changed: "$value"');
+    setState(() {
+      _searchQuery = value;
+    });
+    
+    // Cancel previous timer
+    _searchDebounceTimer?.cancel();
+    
+    // Set new timer for debounced search
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        print('🔍 [SEARCH] Executing search for: "$_searchQuery"');
+        _loadProducts(refresh: true);
+      }
+    });
   }
 
   // Build affiliate URL with utm_source_shop for current user
@@ -184,7 +205,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
         setState(() {
           if (result != null && result['products'] != null) {
             final newProducts = result['products'] as List<AffiliateProduct>;
-            print('📦 Loaded ${newProducts.length} products from API');
+            // print('📦 Loaded ${newProducts.length} products from API');
             if (refresh) {
               _products = newProducts;
             } else {
@@ -1128,6 +1149,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
                         onPressed: () {
                           _searchController.clear();
                           _searchQuery = '';
+                          _searchDebounceTimer?.cancel();
                           _loadProducts(refresh: true);
                         },
                       )
@@ -1155,6 +1177,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
                 ),
               ),
               textInputAction: TextInputAction.search,
+              onChanged: _onSearchChanged,
               onSubmitted: (_) => _loadProducts(refresh: true),
             ),
           ),
@@ -1472,6 +1495,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
       _onlyHasLink = false;
       _sortBy = 'newest';
     });
+    _searchDebounceTimer?.cancel();
     _loadProducts(refresh: true);
   }
 }
