@@ -45,8 +45,68 @@ class _ChatScreenState extends State<ChatScreen> {
     _initializeChat();
   }
 
+  Timer? _pollingTimer;
+  int _lastMessageCount = 0;
+
+  void _startPolling() {
+    _stopPolling();
+    print('🔄 [ChatScreen] Starting polling for new messages...');
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _pollForNewMessages();
+    });
+  }
+
+  void _stopPolling() {
+    if (_pollingTimer != null) {
+      _pollingTimer!.cancel();
+      _pollingTimer = null;
+      print('⏹️ [ChatScreen] Stopped polling');
+    }
+  }
+
+  Future<void> _pollForNewMessages() async {
+    if (_phien == null || !mounted) return;
+    
+    try {
+      final response = await _chatService.getMessages(_phien!);
+      if (response.success && response.messages.length > _lastMessageCount) {
+        print('📨 [ChatScreen] Polling found ${response.messages.length - _lastMessageCount} new messages');
+        _lastMessageCount = response.messages.length;
+        
+        // Get current user to determine isOwn for each message
+        final currentUser = await _authService.getCurrentUser();
+        
+        // Update isOwn for each message
+        final updatedMessages = response.messages.map((message) {
+          final isOwn = currentUser != null && message.senderId == currentUser.userId;
+          return ChatMessage(
+            id: message.id,
+            senderId: message.senderId,
+            senderType: message.senderType,
+            senderName: message.senderName,
+            senderAvatar: message.senderAvatar,
+            content: message.content,
+            datePost: message.datePost,
+            dateFormatted: message.dateFormatted,
+            isRead: message.isRead,
+            isOwn: isOwn,
+          );
+        }).toList();
+        
+        if (mounted) {
+          setState(() {
+            _messages = updatedMessages;
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ [ChatScreen] Polling error: $e');
+    }
+  }
+
   @override
   void dispose() {
+    _stopPolling();
     _socketIOService.disconnect();
     _messageController.dispose();
     _scrollController.dispose();
@@ -99,6 +159,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_phien == null) return;
     
     try {
+      // Reset unread count khi vào chat
+      await _chatService.resetUnreadCount(phien: _phien!, userType: 'customer');
+      
       final response = await _chatService.getMessages(_phien!);
       
       if (response.success) {
@@ -124,6 +187,7 @@ class _ChatScreenState extends State<ChatScreen> {
         
         setState(() {
           _messages = updatedMessages;
+          _lastMessageCount = updatedMessages.length;
         });
         
         // Scroll to bottom
@@ -148,17 +212,23 @@ class _ChatScreenState extends State<ChatScreen> {
     // Set up Socket.io callbacks
     _socketIOService.onConnected = () {
       print('🔌 [Socket.io] Connected successfully');
-      setState(() { _isConnected = true; });
+      if (mounted) {
+        setState(() { _isConnected = true; });
+      }
     };
 
     _socketIOService.onDisconnected = () {
       print('🔌 [Socket.io] Disconnected');
-      setState(() { _isConnected = false; });
+      if (mounted) {
+        setState(() { _isConnected = false; });
+      }
     };
 
     _socketIOService.onError = (error) {
       print('❌ [Socket.io] Error: $error');
-      setState(() { _isConnected = false; });
+      if (mounted) {
+        setState(() { _isConnected = false; });
+      }
     };
 
     _socketIOService.onMessage = (message) {
@@ -169,6 +239,9 @@ class _ChatScreenState extends State<ChatScreen> {
     // Connect to Socket.io
     print('🔌 [Socket.io] Connecting to phien: $_phien');
     _socketIOService.connect(_phien!);
+    
+    // Start polling as backup
+    _startPolling();
   }
 
   void _handleSocketIOMessage(Map<String, dynamic> message) {
@@ -211,10 +284,12 @@ class _ChatScreenState extends State<ChatScreen> {
     
     print('💬 [ChatScreen] Created ChatMessage: ${chatMessage.content}');
     
-    setState(() {
-      _messages.add(chatMessage);
-      print('📊 [ChatScreen] Total messages: ${_messages.length}');
-    });
+    if (mounted) {
+      setState(() {
+        _messages.add(chatMessage);
+        print('📊 [ChatScreen] Total messages: ${_messages.length}');
+      });
+    }
     
     // Scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -267,10 +342,12 @@ class _ChatScreenState extends State<ChatScreen> {
           isOwn: true,
         );
         
-        setState(() {
-          _messages.add(newMessage);
-          print('📊 [ChatScreen] Added message to UI, total: ${_messages.length}');
-        });
+        if (mounted) {
+          setState(() {
+            _messages.add(newMessage);
+            print('📊 [ChatScreen] Added message to UI, total: ${_messages.length}');
+          });
+        }
         
         // Scroll to bottom
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -473,13 +550,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildShopAvatar() {
     if (widget.shopAvatar != null && widget.shopAvatar!.isNotEmpty) {
+      String avatarUrl = widget.shopAvatar!;
+      // Fix avatar URL - add base URL if it's a relative path
+      if (!avatarUrl.startsWith('http')) {
+        avatarUrl = 'https://socdo.vn$avatarUrl';
+        print('🔗 [ChatScreen] Fixed avatar URL: $avatarUrl');
+      }
       return CircleAvatar(
         radius: 16,
-        backgroundImage: NetworkImage(widget.shopAvatar!),
+        backgroundImage: NetworkImage(avatarUrl),
         backgroundColor: Colors.pink[100],
-        child: widget.shopAvatar!.startsWith('http') 
-            ? null 
-            : const Icon(Icons.store, size: 16, color: Colors.pink),
+        onBackgroundImageError: (exception, stackTrace) {
+          print('❌ Error loading shop avatar: $exception');
+        },
       );
     }
     

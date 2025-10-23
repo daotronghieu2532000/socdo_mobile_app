@@ -279,6 +279,33 @@ class ChatService {
     }
   }
 
+  /// Reset unread count khi user vào chat
+  Future<bool> resetUnreadCount({required String phien, required String userType}) async {
+    try {
+      final headers = await _headers;
+      final url = '$_baseUrl/chat_api_correct?action=reset_unread';
+      final body = {
+        'phien': phien,
+        'user_type': userType,
+      };
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['success'] == true;
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Lỗi reset unread count: $e');
+    }
+  }
+
   /// Tạo SSE connection URL (sử dụng SSE real-time mới)
   Future<String> getSseUrl({required String phien, int? sessionId}) async {
     final params = <String, String>{

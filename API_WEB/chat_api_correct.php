@@ -263,11 +263,11 @@ if ($action === 'send_message') {
             // Cập nhật last_message_time trong session
             $conn->query("UPDATE chat_sessions_ncc SET last_message_time = $now WHERE phien = '$phien'");
             
-            // Cập nhật unread count
-            if ($sender_type === 'customer') {
-                $conn->query("UPDATE chat_sessions_ncc SET unread_count_ncc = unread_count_ncc + 1 WHERE phien = '$phien'");
-            } else {
+            // Cập nhật unread count - chỉ tăng khi shop gửi tin cho customer
+            if ($sender_type === 'ncc') {
                 $conn->query("UPDATE chat_sessions_ncc SET unread_count_customer = unread_count_customer + 1 WHERE phien = '$phien'");
+            } else {
+                $conn->query("UPDATE chat_sessions_ncc SET unread_count_ncc = unread_count_ncc + 1 WHERE phien = '$phien'");
             }
             
             echo json_encode([
@@ -408,15 +408,13 @@ if ($action === 'list_sessions') {
             $where_condition = "s.shop_id = $user_id";
         }
         
-        // Lấy danh sách phiên chat - GROUP BY shop để tránh duplicate
+        // Lấy danh sách phiên chat với unread count thực tế
         $sessions_query = "SELECT 
             s.id,
             s.phien,
             s.shop_id,
             s.customer_id,
-            MAX(s.last_message_time) as last_message_time,
-            SUM(s.unread_count_customer) as unread_count_customer,
-            SUM(s.unread_count_ncc) as unread_count_ncc,
+            s.last_message_time,
             s.status,
             s.created_at,
             shop.name as shop_name,
@@ -425,7 +423,8 @@ if ($action === 'list_sessions') {
             customer.avatar as customer_avatar,
             last_msg.noi_dung as last_message,
             last_msg.sender_type as last_sender_type,
-            last_msg.date_post as last_message_time
+            last_msg.date_post as last_message_time,
+            COALESCE(unread_count.unread_count, 0) as unread_count_customer
         FROM chat_sessions_ncc s
         LEFT JOIN user_info shop ON s.shop_id = shop.user_id
         LEFT JOIN user_info customer ON s.customer_id = customer.user_id
@@ -435,9 +434,14 @@ if ($action === 'list_sessions') {
             WHERE active = 1
             ORDER BY date_post DESC
         ) last_msg ON s.phien = last_msg.phien
+        LEFT JOIN (
+            SELECT phien, COUNT(*) as unread_count
+            FROM chat_ncc 
+            WHERE active = 1 AND doc = 0 AND sender_type = 'ncc'
+            GROUP BY phien
+        ) unread_count ON s.phien = unread_count.phien
         WHERE $where_condition AND s.status = 'active'
-        GROUP BY s.shop_id, s.customer_id
-        ORDER BY last_message_time DESC
+        ORDER BY s.last_message_time DESC
         LIMIT $limit OFFSET $offset";
         
         $sessions_result = $conn->query($sessions_query);
@@ -666,14 +670,10 @@ if ($action === 'create_session') {
         }
         
         // Kiểm tra phiên chat đã tồn tại chưa
-        $check_session = $conn->query("SELECT id, phien FROM chat_sessions_ncc WHERE shop_id = $shop_id AND customer_id = $user_id AND status = 'active' ORDER BY last_message_time DESC LIMIT 1");
+        $check_session = $conn->query("SELECT id, phien FROM chat_sessions_ncc WHERE shop_id = $shop_id AND customer_id = $user_id AND status = 'active' LIMIT 1");
         
         if ($check_session && $check_session->num_rows > 0) {
             $session = $check_session->fetch_assoc();
-            
-            // Đóng các session cũ khác (nếu có)
-            $conn->query("UPDATE chat_sessions_ncc SET status = 'closed' WHERE shop_id = $shop_id AND customer_id = $user_id AND status = 'active' AND id != {$session['id']}");
-            
             echo json_encode([
                 'success' => true,
                 'session_id' => $session['id'],
@@ -808,6 +808,52 @@ if ($action === 'sse_connect') {
             'timestamp' => time()
         ]) . "\n\n";
     
+    exit;
+}
+
+// === RESET UNREAD COUNT ===
+if ($action === 'reset_unread') {
+    $phien = $_POST['phien'] ?? $_GET['phien'] ?? '';
+    $user_type = $_POST['user_type'] ?? $_GET['user_type'] ?? 'customer';
+    
+    if (!$phien) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Vui lòng cung cấp phien'
+        ]);
+        exit;
+    }
+    
+    try {
+        // Kiểm tra phiên chat có tồn tại không
+        $check_session = $conn->query("SELECT id FROM chat_sessions_ncc WHERE phien = '$phien' AND status = 'active' LIMIT 1");
+        if (!$check_session || $check_session->num_rows == 0) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Phiên chat không tồn tại hoặc đã đóng'
+            ]);
+            exit;
+        }
+        
+        // Reset unread count dựa trên user_type
+        if ($user_type === 'customer') {
+            $conn->query("UPDATE chat_sessions_ncc SET unread_count_customer = 0 WHERE phien = '$phien'");
+            $conn->query("UPDATE chat_ncc SET doc = 1 WHERE phien = '$phien' AND sender_type = 'ncc' AND active = 1");
+        } else {
+            $conn->query("UPDATE chat_sessions_ncc SET unread_count_ncc = 0 WHERE phien = '$phien'");
+            $conn->query("UPDATE chat_ncc SET doc = 1 WHERE phien = '$phien' AND sender_type = 'customer' AND active = 1");
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Đã reset unread count'
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Lỗi hệ thống: ' . $e->getMessage()
+        ]);
+    }
     exit;
 }
 

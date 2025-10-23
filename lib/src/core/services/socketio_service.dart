@@ -33,19 +33,24 @@ class SocketIOService {
       // Listen to events
       _socket!.onConnect((_) {
         _isConnected = true;
-        if (onConnected != null) {
-          onConnected!();
-        }
+        print('🔌 [SocketIOService] Socket connected to server');
         
         // Join chat room with user_id
         _authService.getCurrentUser().then((user) {
           if (user != null) {
-            final joinData = {
-              'phien': phien,
-              'user_id': user.userId,
-            };
-            print('🚪 [SocketIOService] Joining room with data: $joinData');
-            _socket!.emit('join_chat', joinData);
+            // Try to join room like web does
+            print('🚪 [SocketIOService] Attempting to join room: $phien');
+            print('👤 [SocketIOService] User ID: ${user.userId}');
+            
+            // Try different join methods
+            _socket!.emit('join', {'room': phien, 'user_id': user.userId});
+            _socket!.emit('join_room', {'session_id': phien, 'customer_id': user.userId});
+            _socket!.emit('subscribe', {'channel': phien});
+            
+            // Call onConnected callback AFTER getting user info
+            if (onConnected != null) {
+              onConnected!();
+            }
           } else {
             print('❌ [SocketIOService] Cannot join room - user not found');
           }
@@ -117,9 +122,35 @@ class SocketIOService {
         }
       });
 
+      // Listen for server_send_message (main event from web)
+      _socket!.on('server_send_message', (data) {
+        print('📨 [SocketIOService] Received server_send_message event: $data');
+        if (onMessage != null) {
+          onMessage!(data);
+        }
+      });
+
+      // Debug: Listen for any message-related events
+      _socket!.on('message_received', (data) {
+        print('📨 [SocketIOService] Received message_received event: $data');
+        if (onMessage != null) {
+          onMessage!(data);
+        }
+      });
+
+      _socket!.on('chat_message', (data) {
+        print('📨 [SocketIOService] Received chat_message event: $data');
+        if (onMessage != null) {
+          onMessage!(data);
+        }
+      });
+
       // Send ping to test connection
       _socket!.emit('ping', {'test': 'connection'});
       print('🏓 [SocketIOService] Sent ping to test connection');
+
+      // Debug: Test if we can receive any events
+      print('🔍 [SocketIOService] Listening for events...');
 
     } catch (e) {
       _isConnected = false;
@@ -141,16 +172,20 @@ class SocketIOService {
       return;
     }
 
+    // Use same event as web: client_send_message
     final data = {
-      'phien': _phien,
+      'session_id': _phien,
+      'customer_id': user.userId,
       'message': message,
-      'sender_type': senderType,
-      'user_id': user.userId,
-      'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
     };
 
     print('📤 [SocketIOService] Sending message: $data');
-    _socket!.emit('send_message', data);
+    _socket!.emit('client_send_message', data);
+    
+    // Debug: Test if server responds
+    _socket!.on('message_sent', (data) {
+      print('✅ [SocketIOService] Server confirmed message sent: $data');
+    });
   }
 
   void disconnect() {

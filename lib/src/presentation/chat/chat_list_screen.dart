@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/chat_service.dart';
+import '../../core/services/socketio_service.dart';
 import '../../core/models/user.dart';
 import '../../core/models/chat.dart';
 import 'chat_screen.dart';
@@ -16,14 +18,97 @@ class ChatListScreen extends StatefulWidget {
 class _ChatListScreenState extends State<ChatListScreen> {
   final _authService = AuthService();
   final _chatService = ChatService();
+  final _socketIOService = SocketIOService();
   User? _currentUser;
   List<ChatSession> _sessions = [];
   bool _isLoading = true;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _checkLoginStatus();
+  }
+
+  @override
+  void dispose() {
+    _socketIOService.disconnect();
+    _stopPolling();
+    super.dispose();
+  }
+
+  void _startPolling() {
+    _stopPolling();
+    print('🔄 [ChatListScreen] Starting polling for chat sessions...');
+    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      _loadChatSessionsSilently();
+    });
+  }
+
+  Future<void> _loadChatSessionsSilently() async {
+    if (_currentUser == null || !mounted) return;
+
+    try {
+      final response = await _chatService.getSessions(
+        userId: _currentUser!.userId,
+        userType: 'customer',
+      );
+
+      if (mounted) {
+        // Group sessions by shop_id and keep only the latest one for each shop
+        final Map<int, ChatSession> groupedSessions = {};
+        
+        for (final session in response.sessions) {
+          if (!groupedSessions.containsKey(session.shopId) || 
+              session.lastMessageTime > groupedSessions[session.shopId]!.lastMessageTime) {
+            groupedSessions[session.shopId] = session;
+          }
+        }
+        
+        // Convert to list and sort by last message time
+        final uniqueSessions = groupedSessions.values.toList()
+          ..sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+        
+        print('📨 [ChatListScreen] Polling found ${response.sessions.length} sessions, grouped into ${uniqueSessions.length} unique shops');
+        setState(() {
+          _sessions = uniqueSessions;
+        });
+      }
+    } catch (e) {
+      print('❌ [ChatListScreen] Silent polling error: $e');
+    }
+  }
+
+  void _stopPolling() {
+    if (_pollingTimer != null) {
+      _pollingTimer!.cancel();
+      _pollingTimer = null;
+      print('⏹️ [ChatListScreen] Stopped polling');
+    }
+  }
+
+  void _setupSocketIO() {
+    // Set up Socket.io callbacks for real-time updates
+    _socketIOService.onConnected = () {
+      print('🔌 [ChatListScreen] Socket.io connected');
+    };
+
+    _socketIOService.onDisconnected = () {
+      print('🔌 [ChatListScreen] Socket.io disconnected');
+    };
+
+    _socketIOService.onError = (error) {
+      print('❌ [ChatListScreen] Socket.io error: $error');
+    };
+
+    _socketIOService.onMessage = (message) {
+      print('📨 [ChatListScreen] Received message: $message');
+      // Refresh chat sessions when new message received
+      _loadChatSessions();
+    };
+
+    // Connect to Socket.io (will connect to all sessions)
+    _socketIOService.connect('global');
   }
 
   Future<void> _checkLoginStatus() async {
@@ -35,6 +120,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
           _currentUser = user;
         });
         _loadChatSessions();
+        _startPolling();
+        _setupSocketIO();
       } else {
         setState(() {
           _currentUser = null;
@@ -61,10 +148,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
       );
 
       if (mounted) {
+        // Group sessions by shop_id and keep only the latest one for each shop
+        final Map<int, ChatSession> groupedSessions = {};
+        
+        for (final session in response.sessions) {
+          if (!groupedSessions.containsKey(session.shopId) || 
+              session.lastMessageTime > groupedSessions[session.shopId]!.lastMessageTime) {
+            groupedSessions[session.shopId] = session;
+          }
+        }
+        
+        // Convert to list and sort by last message time
+        final uniqueSessions = groupedSessions.values.toList()
+          ..sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+        
         setState(() {
-          _sessions = response.sessions;
+          _sessions = uniqueSessions;
           _isLoading = false;
         });
+        
+        print('📋 [ChatListScreen] Grouped ${response.sessions.length} sessions into ${uniqueSessions.length} unique shops');
       }
     } catch (e) {
       if (mounted) {

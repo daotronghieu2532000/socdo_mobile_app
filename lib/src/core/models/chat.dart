@@ -31,7 +31,7 @@ class ChatSession {
       lastMessage: json['last_message'],
       lastMessageTime: int.tryParse(json['last_message_time']?.toString() ?? '0') ?? 0,
       lastMessageFormatted: json['last_message_formatted'] ?? '',
-      unreadCount: int.tryParse(json['unread_count']?.toString() ?? '0') ?? 0,
+      unreadCount: int.tryParse(json['unread_count_customer']?.toString() ?? '0') ?? 0,
     );
   }
 

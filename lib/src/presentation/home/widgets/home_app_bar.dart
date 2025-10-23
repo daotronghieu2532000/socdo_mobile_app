@@ -7,6 +7,7 @@ import '../../chat/chat_list_screen.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/chat_service.dart';
 import '../../../core/models/user.dart';
+import '../../../core/models/chat.dart';
 import '../../../core/services/api_service.dart';
 
 class HomeAppBar extends StatefulWidget {
@@ -34,8 +35,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
     // Thêm listener để cập nhật khi trạng thái đăng nhập thay đổi
     _authService.addAuthStateListener(_checkLoginStatus);
     
-    // Cập nhật thông báo mỗi 10 giây
-    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    // Cập nhật thông báo mỗi 60 giây
+    _timer = Timer.periodic(const Duration(seconds: 60), (timer) {
       if (mounted && _currentUser != null) {
         _loadUnread();
       }
@@ -87,15 +88,34 @@ class _HomeAppBarState extends State<HomeAppBar> {
     
     // Load chat unread count
     try {
-      final chatRes = await _chatService.getUnreadCount(
+      final chatRes = await _chatService.getSessions(
         userId: _currentUser!.userId,
         userType: 'customer',
       );
       if (!mounted) return;
+      
+      // Group sessions by shop_id and keep only the latest one for each shop (same logic as ChatListScreen)
+      final Map<int, ChatSession> groupedSessions = {};
+      
+      for (final session in chatRes.sessions) {
+        if (!groupedSessions.containsKey(session.shopId) || 
+            session.lastMessageTime > groupedSessions[session.shopId]!.lastMessageTime) {
+          groupedSessions[session.shopId] = session;
+        }
+      }
+      
+      // Calculate total unread count from grouped sessions only
+      int totalUnread = 0;
+      for (final session in groupedSessions.values) {
+        totalUnread += session.unreadCount;
+      }
+      
       setState(() {
-        _unreadChat = chatRes.unreadCount;
+        _unreadChat = totalUnread;
       });
+      print('📊 [HomeAppBar] Chat unread count: $totalUnread (from ${groupedSessions.length} unique shops)');
     } catch (e) {
+      print('❌ [HomeAppBar] Error loading chat unread: $e');
       // Ignore chat errors
     }
   }
