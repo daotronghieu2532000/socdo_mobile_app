@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'widgets/left_menu_item.dart';
 import 'widgets/right_content.dart';
 import '../../core/services/cached_api_service.dart';
+import '../../core/widgets/scroll_preservation_wrapper.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -132,41 +133,44 @@ class _CategoryScreenState extends State<CategoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Danh mục sản phẩm'),
-        // Ẩn icon giỏ hàng góc phải theo yêu cầu
-      ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : Row(
-            children: [
-              SizedBox(
-                width: 110,
-                child: ListView.builder(
-                  itemCount: _parentCategories.length,
-                  itemBuilder: (context, index) => LeftMenuItem(
-                    label: _parentCategories[index]['name'] ?? _parentCategories[index]['cat_tieude'] ?? 'Danh mục',
-                    imageUrl: _parentCategories[index]['image'] ?? _parentCategories[index]['cat_minhhoa'] ?? _parentCategories[index]['cat_img'],
-                    selected: index == _selectedParentIndex,
-                    onTap: () => _onParentCategorySelected(index),
+    return ScrollPreservationWrapper(
+      tabIndex: 1, // Category tab
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Danh mục sản phẩm'),
+          // Ẩn icon giỏ hàng góc phải theo yêu cầu
+        ),
+        body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : Row(
+              children: [
+                SizedBox(
+                  width: 110,
+                  child: ListView.builder(
+                    itemCount: _parentCategories.length,
+                    itemBuilder: (context, index) => LeftMenuItem(
+                      label: _parentCategories[index]['name'] ?? _parentCategories[index]['cat_tieude'] ?? 'Danh mục',
+                      imageUrl: _parentCategories[index]['image'] ?? _parentCategories[index]['cat_minhhoa'] ?? _parentCategories[index]['cat_img'],
+                      selected: index == _selectedParentIndex,
+                      onTap: () => _onParentCategorySelected(index),
+                    ),
                   ),
                 ),
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: RightContent(
-                  title: _parentCategories.isNotEmpty 
-                    ? _parentCategories[_selectedParentIndex]['name'] ?? _parentCategories[_selectedParentIndex]['cat_tieude'] ?? 'Danh mục'
-                    : 'Danh mục',
-                  parentCategoryId: _parentCategories.isNotEmpty 
-                    ? _parentCategories[_selectedParentIndex]['id'] ?? _parentCategories[_selectedParentIndex]['cat_id'] ?? 0
-                    : 0,
-                  childCategories: _childCategories,
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: RightContent(
+                    title: _parentCategories.isNotEmpty 
+                      ? _parentCategories[_selectedParentIndex]['name'] ?? _parentCategories[_selectedParentIndex]['cat_tieude'] ?? 'Danh mục'
+                      : 'Danh mục',
+                    parentCategoryId: _parentCategories.isNotEmpty 
+                      ? _parentCategories[_selectedParentIndex]['id'] ?? _parentCategories[_selectedParentIndex]['cat_id'] ?? 0
+                      : 0,
+                    childCategories: _childCategories,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+      ),
     );
   }
 }

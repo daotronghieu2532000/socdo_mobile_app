@@ -1,82 +1,106 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/shop_detail.dart';
+import '../../../core/services/cached_api_service.dart';
+import 'shop_section_wrapper.dart';
 
-class ShopWarehousesSection extends StatelessWidget {
-  final List<ShopWarehouse> warehouses;
+class ShopWarehousesSection extends StatefulWidget {
+  final int shopId;
 
   const ShopWarehousesSection({
     super.key,
-    required this.warehouses,
+    required this.shopId,
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (warehouses.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.warehouse_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Shop chưa có kho hàng nào',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
+  State<ShopWarehousesSection> createState() => _ShopWarehousesSectionState();
+}
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: warehouses.length,
-      itemBuilder: (context, index) {
-        final warehouse = warehouses[index];
-        return _buildWarehouseCard(warehouse);
-      },
+class _ShopWarehousesSectionState extends State<ShopWarehousesSection> {
+  final CachedApiService _cachedApiService = CachedApiService();
+  
+  List<ShopWarehouse> _warehouses = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWarehouses();
+  }
+
+  Future<void> _loadWarehouses() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final warehousesData = await _cachedApiService.getShopWarehousesCached(
+        shopId: widget.shopId,
+      );
+
+      if (mounted) {
+        final warehouses = warehousesData.map((data) => ShopWarehouse.fromJson(data)).toList();
+        
+        setState(() {
+          _warehouses = warehouses;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Lỗi kết nối: $e';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ShopSectionWrapper(
+      isLoading: _isLoading,
+      error: _error,
+      emptyMessage: 'Shop chưa có kho hàng nào',
+      emptyIcon: Icons.warehouse_outlined,
+      onRetry: _loadWarehouses,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: _warehouses.length,
+        itemBuilder: (context, index) {
+          final warehouse = _warehouses[index];
+          return _buildWarehouseCard(warehouse);
+        },
+      ),
     );
   }
 
   Widget _buildWarehouseCard(ShopWarehouse warehouse) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue[400]!, Colors.blue[600]!],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-            child: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                const Icon(Icons.warehouse, color: Colors.white, size: 24),
-                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    warehouse.warehouseName?.isNotEmpty == true 
-                        ? warehouse.warehouseName! 
-                        : 'Kho hàng #${warehouse.id}',
+                    warehouse.warehouseName ?? 'Kho hàng',
                     style: const TextStyle(
-                      color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -86,7 +110,7 @@ class ShopWarehousesSection extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.blue,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
@@ -100,146 +124,25 @@ class ShopWarehousesSection extends StatelessWidget {
                   ),
               ],
             ),
-          ),
-          
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Contact info
-                Row(
-                  children: [
-                    Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      warehouse.contactName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.phone, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      warehouse.contactPhone,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 12),
-                
-                // Address
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        warehouse.fullAddress,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 12),
-                
-                // Services
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    if (warehouse.isPickup == 1)
-                      _buildServiceChip('Nhận hàng', Colors.green),
-                    if (warehouse.isReturn == 1)
-                      _buildServiceChip('Trả hàng', Colors.orange),
-                  ],
-                ),
-                
-                // Freeship info
-                if (warehouse.freeshipDescription.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.local_shipping, color: Colors.green[600], size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            warehouse.freeshipDescription,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.green[600],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                
-                // Coordinates (if available)
-                if (warehouse.latitude != 0 && warehouse.longitude != 0) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(Icons.map, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tọa độ: ${warehouse.latitude.toStringAsFixed(6)}, ${warehouse.longitude.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+            const SizedBox(height: 8),
+            Text(
+              warehouse.fullAddress,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServiceChip(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          color: color,
-          fontWeight: FontWeight.w500,
+            const SizedBox(height: 8),
+            if (warehouse.freeshipDescription.isNotEmpty)
+              Text(
+                warehouse.freeshipDescription,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.green,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
         ),
       ),
     );

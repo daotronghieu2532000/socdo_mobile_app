@@ -24,7 +24,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isSearching = false;
   String _currentKeyword = '';
   int _currentPage = 1;
-  final int _itemsPerPage = 50; // Tăng từ 10 lên 50
+  final int _itemsPerPage = 500; // Tăng từ 10 lên 50
 
   // Lọc & sắp xếp
   String _sort = 'relevance'; // relevance | price-asc | price-desc | rating-desc | sold-desc

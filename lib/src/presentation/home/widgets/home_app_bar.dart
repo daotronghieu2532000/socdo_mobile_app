@@ -113,9 +113,9 @@ class _HomeAppBarState extends State<HomeAppBar> {
       setState(() {
         _unreadChat = totalUnread;
       });
-      print('📊 [HomeAppBar] Chat unread count: $totalUnread (from ${groupedSessions.length} unique shops)');
+      // print('📊 [HomeAppBar] Chat unread count: $totalUnread (from ${groupedSessions.length} unique shops)');
     } catch (e) {
-      print('❌ [HomeAppBar] Error loading chat unread: $e');
+      // print('❌ [HomeAppBar] Error loading chat unread: $e');
       // Ignore chat errors
     }
   }
@@ -208,7 +208,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.notifications_none, color: Colors.black87),
+                    child: const Icon(Icons.notifications_active, color: Colors.black87),
                   ),
                   if (_unread > 0)
                     Positioned(
@@ -243,7 +243,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.chat_bubble_outline, color: Colors.black87),
+                    child: const Icon(Icons.chat, color: Colors.black87),
                   ),
                   if (_unreadChat > 0)
                     Positioned(

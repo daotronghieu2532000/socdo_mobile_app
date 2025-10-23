@@ -11,13 +11,14 @@ import '../../checkout/checkout_screen.dart';
 import '../../../core/models/product_detail.dart';
 import '../../../core/services/cart_service.dart';
 import '../../../core/services/cached_api_service.dart';
+import 'shop_section_wrapper.dart';
 
 class ShopFlashSalesSection extends StatefulWidget {
-  final List<ShopFlashSale> flashSales;
+  final int shopId;
 
   const ShopFlashSalesSection({
     super.key,
-    required this.flashSales,
+    required this.shopId,
   });
 
   @override
@@ -25,22 +26,58 @@ class ShopFlashSalesSection extends StatefulWidget {
 }
 
 class _ShopFlashSalesSectionState extends State<ShopFlashSalesSection> {
+  final CachedApiService _cachedApiService = CachedApiService();
   late Timer _timer;
   final Map<int, Duration> _timeLeftMap = {};
-  final Map<int, bool> _expandedMap = {}; // Track expanded state for each flash sale
+  final Map<int, bool> _expandedMap = {};
+  
+  List<ShopFlashSale> _flashSales = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _initializeTimers();
+    _loadFlashSales();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _updateTimers();
     });
   }
 
+  Future<void> _loadFlashSales() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final flashSalesData = await _cachedApiService.getShopFlashSalesCached(
+        shopId: widget.shopId,
+      );
+
+      if (mounted) {
+        final flashSales = flashSalesData.map((data) => ShopFlashSale.fromJson(data)).toList();
+        
+        setState(() {
+          _flashSales = flashSales;
+          _isLoading = false;
+        });
+        
+        _initializeTimers();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Lỗi kết nối: $e';
+        });
+      }
+    }
+  }
+
   void _initializeTimers() {
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    for (var flashSale in widget.flashSales) {
+    for (var flashSale in _flashSales) {
       final timeLeft = flashSale.endTime - now;
       _timeLeftMap[flashSale.id] = Duration(seconds: timeLeft > 0 ? timeLeft : 0);
     }
@@ -50,7 +87,7 @@ class _ShopFlashSalesSectionState extends State<ShopFlashSalesSection> {
     bool needsUpdate = false;
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     
-    for (var flashSale in widget.flashSales) {
+    for (var flashSale in _flashSales) {
       final timeLeft = flashSale.endTime - now;
       final currentDuration = Duration(seconds: timeLeft > 0 ? timeLeft : 0);
       
@@ -73,29 +110,20 @@ class _ShopFlashSalesSectionState extends State<ShopFlashSalesSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.flashSales.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.flash_on_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Shop chưa có flash sale nào',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: widget.flashSales.length,
-      itemBuilder: (context, index) {
-        final flashSale = widget.flashSales[index];
-        return _buildFlashSaleCard(flashSale, context);
-      },
+    return ShopSectionWrapper(
+      isLoading: _isLoading,
+      error: _error,
+      emptyMessage: 'Shop chưa có flash sale nào',
+      emptyIcon: Icons.flash_on_outlined,
+      onRetry: _loadFlashSales,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: _flashSales.length,
+        itemBuilder: (context, index) {
+          final flashSale = _flashSales[index];
+          return _buildFlashSaleCard(flashSale, context);
+        },
+      ),
     );
   }
 

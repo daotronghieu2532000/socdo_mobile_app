@@ -104,13 +104,8 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         final rawProducts = List<Map<String, dynamic>>.from(data['products'] ?? []);
         final pagination = data['pagination'] ?? {};
         
-        // Debug log để kiểm tra API response
-        print('🔍 Category Products API Response:');
-        print('📊 Raw products count: ${rawProducts.length}');
-        if (rawProducts.isNotEmpty) {
-          print('📊 First product sample: ${rawProducts.first}');
-        }
-        print('📊 Pagination: $pagination');
+      
+       
         
         // Lưu total products từ pagination
         _totalProducts = _safeParseInt(pagination['total_products']) != 0 ? _safeParseInt(pagination['total_products']) : (_safeParseInt(pagination['total']) != 0 ? _safeParseInt(pagination['total']) : 0);

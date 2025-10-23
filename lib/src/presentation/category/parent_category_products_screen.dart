@@ -91,7 +91,7 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
       final response = await _apiService.getProductsByParentCategory(
         parentCategoryId: widget.parentCategoryId,
         page: loadMore ? _currentPage + 1 : 1,
-        limit: 50, // Tăng từ 10 lên 50
+        limit: 150, // Tăng từ 10 lên 50
         sort: _currentSort,
       );
 
@@ -100,13 +100,7 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
         final rawProducts = List<Map<String, dynamic>>.from(data['products'] ?? []);
         final pagination = data['pagination'] ?? {};
         
-        // Debug log để kiểm tra API response
-        print('🔍 Parent Category Products API Response:');
-        print('📊 Raw products count: ${rawProducts.length}');
-        if (rawProducts.isNotEmpty) {
-          print('📊 First product sample: ${rawProducts.first}');
-        }
-        print('📊 Pagination: $pagination');
+       
 
         // Map API fields to UI expected fields
         final products = rawProducts.map((product) {
@@ -214,7 +208,7 @@ class _ParentCategoryProductsScreenState extends State<ParentCategoryProductsScr
         parentCategoryId: widget.parentCategoryId,
         alreadyLoadedCategories: _loadedCategories,
         page: _currentPage + 1,
-        limit: 50, // Tăng từ 10 lên 50
+        limit: 150, // Tăng từ 10 lên 50
         sort: _currentSort,
       );
       

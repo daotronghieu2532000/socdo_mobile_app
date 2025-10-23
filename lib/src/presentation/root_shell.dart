@@ -4,6 +4,7 @@ import 'home/home_screen.dart';
 import 'category/category_screen.dart';
 import 'cart/cart_screen.dart';
 import '../core/services/cart_service.dart' as cart_service;
+import '../core/services/app_lifecycle_manager.dart';
 import '../core/utils/format_utils.dart';
 // import 'notifications/notifications_screen.dart';
 import 'affiliate/affiliate_screen.dart';
@@ -19,11 +20,14 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   late int _currentIndex = widget.initialIndex;
   final cart_service.CartService _cart = cart_service.CartService();
+  final AppLifecycleManager _lifecycleManager = AppLifecycleManager();
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _cart.addListener(_onCartChanged);
+    _initializeAppState();
   }
 
   @override
@@ -34,6 +38,28 @@ class _RootShellState extends State<RootShell> {
 
   void _onCartChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// Khởi tạo và khôi phục state của app
+  Future<void> _initializeAppState() async {
+    if (_isInitialized) return;
+    
+    try {
+      // Khởi tạo AppLifecycleManager
+      _lifecycleManager.initialize();
+      
+      // Thử khôi phục tab đã lưu
+      final savedTab = await _lifecycleManager.getSavedTab();
+      if (savedTab != null && savedTab != widget.initialIndex) {
+        setState(() {
+          _currentIndex = savedTab;
+        });
+      }
+      
+      _isInitialized = true;
+    } catch (e) {
+      // Ignore error
+    }
   }
 
   // Tabs: Trang chủ, Danh mục, Affiliate
@@ -52,7 +78,7 @@ class _RootShellState extends State<RootShell> {
     final Color color = selected ? Colors.red : Colors.grey;
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _currentIndex = index),
+        onTap: () => _onTabChanged(index),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
@@ -74,6 +100,18 @@ class _RootShellState extends State<RootShell> {
         ),
       ),
     );
+  }
+
+  /// Xử lý khi tab thay đổi
+  void _onTabChanged(int newIndex) {
+    if (newIndex != _currentIndex) {
+      setState(() {
+        _currentIndex = newIndex;
+      });
+      
+      // Lưu tab hiện tại
+      _lifecycleManager.saveCurrentTab(newIndex);
+    }
   }
 
   @override

@@ -279,7 +279,7 @@ class _ShopVouchersTabState extends State<ShopVouchersTab> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Colors.blue, Color(0xFF64B5F6)],
+              colors: [Colors.blue, Color.fromARGB(255, 85, 157, 215)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

@@ -145,7 +145,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
       final productsData = await _cachedApiService.getAffiliateProducts(
         userId: _currentUserId,
         page: _currentPage,
-        limit: 50,
+        limit: 300,
         search: _searchQuery.isEmpty ? null : _searchQuery,
         sortBy: _sortBy,
         onlyFollowing: _onlyFollowed,
@@ -169,7 +169,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
         result = await _affiliateService.getProducts(
           userId: _currentUserId,
           page: _currentPage,
-          limit: 50,
+          limit: 300,
           search: _searchQuery.isEmpty ? null : _searchQuery,
           sortBy: _sortBy,
           onlyFollowing: _onlyFollowed,

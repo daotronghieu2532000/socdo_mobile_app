@@ -42,7 +42,7 @@ class CachedApiService {
     int includeVouchers = 1,
     int includeWarehouses = 1,
     int includeCategories = 1,
-    int productsLimit = 20,
+    int productsLimit = 50, // Tăng từ 20 lên 50
     bool forceRefresh = false,
     Duration? cacheDuration,
   }) async {
@@ -1415,5 +1415,335 @@ class CachedApiService {
   void clearAllFavoriteProductsCache() {
     clearCachePattern(CacheKeys.favoriteProducts);
     print('🧹 Cleared all favorite products cache');
+  }
+
+  /// Lấy sản phẩm shop với pagination và cache
+  Future<Map<String, dynamic>?> getShopProductsPaginatedCached({
+    required int shopId,
+    int page = 1,
+    int limit = 50,
+    String? sortBy,
+    String? categoryId,
+    String? searchQuery,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey('shop_products_paginated', {
+      'shopId': shopId,
+      'page': page,
+      'limit': limit,
+      'sortBy': sortBy ?? '',
+      'categoryId': categoryId ?? '',
+      'searchQuery': searchQuery ?? '',
+    });
+    
+    // Kiểm tra cache trước
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('⚡ Using cached shop products for page: $page');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🔄 Fetching shop products from API for page: $page');
+      final result = await _apiService.getShopProductsPaginated(
+        shopId: shopId,
+        page: page,
+        limit: limit,
+        sortBy: sortBy,
+        categoryId: categoryId,
+        searchQuery: searchQuery,
+      );
+      
+      if (result != null) {
+        // Cache kết quả
+        _cache.set(
+          cacheKey,
+          result,
+        );
+        print('💾 Cached shop products for page: $page');
+      }
+      
+      return result;
+    } catch (e) {
+      print('❌ Error fetching shop products: $e');
+      rethrow;
+    }
+  }
+
+  /// Xóa cache của shop products
+  void clearShopProductsCache(int shopId) {
+    clearCachePattern('shop_products_paginated:{"shopId":$shopId');
+    print('🧹 Cleared shop products cache for shop: $shopId');
+  }
+
+  /// Lấy flash sales của shop với cache riêng
+  Future<List<Map<String, dynamic>>> getShopFlashSalesCached({
+    required int shopId,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey('shop_flash_sales', {
+      'shopId': shopId,
+    });
+    
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('⚡ Using cached shop flash sales');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🔄 Fetching shop flash sales from API');
+      final result = await _apiService.getShopDetail(
+        shopId: shopId,
+        includeProducts: 0,
+        includeFlashSale: 1,
+        includeVouchers: 0,
+        includeWarehouses: 0,
+        includeCategories: 0,
+        productsLimit: 0,
+      );
+      
+      if (result != null) {
+        final flashSales = result.flashSales.map((fs) => {
+          'id': fs.id,
+          'title': fs.title,
+          'start_time': fs.startTime,
+          'end_time': fs.endTime,
+          'timeline': fs.timeline,
+          'created_at': fs.createdAt,
+          'main_products': fs.mainProducts,
+          'sub_products': fs.subProducts,
+        }).toList();
+        _cache.set(
+          cacheKey,
+          flashSales,
+        );
+        print('💾 Cached shop flash sales');
+        return flashSales;
+      }
+      
+      return [];
+    } catch (e) {
+      print('❌ Error fetching shop flash sales: $e');
+      return [];
+    }
+  }
+
+  /// Lấy vouchers của shop với cache riêng
+  Future<List<Map<String, dynamic>>> getShopVouchersDataCached({
+    required int shopId,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey('shop_vouchers', {
+      'shopId': shopId,
+    });
+    
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('⚡ Using cached shop vouchers');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🔄 Fetching shop vouchers from API');
+      final result = await _apiService.getShopDetail(
+        shopId: shopId,
+        includeProducts: 0,
+        includeFlashSale: 0,
+        includeVouchers: 1,
+        includeWarehouses: 0,
+        includeCategories: 0,
+        productsLimit: 0,
+      );
+      
+      if (result != null) {
+        final vouchers = result.vouchers.map((v) => {
+          'id': v.id,
+          'code': v.code,
+          'discount_value': v.discountValue,
+          'max_discount': v.maxDiscount,
+          'discount_type': v.discountType,
+          'apply_type': v.applyType,
+          'product_ids': v.productIds,
+          'min_order_value': v.minOrderValue,
+          'start_time': v.startTime,
+          'end_time': v.endTime,
+          'description': v.description,
+          'image_url': v.imageUrl,
+          'min_price': v.minPrice,
+          'max_price': v.maxPrice,
+          'allow_combination': v.allowCombination,
+          'max_uses_per_user': v.maxUsesPerUser,
+          'max_global_uses': v.maxGlobalUses,
+          'current_uses': v.currentUses,
+          'created_at': v.createdAt,
+        }).toList();
+        _cache.set(
+          cacheKey,
+          vouchers,
+        );
+        print('💾 Cached shop vouchers');
+        return vouchers;
+      }
+      
+      return [];
+    } catch (e) {
+      print('❌ Error fetching shop vouchers: $e');
+      return [];
+    }
+  }
+
+  /// Lấy warehouses của shop với cache riêng
+  Future<List<Map<String, dynamic>>> getShopWarehousesCached({
+    required int shopId,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey('shop_warehouses', {
+      'shopId': shopId,
+    });
+    
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('⚡ Using cached shop warehouses');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🔄 Fetching shop warehouses from API');
+      final result = await _apiService.getShopDetail(
+        shopId: shopId,
+        includeProducts: 0,
+        includeFlashSale: 0,
+        includeVouchers: 0,
+        includeWarehouses: 1,
+        includeCategories: 0,
+        productsLimit: 0,
+      );
+      
+      if (result != null) {
+        final warehouses = result.warehouses.map((w) => {
+          'id': w.id,
+          'warehouse_code': w.warehouseCode,
+          'warehouse_name': w.warehouseName,
+          'contact_name': w.contactName,
+          'contact_phone': w.contactPhone,
+          'is_default': w.isDefault,
+          'is_pickup': w.isPickup,
+          'is_return': w.isReturn,
+          'latitude': w.latitude,
+          'longitude': w.longitude,
+          'address_detail': w.addressDetail,
+          'province_id': w.provinceId,
+          'district_id': w.districtId,
+          'ward_id': w.wardId,
+          'province_name': w.provinceName,
+          'district_name': w.districtName,
+          'ward_name': w.wardName,
+          'full_address': w.fullAddress,
+          'free_ship_mode': w.freeShipMode,
+          'free_ship_min_order': w.freeShipMinOrder,
+          'free_ship_discount': w.freeShipDiscount,
+          'freeship_description': w.freeshipDescription,
+        }).toList();
+        _cache.set(
+          cacheKey,
+          warehouses,
+        );
+        print('💾 Cached shop warehouses');
+        return warehouses;
+      }
+      
+      return [];
+    } catch (e) {
+      print('❌ Error fetching shop warehouses: $e');
+      return [];
+    }
+  }
+
+  /// Lấy categories của shop với cache riêng
+  Future<List<Map<String, dynamic>>> getShopCategoriesCached({
+    required int shopId,
+    bool forceRefresh = false,
+    Duration? cacheDuration,
+  }) async {
+    final cacheKey = MemoryCacheService.createKey('shop_categories', {
+      'shopId': shopId,
+    });
+    
+    if (!forceRefresh && _cache.has(cacheKey)) {
+      final cachedData = _cache.get<List<Map<String, dynamic>>>(cacheKey);
+      if (cachedData != null) {
+        print('⚡ Using cached shop categories');
+        return cachedData;
+      }
+    }
+
+    try {
+      print('🔄 Fetching shop categories from API');
+      final result = await _apiService.getShopDetail(
+        shopId: shopId,
+        includeProducts: 0,
+        includeFlashSale: 0,
+        includeVouchers: 0,
+        includeWarehouses: 0,
+        includeCategories: 1,
+        productsLimit: 0,
+      );
+      
+      if (result != null) {
+        final categories = result.categories.map((c) => {
+          'id': c.id,
+          'icon': c.icon,
+          'title': c.title,
+          'description': c.description,
+          'parent_id': c.parentId,
+          'is_index': c.isIndex,
+          'link': c.link,
+          'image': c.image,
+          'banner_image': c.bannerImage,
+          'left_image': c.leftImage,
+          'seo_title': c.seoTitle,
+          'seo_description': c.seoDescription,
+          'order': c.order,
+          'socdo_category_ids': c.socdoCategoryIds,
+          'socdo_category_name': c.socdoCategoryName,
+          'category_url': c.categoryUrl,
+        }).toList();
+        _cache.set(
+          cacheKey,
+          categories,
+        );
+        print('💾 Cached shop categories');
+        return categories;
+      }
+      
+      return [];
+    } catch (e) {
+      print('❌ Error fetching shop categories: $e');
+      return [];
+    }
+  }
+
+  /// Xóa tất cả cache của shop
+  void clearAllShopCache(int shopId) {
+    clearShopProductsCache(shopId);
+    clearCachePattern('shop_flash_sales:{"shopId":$shopId');
+    clearCachePattern('shop_vouchers:{"shopId":$shopId');
+    clearCachePattern('shop_warehouses:{"shopId":$shopId');
+    clearCachePattern('shop_categories:{"shopId":$shopId');
+    clearCachePattern('shop_detail:{"shopId":$shopId');
+    print('🧹 Cleared all cache for shop: $shopId');
   }
 }

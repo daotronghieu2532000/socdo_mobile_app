@@ -11,19 +11,148 @@ import '../../../core/models/product_detail.dart';
 import '../../../core/services/cart_service.dart';
 import '../../../core/services/cached_api_service.dart';
 
-class ShopProductsSection extends StatelessWidget {
-  final List<ShopProduct> products;
+class ShopProductsSection extends StatefulWidget {
+  final int shopId;
   final Function(ShopProduct) onProductTap;
 
   const ShopProductsSection({
     super.key,
-    required this.products,
+    required this.shopId,
     required this.onProductTap,
   });
 
   @override
+  State<ShopProductsSection> createState() => _ShopProductsSectionState();
+}
+
+class _ShopProductsSectionState extends State<ShopProductsSection> {
+  final CachedApiService _cachedApiService = CachedApiService();
+  final ScrollController _scrollController = ScrollController();
+  
+  List<ShopProduct> _products = [];
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 1;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMoreProducts();
+    }
+  }
+
+  Future<void> _loadProducts({bool loadMore = false}) async {
+    if (!loadMore) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+        _currentPage = 1;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
+
+    try {
+      final result = await _cachedApiService.getShopProductsPaginatedCached(
+        shopId: widget.shopId,
+        page: loadMore ? _currentPage + 1 : 1,
+        limit: 50,
+      );
+
+      if (mounted && result != null) {
+        final productsData = result['products'] as List? ?? [];
+        final pagination = result['pagination'] as Map<String, dynamic>? ?? {};
+        
+        final newProducts = productsData.map((data) => ShopProduct.fromJson(data)).toList();
+        
+        setState(() {
+          if (loadMore) {
+            _products.addAll(newProducts);
+            _currentPage++;
+          } else {
+            _products = newProducts;
+            _currentPage = 1;
+          }
+          
+          _hasMore = pagination['has_next'] ?? false;
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isLoadingMore = false;
+          _error = 'Không thể tải sản phẩm';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isLoadingMore = false;
+          _error = 'Lỗi kết nối: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMoreProducts() async {
+    if (!_isLoadingMore && _hasMore) {
+      await _loadProducts(loadMore: true);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (products.isEmpty) {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Đang tải sản phẩm...'),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(_error!, style: TextStyle(color: Colors.grey)),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _loadProducts(),
+              child: Text('Thử lại'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_products.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -40,10 +169,18 @@ class ShopProductsSection extends StatelessWidget {
     }
 
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.all(8),
-      itemCount: products.length,
+      itemCount: _products.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        final product = products[index];
+        if (index == _products.length) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        final product = _products[index];
         return _buildProductCard(product, context);
       },
     );
@@ -85,7 +222,7 @@ class ShopProductsSection extends StatelessWidget {
         ],
       ),
       child: InkWell(
-        onTap: () => onProductTap(product),
+        onTap: () => widget.onProductTap(product),
         borderRadius: BorderRadius.circular(8),
         child: Stack(
           children: [

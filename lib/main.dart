@@ -3,6 +3,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'src/app.dart';
 import 'src/core/services/app_initialization_service.dart';
+import 'src/core/services/app_lifecycle_manager.dart';
 
 void main() async {
   // Giữ native splash screen cho đến khi Flutter ready
@@ -18,6 +19,10 @@ void main() async {
 Future<void> _initializeApp() async {
   try {
     print('🚀 Đang khởi tạo ứng dụng...');
+    
+    // Khởi tạo AppLifecycleManager
+    final lifecycleManager = AppLifecycleManager();
+    lifecycleManager.initialize();
     
     // Khởi tạo token
     final initService = AppInitializationService();

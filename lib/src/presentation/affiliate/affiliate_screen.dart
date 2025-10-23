@@ -4,6 +4,7 @@ import '../../core/services/affiliate_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/cached_api_service.dart';
 import '../../core/utils/format_utils.dart';
+import '../../core/widgets/scroll_preservation_wrapper.dart';
 import '../auth/login_screen.dart';
 import 'affiliate_products_screen.dart';
 import 'affiliate_links_screen.dart';
@@ -352,202 +353,205 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Affiliate'),
-        centerTitle: true,
-        actions: [
-          if (_currentUserId != null)
-            IconButton(
-              onPressed: _loadDashboard,
-              icon: const Icon(Icons.refresh),
-            ),
-        ],
-      ),
-      body: _currentUserId == null
-          ? _buildLoginPrompt()
-          : _isAffiliateRegistered == false
-              ? _buildAffiliateRegistrationPrompt()
-              : _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(_error!),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _loadDashboard,
-                                child: const Text('Thử lại'),
-                              ),
-                            ],
-                          ),
-                        )
-                      : _dashboard == null
-                      ? const Center(child: Text('Không có dữ liệu'))
-                      : Column(
-                      children: [
-                        // Affiliate Marketing Banner
-                        Container(
-                          margin: const EdgeInsets.all(16),
-                          height: 200,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Stack(
+    return ScrollPreservationWrapper(
+      tabIndex: 2, // Affiliate tab
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Affiliate'),
+          centerTitle: true,
+          actions: [
+            if (_currentUserId != null)
+              IconButton(
+                onPressed: _loadDashboard,
+                icon: const Icon(Icons.refresh),
+              ),
+          ],
+        ),
+        body: _currentUserId == null
+            ? _buildLoginPrompt()
+            : _isAffiliateRegistered == false
+                ? _buildAffiliateRegistrationPrompt()
+                : _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // Background Image
-                                Positioned.fill(
-                                  child: Image.asset(
-                                    'assets/images/affiliate-marketing-15725072874221438636530.jpg',
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Colors.purple[600]!,
-                                              Colors.pink[500]!,
-                                              Colors.orange[400]!,
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                        ),
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.image_not_supported,
-                                            color: Colors.white,
-                                            size: 48,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                Text(_error!),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: _loadDashboard,
+                                  child: const Text('Thử lại'),
                                 ),
-                                // Overlay with content
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.black.withOpacity(0.3),
-                                          Colors.black.withOpacity(0.6),
-                                        ],
-                                      ),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(20),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Spacer(),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    const Text(
-                                                      '💰 Affiliate Program',
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 20,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    const Text(
-                                                      'Kiếm tiền từ việc chia sẻ',
-                                                      style: TextStyle(
-                                                        color: Colors.white70,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      'Tổng hoa hồng: ${FormatUtils.formatCurrency(_dashboard!.totalCommission.toInt())}',
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              Container(
-                                                padding: const EdgeInsets.all(12),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white.withOpacity(0.2),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.trending_up,
-                                                  color: Colors.white,
-                                                  size: 24,
-                                                ),
-                                              ),
-                                            ],
+                              ],
+                            ),
+                          )
+                        : _dashboard == null
+                        ? const Center(child: Text('Không có dữ liệu'))
+                        : Column(
+                        children: [
+                          // Affiliate Marketing Banner
+                          Container(
+                            margin: const EdgeInsets.all(16),
+                            height: 200,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Stack(
+                                children: [
+                                  // Background Image
+                                  Positioned.fill(
+                                    child: Image.asset(
+                                      'assets/images/affiliate-marketing-15725072874221438636530.jpg',
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Colors.purple[600]!,
+                                                Colors.pink[500]!,
+                                                Colors.orange[400]!,
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
                                           ),
-                                        ],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.image_not_supported,
+                                              color: Colors.white,
+                                              size: 48,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  // Overlay with content
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.black.withOpacity(0.3),
+                                            Colors.black.withOpacity(0.6),
+                                          ],
+                                        ),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(20),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Spacer(),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      const Text(
+                                                        '💰 Affiliate Program',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 20,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      const Text(
+                                                        'Kiếm tiền từ việc chia sẻ',
+                                                        style: TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 14,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        'Tổng hoa hồng: ${FormatUtils.formatCurrency(_dashboard!.totalCommission.toInt())}',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Container(
+                                                  padding: const EdgeInsets.all(12),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white.withOpacity(0.2),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.trending_up,
+                                                    color: Colors.white,
+                                                    size: 24,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // Custom Tab Bar
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _buildCustomTab('Tổng quan', 0),
+                                ),
+                                Expanded(
+                                  child: _buildCustomTab('Quản lý', 1),
+                                ),
+                                Expanded(
+                                  child: _buildCustomTab('Lịch sử', 2),
                                 ),
                               ],
                             ),
                           ),
-                        ),
 
-                        // Custom Tab Bar
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
+                          // Tab Content
+                          Expanded(
+                            child: IndexedStack(
+                              index: _currentTabIndex,
+                              children: [
+                                _buildOverviewTab(),
+                                _buildManagementTab(),
+                                _buildHistoryTab(),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _buildCustomTab('Tổng quan', 0),
-                              ),
-                              Expanded(
-                                child: _buildCustomTab('Quản lý', 1),
-                              ),
-                              Expanded(
-                                child: _buildCustomTab('Lịch sử', 2),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Tab Content
-                        Expanded(
-                          child: IndexedStack(
-                            index: _currentTabIndex,
-                            children: [
-                              _buildOverviewTab(),
-                              _buildManagementTab(),
-                              _buildHistoryTab(),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+      ),
     );
   }
 

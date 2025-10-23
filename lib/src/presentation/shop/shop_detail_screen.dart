@@ -66,7 +66,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
         includeVouchers: 1,
         includeWarehouses: 1,
         includeCategories: 1,
-        productsLimit: 20,
+        productsLimit: 50, // Tăng từ 20 lên 50
       );
 
       if (mounted) {
@@ -208,28 +208,28 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
               children: [
                 // Sản phẩm
                 ShopProductsSection(
-                  products: _shopDetail!.products,
+                  shopId: widget.shopId ?? shopInfo.shopId,
                   onProductTap: _navigateToProduct,
                 ),
                 
                 // Flash Sale
                 ShopFlashSalesSection(
-                  flashSales: _shopDetail!.flashSales,
+                  shopId: widget.shopId ?? shopInfo.shopId,
                 ),
                 
                 // Voucher
                 ShopVouchersSection(
-                  vouchers: _shopDetail!.vouchers,
+                  shopId: widget.shopId ?? shopInfo.shopId,
                 ),
                 
                 // Kho hàng
                 ShopWarehousesSection(
-                  warehouses: _shopDetail!.warehouses,
+                  shopId: widget.shopId ?? shopInfo.shopId,
                 ),
                 
                 // Danh mục
                 ShopCategoriesSection(
-                  categories: _shopDetail!.categories,
+                  shopId: widget.shopId ?? shopInfo.shopId,
                 ),
               ],
             ),

@@ -2852,10 +2852,10 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Products by Category Response: $data');
+      
         
         if (data['success'] == true && data['data'] != null) {
-          print('✅ Lấy ${data['data']['products'].length} sản phẩm cho danh mục ID: $categoryId');
+        
           return data;
         }
         
@@ -2975,13 +2975,13 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Categories List Response: $data');
+      
         
         if (data['success'] == true && data['data'] != null) {
           final categories = data['data']['categories'] as List?;
           if (categories != null) {
             final result = List<Map<String, dynamic>>.from(categories);
-            print('✅ Lấy ${result.length} danh mục thành công');
+          
             return result;
           }
         }

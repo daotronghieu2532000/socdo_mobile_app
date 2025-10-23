@@ -2941,7 +2941,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Products by Category Response: $data');
+       
         
         if (data['success'] == true && data['data'] != null) {
           print('✅ Lấy ${data['data']['products'].length} sản phẩm cho danh mục ID: $categoryId');
@@ -3064,13 +3064,13 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('🔍 Categories List Response: $data');
+       
         
         if (data['success'] == true && data['data'] != null) {
           final categories = data['data']['categories'] as List?;
           if (categories != null) {
             final result = List<Map<String, dynamic>>.from(categories);
-            print('✅ Lấy ${result.length} danh mục thành công');
+          
             return result;
           }
         }
@@ -3831,6 +3831,62 @@ class ApiService {
       }
     } catch (e) {
       print('❌ Lỗi khi toggle favorite: $e');
+      return null;
+    }
+  }
+
+  /// Lấy sản phẩm shop với pagination
+  Future<Map<String, dynamic>?> getShopProductsPaginated({
+    required int shopId,
+    int page = 1,
+    int limit = 50,
+    String? sortBy,
+    String? categoryId,
+    String? searchQuery,
+  }) async {
+    try {
+      String url = '/shop_detail?shop_id=$shopId&include_products=1&products_limit=$limit&page=$page';
+      
+      if (sortBy != null && sortBy.isNotEmpty) {
+        url += '&sort_by=$sortBy';
+      }
+      if (categoryId != null && categoryId.isNotEmpty) {
+        url += '&category_id=$categoryId';
+      }
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        url += '&search=$searchQuery';
+      }
+      
+      final response = await get(url);
+      
+      if (response != null && response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        if (data['success'] == true && data['data'] != null) {
+          final shopData = data['data'];
+          final products = shopData['products'] as List? ?? [];
+          final shopInfo = shopData['shop_info'] as Map<String, dynamic>? ?? {};
+          
+          return {
+            'products': products,
+            'shop_info': shopInfo,
+            'pagination': {
+              'current_page': page,
+              'per_page': limit,
+              'total_products': shopInfo['total_products'] ?? products.length,
+              'has_next': products.length == limit,
+            }
+          };
+        }
+        
+        print('❌ API trả về lỗi: ${data['message'] ?? 'Unknown error'}');
+        return null;
+      } else {
+        print('❌ HTTP Error: ${response?.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Lỗi khi lấy sản phẩm shop: $e');
       return null;
     }
   }

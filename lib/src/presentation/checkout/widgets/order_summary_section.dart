@@ -19,6 +19,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
   int? _shipFee;
   String? _etaText;
   String? _provider;
+  bool _hasFreeshipAvailable = false;
   StreamSubscription<void>? _shipSub;
 
   @override
@@ -61,11 +62,11 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
     print('🧮 shipping input items: $items');
     // Call server to compute shipping. Server uses class_ghtk + class_superai,
     // evaluates all providers and returns the cheaper one with an ETA text.
-    final quote = await _api.getShippingQuote(userId: u.userId, items: items);
+    final rawQuote = await _api.getShippingQuote(userId: u.userId, items: items);
     if (!mounted) return;
     setState(() {
       // Robust parse of dynamic 'fee' (can be int/num/string)
-      final dynamic feeDyn = quote?['fee'];
+      final dynamic feeDyn = rawQuote?['fee'];
       int? parsedFee;
       if (feeDyn is int) {
         parsedFee = feeDyn;
@@ -77,8 +78,12 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
         parsedFee = int.tryParse(onlyDigits);
       }
       _shipFee = parsedFee ?? 0;
-      _etaText = quote?['eta_text']?.toString();
-      _provider = quote?['provider']?.toString();
+      _etaText = rawQuote?['eta_text']?.toString();
+      _provider = rawQuote?['provider']?.toString();
+      
+      // Check if there's freeship available using raw API response
+      _checkFreeshipAvailability(rawQuote);
+      
       // Lưu vào store dùng chung cho các section khác (PaymentDetails, Bottom bar)
       ShippingQuoteStore().setQuote(
         fee: _shipFee!,
@@ -88,7 +93,69 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
     });
   }
 
+  void _checkFreeshipAvailability(Map<String, dynamic>? quote) {
+    try {
+      _hasFreeshipAvailable = false;
+      
+      print('🔍 _checkFreeshipAvailability called with quote: $quote');
+      
+      if (quote != null) {
+        print('🔍 Quote is not null');
+        
+        // Debug info is directly in quote['debug'] (not in quote['data']['debug'])
+        final debug = quote['debug'];
+        print('🔍 Debug from quote: $debug');
+        
+        if (debug != null) {
+          final shopFreeshipDetails = debug['shop_freeship_details'] as Map<String, dynamic>?;
+          print('🔍 DEBUG: shopFreeshipDetails = $shopFreeshipDetails');
+          if (shopFreeshipDetails != null && shopFreeshipDetails.isNotEmpty) {
+            print('🔍 DEBUG: Found ${shopFreeshipDetails.length} shops with freeship config');
+            // Check if any shop has freeship config (regardless of applied status)
+            for (final entry in shopFreeshipDetails.entries) {
+              final config = entry.value as Map<String, dynamic>;
+              final mode = config['mode'] as int? ?? 0;
+              final discount = (config['discount'] as num?)?.toDouble() ?? 0.0;
+              
+              print('🔍 DEBUG: Shop ${entry.key}: mode=$mode, discount=$discount');
+              
+              // If there's any freeship config (mode >= 0 and discount > 0), show button
+              if (mode >= 0 && discount > 0) {
+                print('🔍 DEBUG: Found freeship config! Setting _hasFreeshipAvailable = true');
+                _hasFreeshipAvailable = true;
+                break;
+              }
+            }
+          } else {
+            print('🔍 DEBUG: No shop freeship details found');
+          }
+        } else {
+          print('🔍 DEBUG: Debug is null');
+        }
+      } else {
+        print('🔍 Quote is null');
+      }
+      
+      print('🔍 FREESHIP AVAILABILITY CHECK: $_hasFreeshipAvailable');
+    } catch (e) {
+      print('🔍 ERROR in _checkFreeshipAvailability: $e');
+      _hasFreeshipAvailable = false;
+    }
+  }
+
   void _showFreeshipDialog(BuildContext context) async {
+    // Sử dụng dữ liệu đã có từ _checkFreeshipAvailability thay vì gọi API lại
+    print('🔍 FREESHIP DIALOG DEBUG:');
+    print('  - _hasFreeshipAvailable: $_hasFreeshipAvailable');
+    
+    if (!_hasFreeshipAvailable) {
+      print('  - No freeship available, not showing dialog');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sản phẩm này không có ưu đãi vận chuyển')),
+      );
+      return;
+    }
+    
     // Lấy thông tin freeship từ shipping quote
     final u = await _auth.getCurrentUser();
     if (u == null) return;
@@ -103,40 +170,17 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
     
     if (items.isEmpty) return;
     
-    // Debug: Log để kiểm tra
-    print('🔍 FREESHIP DIALOG DEBUG:');
     print('  - Items: $items');
     
     Map<String, dynamic>? shopFreeshipDetails;
     
-    // Try to get data from ShippingQuoteStore first (cached data)
-    print('  - Trying to get cached data from ShippingQuoteStore...');
-    final store = ShippingQuoteStore();
-    print('  - Store lastFee: ${store.lastFee}');
-    print('  - Store provider: ${store.provider}');
-    
     try {
       final quote = await _api.getShippingQuote(userId: u.userId, items: items);
       print('  - Quote response: ${quote != null ? "Success" : "Failed"}');
-      print('  - Quote data: ${quote?['data']}');
       
-      if (quote != null && quote['success'] == true) {
-        final data = quote['data'];
-        print('  - Data available: ${data != null}');
-        
-        Map<String, dynamic>? debug;
-        
-        if (data != null) {
-          debug = data['debug'];
-          print('  - Debug available: ${debug != null}');
-          print('  - Debug content: $debug');
-        } else {
-          print('  - Data is null, checking raw quote for debug...');
-          // Try to get debug from raw response
-          debug = quote['debug'];
-          print('  - Raw debug available: ${debug != null}');
-          print('  - Raw debug content: $debug');
-        }
+      if (quote != null) {
+        final debug = quote['debug'];
+        print('  - Debug available: ${debug != null}');
         
         if (debug != null) {
           shopFreeshipDetails = debug['shop_freeship_details'] as Map<String, dynamic>?;
@@ -148,43 +192,24 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
             }
           } else {
             print('  - shop_freeship_details is null in debug');
-            // Try alternative parsing
-            if (debug is Map<String, dynamic>) {
-              print('  - Debug keys: ${debug.keys.toList()}');
-              // Try different key names
-              shopFreeshipDetails = debug['shopFreeshipDetails'] as Map<String, dynamic>?;
-              if (shopFreeshipDetails == null) {
-                shopFreeshipDetails = debug['shop_freeship_details'] as Map<String, dynamic>?;
-              }
-              if (shopFreeshipDetails == null) {
-                shopFreeshipDetails = debug['freeship_details'] as Map<String, dynamic>?;
-              }
-              print('  - Alternative parsing result: ${shopFreeshipDetails?.keys.toList()}');
-            }
           }
         } else {
-          print('  - Debug is null in both data and raw quote');
+          print('  - Debug is null');
         }
       } else {
-        print('  - Quote failed: ${quote?['message']}');
+        print('  - Quote failed');
       }
     } catch (e) {
       print('  - Error getting quote: $e');
     }
     
-    // Fallback: Use hardcoded data for testing
+    // Only show dialog if there's actual freeship data
     if (shopFreeshipDetails == null || shopFreeshipDetails.isEmpty) {
-      print('  - Using fallback hardcoded data for testing...');
-      shopFreeshipDetails = {
-        "31469": {
-          "mode": 0,
-          "subtotal": 132000,
-          "min_order": 150000,
-          "discount": 30000,
-          "applied": false
-        }
-      };
-      print('  - Fallback data applied: ${shopFreeshipDetails.keys.toList()}');
+      print('  - No freeship data available, not showing dialog');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sản phẩm này không có ưu đãi vận chuyển')),
+      );
+      return;
     }
     
     showModalBottomSheet(
@@ -638,7 +663,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
               Expanded(
                 child: Text('Phí vận chuyển: ${_shipFee != null ? _formatCurrency(_shipFee!) : 'đang tính...'}'),
               ),
-              if (_shipFee != null && _shipFee! > 0)
+              if (_shipFee != null && _shipFee! > 0 && _hasFreeshipAvailable)
                 GestureDetector(
                   onTap: () => _showFreeshipDialog(context),
                   child: Container(
