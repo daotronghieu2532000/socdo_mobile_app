@@ -441,6 +441,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       background: Colors.green, // Thêm màu xanh cho thông báo thành công
       action: SnackBarAction(
         label: 'Xem giỏ hàng',
+        textColor: Colors.white,
         onPressed: () {
           Navigator.push(
             context,
@@ -504,6 +505,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       background: Colors.green, // Thêm màu xanh cho thông báo thành công
       action: SnackBarAction(
         label: 'Xem giỏ hàng',
+        textColor: Colors.white,
         onPressed: () {
           Navigator.push(
             context,
