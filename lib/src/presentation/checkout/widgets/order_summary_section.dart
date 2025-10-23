@@ -84,11 +84,44 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
       // Check if there's freeship available using raw API response
       _checkFreeshipAvailability(rawQuote);
       
+      // Tính ship support từ debug info
+      int shipSupport = 0;
+      if (rawQuote != null) {
+        final debug = rawQuote['debug'];
+        if (debug != null) {
+          final freeshipExcluded = debug['freeship_excluded'] as Map<String, dynamic>?;
+          if (freeshipExcluded != null) {
+            final shipFixedSupport = freeshipExcluded['ship_fixed_support'] as int? ?? 0;
+            final shipPercentSupport = (freeshipExcluded['ship_percent_support'] as num?)?.toDouble() ?? 0.0;
+            
+            // Tính ship support từ percent (dựa trên fee gốc)
+            int percentSupportAmount = 0;
+            if (shipPercentSupport > 0) {
+              // Lấy fee gốc từ quotes (trước khi áp dụng freeship)
+              final quotes = rawQuote['quotes'] as List<dynamic>?;
+              if (quotes != null && quotes.isNotEmpty) {
+                final firstQuote = quotes[0] as Map<String, dynamic>;
+                final originalFee = firstQuote['fee'] as int? ?? 0;
+                percentSupportAmount = (originalFee * shipPercentSupport / 100).round();
+              }
+            }
+            
+            shipSupport = shipFixedSupport + percentSupportAmount;
+            print('🔍 Ship Support Calculation:');
+            print('  - Fixed Support: $shipFixedSupport');
+            print('  - Percent Support: $shipPercentSupport%');
+            print('  - Percent Amount: $percentSupportAmount');
+            print('  - Total Support: $shipSupport');
+          }
+        }
+      }
+      
       // Lưu vào store dùng chung cho các section khác (PaymentDetails, Bottom bar)
       ShippingQuoteStore().setQuote(
         fee: _shipFee!,
         etaText: _etaText,
         provider: _provider,
+        shipSupport: shipSupport,
       );
     });
   }

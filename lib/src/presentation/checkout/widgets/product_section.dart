@@ -10,9 +10,8 @@ class ProductSection extends StatelessWidget {
 
   final cart_service.CartService _cartService = cart_service.CartService();
 
-  List<cart_service.CartItem> get selectedItems => _cartService.items
-      .where((item) => item.isSelected)
-      .toList();
+  List<cart_service.CartItem> get selectedItems =>
+      _cartService.items.where((item) => item.isSelected).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +47,7 @@ class ProductSection extends StatelessWidget {
         final items = entry.value;
         final shopId = items.first.shopId;
         final appliedVoucher = voucherService.getAppliedVoucher(shopId);
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -63,10 +62,18 @@ class ProductSection extends StatelessWidget {
                 children: [
                   const Icon(Icons.local_offer, color: Colors.red),
                   const SizedBox(width: 6),
-                  Expanded(child: Text(shopName, style: const TextStyle(fontWeight: FontWeight.w600))),
+                  Expanded(
+                    child: Text(
+                      shopName,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
                   InkWell(
                     onTap: () async {
-                      final shopTotal = items.fold(0, (s, i) => s + i.price * i.quantity);
+                      final shopTotal = items.fold(
+                        0,
+                        (s, i) => s + i.price * i.quantity,
+                      );
                       final selected = await showDialog(
                         context: context,
                         builder: (_) => VoucherDialog(
@@ -78,12 +85,19 @@ class ProductSection extends StatelessWidget {
                       );
                       if (selected != null && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Đã áp dụng voucher shop')),
+                          const SnackBar(
+                            content: Text('Đã áp dụng voucher shop'),
+                            backgroundColor:
+                                Colors.green, // Màu nền xanh lá cây
+                          ),
                         );
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
@@ -92,7 +106,11 @@ class ProductSection extends StatelessWidget {
                         appliedVoucher == null
                             ? 'Voucher shop'
                             : '${appliedVoucher.code} · ${_discountText(appliedVoucher)}',
-                        style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -113,7 +131,8 @@ class ProductSection extends StatelessWidget {
                             ? Image.network(
                                 items[i].image,
                                 fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => const Icon(Icons.image, color: Colors.grey),
+                                errorBuilder: (c, e, s) =>
+                                    const Icon(Icons.image, color: Colors.grey),
                               )
                             : const Icon(Icons.image, color: Colors.grey),
                       ),
@@ -134,12 +153,18 @@ class ProductSection extends StatelessWidget {
                             children: [
                               Text(
                                 FormatUtils.formatCurrency(items[i].price),
-                                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                              if (items[i].oldPrice != null && items[i].oldPrice! > items[i].price) ...[
+                              if (items[i].oldPrice != null &&
+                                  items[i].oldPrice! > items[i].price) ...[
                                 const SizedBox(width: 8),
                                 Text(
-                                  FormatUtils.formatCurrency(items[i].oldPrice!),
+                                  FormatUtils.formatCurrency(
+                                    items[i].oldPrice!,
+                                  ),
                                   style: const TextStyle(
                                     color: Colors.grey,
                                     decoration: TextDecoration.lineThrough,
@@ -152,7 +177,10 @@ class ProductSection extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Text('x${items[i].quantity}', style: const TextStyle(color: Colors.grey)),
+                    Text(
+                      'x${items[i].quantity}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   ],
                 ),
               ],

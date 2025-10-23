@@ -57,6 +57,7 @@ class _PaymentDetailsSectionState extends State<PaymentDetailsSection> {
     final voucherDiscount = (shopDiscount + platformDiscount).clamp(0, totalGoods);
     // Lấy phí ship từ store đã cập nhật bởi OrderSummarySection
     final shipFee = ShippingQuoteStore().lastFee;
+    final shipSupport = ShippingQuoteStore().shipSupport;
     final grandTotal = (totalGoods + shipFee - voucherDiscount).clamp(0, 1 << 31);
     
     // Debug log để so sánh với BottomOrderBar
@@ -83,6 +84,8 @@ class _PaymentDetailsSectionState extends State<PaymentDetailsSection> {
           ),
           const SizedBox(height: 16),
           PaymentDetailRow('Tổng tiền hàng', FormatUtils.formatCurrency(totalGoods)),
+          if (shipSupport > 0)
+            PaymentDetailRow('Hỗ trợ ship', '-${FormatUtils.formatCurrency(shipSupport)}', isRed: true),
           PaymentDetailRow('Tổng tiền phí vận chuyển', FormatUtils.formatCurrency(shipFee)),
           PaymentDetailRow('Tổng cộng Voucher giảm giá', '-${FormatUtils.formatCurrency(voucherDiscount)}', isRed: true),
           const Divider(height: 20),
