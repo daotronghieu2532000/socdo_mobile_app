@@ -84,8 +84,8 @@ try {
         }
         
         // Xây dựng WHERE clause
-        $where_conditions = array("sanpham.status = 1", "sanpham.shop = '$shop_id'");
-        
+        $where_conditions = array("sanpham.status = 1", "sanpham.shop = '$shop_id'", "sanpham.kho > 0");
+    
         // Loại trừ sản phẩm hiện tại nếu có
         if ($exclude_product_id > 0) {
             $where_conditions[] = "sanpham.id != '$exclude_product_id'";

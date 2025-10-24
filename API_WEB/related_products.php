@@ -73,7 +73,8 @@ if ($method === 'GET') {
     // Xây dựng WHERE conditions
     $where_conditions = [
         "s.id != $product_id",
-        "s.active = 0"
+        "s.active = 0",
+        "s.kho > 0"
     ];
     
     // ORDER BY logic (ưu tiên giảm dần)

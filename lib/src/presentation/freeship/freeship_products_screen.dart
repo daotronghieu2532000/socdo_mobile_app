@@ -37,8 +37,18 @@ class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
         _error = null;
       });
 
+      // Clear cache để force refresh với dữ liệu mới
+      _cachedApiService.clearFreeshipCache();
+      print('🧹 Cleared freeship cache to force refresh');
+      
       // Sử dụng cached API service cho freeship products
       final productsData = await _cachedApiService.getFreeShipProductsCached();
+      
+      // Debug: In ra cached data
+      print('🔍 Cached productsData: ${productsData?.length} items');
+      if (productsData != null && productsData.isNotEmpty) {
+        print('🔍 First cached product: ${productsData.first}');
+      }
       
       // Nếu cache không có data, fallback về ApiService
       List<FreeShipProduct>? products;
@@ -48,7 +58,15 @@ class _FreeShipProductsScreenState extends State<FreeShipProductsScreen> {
       } else {
         print('🚚 Using cached freeship products data');
         // Convert cached data to FreeShipProduct list
-        products = productsData.map((data) => FreeShipProduct.fromJson(data)).toList();
+        products = productsData.map((data) {
+          print('🔍 Converting cached data: ${data['id']}');
+          print('  - voucherIcon: ${data['voucher_icon']}');
+          print('  - freeshipIcon: ${data['freeship_icon']}');
+          print('  - chinhhangIcon: ${data['chinhhang_icon']}');
+          print('  - warehouseName: ${data['warehouse_name']}');
+          print('  - provinceName: ${data['province_name']}');
+          return FreeShipProduct.fromJson(data);
+        }).toList();
       }
       
       if (mounted) {

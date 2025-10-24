@@ -128,6 +128,23 @@ class FreeShipProduct {
       'category': category,
       'shop_id': shopId,
       'shop_name': shopName,
+      // Thêm các trường mới
+      'voucher_icon': voucherIcon,
+      'freeship_icon': freeshipIcon,
+      'chinhhang_icon': chinhhangIcon,
+      'warehouse_name': warehouseName,
+      'province_name': provinceName,
+      // Thêm shipping_info
+      'shipping_info': {
+        'has_free_shipping': isFreeship,
+        'free_ship_mode': freeShipMode,
+        'free_ship_type': freeShipType,
+        'free_ship_label': freeShipLabel,
+        'free_ship_details': freeShipDetails,
+        'free_ship_badge_color': freeShipBadgeColor,
+        'min_order_value': minOrderValue,
+        'free_ship_discount_value': freeShipDiscountValue,
+      },
     };
   }
 

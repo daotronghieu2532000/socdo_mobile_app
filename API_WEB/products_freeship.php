@@ -48,7 +48,7 @@ try {
         $offset = ($page - 1) * $limit;
         
         // Xây dựng WHERE clause
-        $where_conditions = array("sanpham.status = 1");
+        $where_conditions = array("sanpham.status = 1", "sanpham.kho > 0");
         
         // Điều kiện ship 0đ - Logic từ transport table
         $where_conditions[] = "EXISTS (
@@ -126,14 +126,38 @@ try {
             FROM sanpham 
             LEFT JOIN thuong_hieu th ON th.id = sanpham.thuong_hieu
             LEFT JOIN (
-                SELECT t1.user_id, t1.free_ship_all, t1.free_ship_discount, t1.free_ship_min_order, t1.fee_ship_products, t1.ten_kho, t1.province
+                SELECT 
+                    t1.user_id, 
+                    t1.free_ship_all, 
+                    t1.free_ship_discount, 
+                    t1.free_ship_min_order, 
+                    t1.fee_ship_products, 
+                    t1.ten_kho, 
+                    t1.province,
+                    -- Ưu tiên fee_ship_products (Mode 3) trước, sau đó là mode cao nhất
+                    CASE 
+                        WHEN t1.fee_ship_products IS NOT NULL AND t1.fee_ship_products != '' THEN 3
+                        ELSE t1.free_ship_all 
+                    END as priority_mode,
+                    CASE 
+                        WHEN t1.fee_ship_products IS NOT NULL AND t1.fee_ship_products != '' THEN t1.fee_ship_products
+                        ELSE NULL 
+                    END as priority_fee_ship_products
                 FROM transport t1
-                WHERE (t1.free_ship_all IN (0,1,2,3) OR t1.free_ship_discount > 0)
+                WHERE (t1.free_ship_all IN (0,1,2,3) OR t1.free_ship_discount > 0 OR t1.fee_ship_products IS NOT NULL)
                 AND t1.id = (
-                    SELECT MIN(t2.id) 
+                    SELECT t2.id 
                     FROM transport t2 
                     WHERE t2.user_id = t1.user_id 
-                    AND (t2.free_ship_all IN (0,1,2,3) OR t2.free_ship_discount > 0)
+                    AND (t2.free_ship_all IN (0,1,2,3) OR t2.free_ship_discount > 0 OR t2.fee_ship_products IS NOT NULL)
+                    ORDER BY 
+                        -- Ưu tiên fee_ship_products trước
+                        CASE WHEN t2.fee_ship_products IS NOT NULL AND t2.fee_ship_products != '' THEN 0 ELSE 1 END,
+                        -- Sau đó ưu tiên mode cao nhất
+                        t2.free_ship_all DESC,
+                        -- Cuối cùng là ID nhỏ nhất
+                        t2.id ASC
+                    LIMIT 1
                 )
             ) t ON t.user_id = sanpham.shop
             LEFT JOIN tinh_moi tm ON t.province = tm.id
@@ -197,17 +221,20 @@ try {
             // Thông tin ship 0đ - Chi tiết theo 4 mode
             $shipping_info = array();
             $shipping_info['has_free_shipping'] = true;
-            $shipping_info['free_ship_mode'] = intval($product['free_ship_all'] ?? 0);
-            $shipping_info['free_ship_discount_value'] = intval($product['free_ship_discount'] ?? 0);
-            $shipping_info['min_order_value'] = intval($product['free_ship_min_order'] ?? 0);
+            
+            // Sử dụng priority_mode và priority_fee_ship_products từ query
+            $mode = intval($product['priority_mode'] ?? $product['free_ship_all'] ?? 0);
+            $discount = intval($product['free_ship_discount'] ?? 0);
+            $minOrder = intval($product['free_ship_min_order'] ?? 0);
+            $feeShipProducts = $product['priority_fee_ship_products'] ?? $product['fee_ship_products'] ?? '';
+            
+            $shipping_info['free_ship_mode'] = $mode;
+            $shipping_info['free_ship_discount_value'] = $discount;
+            $shipping_info['min_order_value'] = $minOrder;
             $shipping_info['free_ship_type'] = 'unknown';
             $shipping_info['free_ship_label'] = '';
             $shipping_info['free_ship_details'] = '';
             $shipping_info['free_ship_badge_color'] = '#4CAF50'; // Green default
-            
-            $mode = intval($product['free_ship_all'] ?? 0);
-            $discount = intval($product['free_ship_discount'] ?? 0);
-            $minOrder = intval($product['free_ship_min_order'] ?? 0);
             
             // Lấy giá sản phẩm để kiểm tra điều kiện min_order
             $base_price = $product_data['price'];
@@ -224,25 +251,41 @@ try {
                 }
             }
             // Mode 0: Giảm cố định (VD: -15,000đ) - Cần kiểm tra điều kiện min_order
-            elseif ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
-                $shipping_info['free_ship_type'] = 'fixed';
-                $shipping_info['free_ship_label'] = 'Giảm ' . number_format($discount) . 'đ';
-                $shipping_info['free_ship_badge_color'] = '#2196F3'; // Blue
-                if ($minOrder > 0) {
-                    $shipping_info['free_ship_details'] = 'Giảm ' . number_format($discount) . 'đ phí ship cho đơn từ ' . number_format($minOrder) . 'đ';
+            elseif ($mode === 0 && $discount > 0) {
+                if ($base_price >= $minOrder) {
+                    $shipping_info['free_ship_type'] = 'fixed';
+                    $shipping_info['free_ship_label'] = 'Giảm ' . number_format($discount) . 'đ';
+                    $shipping_info['free_ship_badge_color'] = '#2196F3'; // Blue
+                    if ($minOrder > 0) {
+                        $shipping_info['free_ship_details'] = 'Giảm ' . number_format($discount) . 'đ phí ship cho đơn từ ' . number_format($minOrder) . 'đ';
+                    } else {
+                        $shipping_info['free_ship_details'] = 'Giảm ' . number_format($discount) . 'đ phí ship';
+                    }
                 } else {
-                    $shipping_info['free_ship_details'] = 'Giảm ' . number_format($discount) . 'đ phí ship';
+                    // Có discount nhưng chưa đủ điều kiện min_order
+                    $shipping_info['free_ship_type'] = 'conditional';
+                    $shipping_info['free_ship_label'] = 'Giảm ' . number_format($discount) . 'đ';
+                    $shipping_info['free_ship_badge_color'] = '#FF9800'; // Orange
+                    $shipping_info['free_ship_details'] = 'Giảm ' . number_format($discount) . 'đ phí ship cho đơn từ ' . number_format($minOrder) . 'đ';
                 }
             }
             // Mode 2: Giảm theo % (VD: -50%) - Cần kiểm tra điều kiện min_order
-            elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
-                $shipping_info['free_ship_type'] = 'percent';
-                $shipping_info['free_ship_label'] = 'Giảm ' . intval($discount) . '% ship';
-                $shipping_info['free_ship_badge_color'] = '#9C27B0'; // Purple
-                if ($minOrder > 0) {
-                    $shipping_info['free_ship_details'] = 'Giảm ' . intval($discount) . '% phí ship cho đơn từ ' . number_format($minOrder) . 'đ';
+            elseif ($mode === 2 && $discount > 0) {
+                if ($base_price >= $minOrder) {
+                    $shipping_info['free_ship_type'] = 'percent';
+                    $shipping_info['free_ship_label'] = 'Giảm ' . intval($discount) . '% ship';
+                    $shipping_info['free_ship_badge_color'] = '#9C27B0'; // Purple
+                    if ($minOrder > 0) {
+                        $shipping_info['free_ship_details'] = 'Giảm ' . intval($discount) . '% phí ship cho đơn từ ' . number_format($minOrder) . 'đ';
+                    } else {
+                        $shipping_info['free_ship_details'] = 'Giảm ' . intval($discount) . '% phí ship';
+                    }
                 } else {
-                    $shipping_info['free_ship_details'] = 'Giảm ' . intval($discount) . '% phí ship';
+                    // Có discount nhưng chưa đủ điều kiện min_order
+                    $shipping_info['free_ship_type'] = 'conditional';
+                    $shipping_info['free_ship_label'] = 'Giảm ' . intval($discount) . '% ship';
+                    $shipping_info['free_ship_badge_color'] = '#FF9800'; // Orange
+                    $shipping_info['free_ship_details'] = 'Giảm ' . intval($discount) . '% phí ship cho đơn từ ' . number_format($minOrder) . 'đ';
                 }
             }
             // Mode 3: Ưu đãi ship theo sản phẩm cụ thể - cần kiểm tra fee_ship_products
@@ -251,14 +294,14 @@ try {
                 $shipping_info['free_ship_badge_color'] = '#FF9800'; // Orange
                 
                 // Parse fee_ship_products để xem sản phẩm này có trong danh sách không
-                $feeShipProducts = json_decode($product['fee_ship_products'] ?? '[]', true);
+                $feeShipProductsArray = json_decode($feeShipProducts ?? '[]', true);
                 $productId = intval($product['id']);
                 $hasSupport = false;
                 $supportDetail = '';
                 $ship_discount_amount = 0;
                 
-                if (is_array($feeShipProducts)) {
-                    foreach ($feeShipProducts as $cfg) {
+                if (is_array($feeShipProductsArray)) {
+                    foreach ($feeShipProductsArray as $cfg) {
                         if (intval($cfg['sp_id'] ?? 0) === $productId) {
                             $hasSupport = true;
                             $stype = $cfg['ship_type'] ?? 'vnd';

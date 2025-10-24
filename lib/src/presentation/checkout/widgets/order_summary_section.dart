@@ -103,7 +103,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
                 // Fallback: sử dụng fee hiện tại nếu không có debug info
                 percentSupportAmount = (_shipFee! * shipPercentSupport / 100).round();
                 print('🔍 Percent Support Calculation (Fallback):');
-                print('  - Current Fee: ${_shipFee}');
+                print('  - Current Fee: $_shipFee');
                 print('  - Percent Support: $shipPercentSupport%');
                 print('  - Percent Amount: $percentSupportAmount');
               }
@@ -118,7 +118,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
           }
         }
       }
-      
+    
       // Lưu vào store dùng chung cho các section khác (PaymentDetails, Bottom bar)
       ShippingQuoteStore().setQuote(
         fee: _shipFee!,

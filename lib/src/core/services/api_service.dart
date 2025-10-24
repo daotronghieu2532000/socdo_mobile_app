@@ -769,7 +769,7 @@ class ApiService {
       
       if (response != null && response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // print('🔍 API Response: $data'); // Debug log
+        print('🔍 API Response: $data'); // Debug log
         
         if (data['success'] == true && data['data'] != null) {
           // Kiểm tra kiểu dữ liệu trả về
@@ -795,7 +795,15 @@ class ApiService {
           }
           
           final List<FreeShipProduct> products = productsJson
-              .map((json) => FreeShipProduct.fromJson(json as Map<String, dynamic>))
+              .map((json) {
+                print('🔍 Parsing product: ${json['id']} - ${json['name']}');
+                print('  - voucherIcon: ${json['voucher_icon']}');
+                print('  - freeshipIcon: ${json['freeship_icon']}');
+                print('  - chinhhangIcon: ${json['chinhhang_icon']}');
+                print('  - warehouseName: ${json['warehouse_name']}');
+                print('  - provinceName: ${json['province_name']}');
+                return FreeShipProduct.fromJson(json as Map<String, dynamic>);
+              })
               .toList();
           
           print('✅ Lấy ${products.length} sản phẩm miễn phí ship thành công');

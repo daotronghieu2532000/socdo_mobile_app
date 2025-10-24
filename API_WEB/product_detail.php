@@ -64,7 +64,7 @@ try {
                   LEFT JOIN transport t ON s.kho_id = t.id
                   LEFT JOIN tinh_moi tm ON t.province = tm.id
                   LEFT JOIN yeu_thich_san_pham y ON s.id = y.product_id AND y.user_id = '$user_id'
-                  WHERE s.id = $product_id
+                  WHERE s.id = $product_id AND s.kho > 0
                   LIMIT 1";
         
         $result = mysqli_query($conn, $query);

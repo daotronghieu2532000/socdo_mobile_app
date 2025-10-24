@@ -87,27 +87,28 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
                                 )
                               : _buildPlaceholderImage(),
                         ),
-                        // FreeShip badge
-                        Positioned(
-                          top: 4,
-                          left: 4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'FREESHIP',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
+                        // Freeship badge (từ API)
+                        if (product.freeshipIcon != null && product.freeshipIcon!.isNotEmpty)
+                          Positioned(
+                            top: 4,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                product.freeshipIcon!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        // Discount badge
+                        // Discount badge (từ API)
                         if (product.oldPrice != null && product.oldPrice! > product.price)
                           Positioned(
                             top: 4,
@@ -192,23 +193,36 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
                               ),
                               const SizedBox(height: 6),
                               // Badges row từ các icon riêng lẻ từ API
-                              ProductIconsRow(
-                                voucherIcon: product.voucherIcon,
-                                freeshipIcon: product.freeshipIcon,
-                                chinhhangIcon: product.chinhhangIcon,
-                                fontSize: 9,
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              Builder(
+                                builder: (context) {
+                                 
+                                  
+                                  return ProductIconsRow(
+                                    voucherIcon: product.voucherIcon,
+                                    freeshipIcon: product.freeshipIcon,
+                                    chinhhangIcon: product.chinhhangIcon,
+                                    fontSize: 9,
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  );
+                                },
                               ),
                             ],
                           ),
                           // Badge kho ở đáy box
-                          ProductLocationBadge(
-                            locationText: null,
-                            // warehouseName: product.warehouseName,
-                            provinceName: product.provinceName,
-                            fontSize: 9,
-                            iconColor: Colors.black,
-                            textColor: Colors.black,
+                          Builder(
+                            builder: (context) {
+                              // Debug: In ra dữ liệu để kiểm tra
+                           
+                              
+                              return ProductLocationBadge(
+                                locationText: null,
+                                // warehouseName: product.warehouseName,
+                                provinceName: product.provinceName,
+                                fontSize: 9,
+                                iconColor: Colors.black,
+                                textColor: Colors.black,
+                              );
+                            },
                           ),
                         ],
                       ),
