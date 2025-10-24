@@ -350,7 +350,7 @@ class _ShopProductsSectionState extends State<ShopProductsSection> {
                           // Badge kho ở đáy box
                           ProductLocationBadge(
                             locationText: null,
-                            warehouseName: product.warehouseName.isNotEmpty ? product.warehouseName : null,
+                            // warehouseName: product.warehouseName.isNotEmpty ? product.warehouseName : null,
                             provinceName: product.provinceName.isNotEmpty ? product.provinceName : null,
                             fontSize: 9,
                             iconColor: Colors.black,

@@ -189,7 +189,7 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                           // Badge kho ở đáy box
                           ProductLocationBadge(
                             locationText: null,
-                            warehouseName: product['warehouse_name'] as String?,
+                            // warehouseName: product['warehouse_name'] as String?,
                             provinceName: product['province_name'] as String?,
                             fontSize: 9,
                             iconColor: Colors.black,
