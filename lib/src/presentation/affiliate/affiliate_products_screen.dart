@@ -67,25 +67,6 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
     _loadProducts();
   }
 
-  // Debounced search method
-  void _onSearchChanged(String value) {
-    print('🔍 [SEARCH] Text changed: "$value"');
-    setState(() {
-      _searchQuery = value;
-    });
-    
-    // Cancel previous timer
-    _searchDebounceTimer?.cancel();
-    
-    // Set new timer for debounced search
-    _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        print('🔍 [SEARCH] Executing search for: "$_searchQuery"');
-        _loadProducts(refresh: true);
-      }
-    });
-  }
-
   // Build affiliate URL with utm_source_shop for current user
   String _buildAffiliateUrl(AffiliateProduct product) {
     final userId = _currentUserId ?? 0;
@@ -172,10 +153,10 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
         onlyFollowing: _onlyFollowed,
       );
       
-      print('🔍 Cached API returned: $productsData');
-      print('🔍 Cached API result type: ${productsData.runtimeType}');
-      print('🔍 Cached API result is null: ${productsData == null}');
-      print('🔍 Cached API result isEmpty: ${productsData?.isEmpty}');
+      // print('🔍 Cached API returned: $productsData');
+      // print('🔍 Cached API result type: ${productsData.runtimeType}');
+      // print('🔍 Cached API result is null: ${productsData == null}');
+      // print('🔍 Cached API result isEmpty: ${productsData?.isEmpty}');
       
       // Xử lý dữ liệu từ cache hoặc API
       Map<String, dynamic>? result;
@@ -198,14 +179,14 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
         print('🔍 Direct API result: $result');
       }
       
-      print('🔍 Final result: $result');
-      print('🔍 Final result products: ${result?['products']?.length ?? 0}');
+      // print('🔍 Final result: $result');
+      // print('🔍 Final result products: ${result?['products']?.length ?? 0}');
       
       if (mounted) {
         setState(() {
           if (result != null && result['products'] != null) {
             final newProducts = result['products'] as List<AffiliateProduct>;
-            // print('📦 Loaded ${newProducts.length} products from API');
+            print('📦 Loaded ${newProducts.length} products from API');
             if (refresh) {
               _products = newProducts;
             } else {
@@ -219,7 +200,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
             
             // Debug: Check if products have links
             for (final product in newProducts) {
-              print('📦 Product ${product.id}: hasLink=${product.hasLink}, shortLink=${product.shortLink}');
+              // print('📦 Product ${product.id}: hasLink=${product.hasLink}, shortLink=${product.shortLink}');
             }
           } else {
             print('❌ No products found in result: $result');
@@ -1149,7 +1130,6 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
                         onPressed: () {
                           _searchController.clear();
                           _searchQuery = '';
-                          _searchDebounceTimer?.cancel();
                           _loadProducts(refresh: true);
                         },
                       )
@@ -1177,8 +1157,24 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
                 ),
               ),
               textInputAction: TextInputAction.search,
-              onChanged: _onSearchChanged,
-              onSubmitted: (_) => _loadProducts(refresh: true),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+                
+                // Debounce search để tránh gọi API quá nhiều
+                _searchDebounceTimer?.cancel();
+                _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+                  if (value.trim().isNotEmpty) {
+                    print('🔍 [SEARCH] Debounced search triggered for: "$value"');
+                    _loadProducts(refresh: true);
+                  }
+                });
+              },
+              onSubmitted: (_) {
+                print('🔍 [SEARCH] Manual search submitted for: "$_searchQuery"');
+                _loadProducts(refresh: true);
+              },
             ),
           ),
           
@@ -1495,7 +1491,6 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
       _onlyHasLink = false;
       _sortBy = 'newest';
     });
-    _searchDebounceTimer?.cancel();
     _loadProducts(refresh: true);
   }
 }

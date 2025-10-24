@@ -127,16 +127,18 @@ try {
         }
         $shop_info['total_products'] = $product_count;
         
-        // Lấy sản phẩm shop
+        // Lấy sản phẩm shop với logic freeship đúng (SHOP LEVEL + PRODUCT LEVEL)
         $products = array();
         if ($include_products) {
             $products_query = "SELECT s.id, s.ma_sanpham, s.tieu_de, s.minh_hoa, s.link, s.cat, s.gia_cu, s.gia_moi, s.gia_ctv,
                                      s.thuong_hieu, s.kho, s.ban, s.view, s.box_banchay, s.box_noibat, s.box_flash, 
                                      s.date_post, s.status,
                                      t.ten_kho as warehouse_name, tm.tieu_de as province_name,
-                                     t.free_ship_all, t.free_ship_min_order, t.free_ship_discount
+                                     t.free_ship_all as product_freeship_all, t.free_ship_min_order as product_freeship_min_order, t.free_ship_discount as product_freeship_discount,
+                                     t_shop.free_ship_all as shop_freeship_all, t_shop.free_ship_min_order as shop_freeship_min_order, t_shop.free_ship_discount as shop_freeship_discount
                               FROM sanpham s
                               LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
+                              LEFT JOIN transport t_shop ON s.shop = t_shop.user_id AND t_shop.is_default = 1
                               LEFT JOIN tinh_moi tm ON t.province = tm.id
                               WHERE s.shop = '$shop_id' AND s.status = 1
                               ORDER BY s.date_post DESC
@@ -199,24 +201,80 @@ try {
                         }
                     }
                     
-                    // Logic freeship chi tiết với 4 mode
+                    // Logic freeship đúng - kiểm tra cả SHOP LEVEL và PRODUCT LEVEL
                     $freeship_icon = '';
-                    $mode = intval($product['free_ship_all'] ?? 0);
-                    $discount = intval($product['free_ship_discount'] ?? 0);
-                    $minOrder = intval($product['free_ship_min_order'] ?? 0);
+                    
+                    // Lấy thông tin freeship từ cả 2 cấp độ
+                    $product_mode = intval($product['product_freeship_all'] ?? 0);
+                    $product_discount = intval($product['product_freeship_discount'] ?? 0);
+                    $product_minOrder = intval($product['product_freeship_min_order'] ?? 0);
+                    
+                    $shop_mode = intval($product['shop_freeship_all'] ?? 0);
+                    $shop_discount = intval($product['shop_freeship_discount'] ?? 0);
+                    $shop_minOrder = intval($product['shop_freeship_min_order'] ?? 0);
+                    
                     $base_price = $product_data['price'];
                     
-                    if ($mode === 1) {
-                        $freeship_icon = 'Freeship 100%';
-                    } elseif ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
-                        $freeship_icon = 'Giảm ' . number_format($discount) . 'đ';
-                    } elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
-                        $freeship_icon = 'Giảm ' . $discount . '%';
-                    } elseif ($mode === 3) {
-                        $freeship_icon = 'Ưu đãi ship';
-                    } elseif ($mode === 0 && $discount == 0) {
-                        $freeship_icon = 'Freeship';
+                    // Ưu tiên PRODUCT LEVEL trước, nếu không có thì dùng SHOP LEVEL
+                    $final_mode = 0;
+                    $final_discount = 0;
+                    $final_minOrder = 0;
+                    
+                    if ($product_mode > 0 || $product_discount > 0) {
+                        // Có cấu hình PRODUCT LEVEL
+                        $final_mode = $product_mode;
+                        $final_discount = $product_discount;
+                        $final_minOrder = $product_minOrder;
+                    } elseif ($shop_mode > 0 || $shop_discount > 0) {
+                        // Dùng SHOP LEVEL
+                        $final_mode = $shop_mode;
+                        $final_discount = $shop_discount;
+                        $final_minOrder = $shop_minOrder;
                     }
+                    
+                    // Áp dụng logic freeship theo mode cuối cùng
+                    if ($final_mode === 1) {
+                        // Mode 1: Miễn phí ship hoàn toàn (không cần điều kiện)
+                        $freeship_icon = 'Freeship 100%';
+                    } elseif ($final_mode === 0 && $final_discount > 0 && $final_minOrder > 0) {
+                        // Mode 0: Giảm ship theo số tiền cố định (cần đạt min_order)
+                        $freeship_icon = 'Giảm ' . number_format($final_discount) . 'đ ship';
+                    } elseif ($final_mode === 2 && $final_discount > 0 && $final_minOrder > 0) {
+                        // Mode 2: Giảm ship theo % (cần đạt min_order)
+                        $freeship_icon = 'Giảm ' . $final_discount . '% ship';
+                    } elseif ($final_mode === 3) {
+                        // Mode 3: Ưu đãi ship theo sản phẩm cụ thể - cần kiểm tra fee_ship_products
+                        // Lấy fee_ship_products từ transport table
+                        $fee_ship_query = "SELECT fee_ship_products FROM transport WHERE user_id = '$shop_id' AND is_default = 1 LIMIT 1";
+                        $fee_ship_result = mysqli_query($conn, $fee_ship_query);
+                        
+                        $ship_discount_amount = 0;
+                        if ($fee_ship_result && mysqli_num_rows($fee_ship_result) > 0) {
+                            $fee_ship_row = mysqli_fetch_assoc($fee_ship_result);
+                            $fee_ship_products = $fee_ship_row['fee_ship_products'] ?? '';
+                            
+                            if (!empty($fee_ship_products)) {
+                                $fee_ship_products_array = json_decode($fee_ship_products, true);
+                                if (is_array($fee_ship_products_array)) {
+                                    foreach ($fee_ship_products_array as $ship_item) {
+                                        if (isset($ship_item['sp_id']) && $ship_item['sp_id'] == $product_data['id']) {
+                                            // Lấy số tiền hỗ trợ ship cụ thể
+                                            if (isset($ship_item['ship_support'])) {
+                                                $ship_discount_amount = intval($ship_item['ship_support']);
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Hiển thị số tiền hỗ trợ ship cụ thể
+                        if ($ship_discount_amount > 0) {
+                            $freeship_icon = 'Hỗ trợ ship ' . number_format($ship_discount_amount) . '₫';
+                        }
+                    }
+                    // Không có freeship nếu không có cấu hình nào
                     
                     // Logic chính hãng - dựa vào thương hiệu có giá trị
                     $chinhhang_icon = '';
@@ -288,9 +346,11 @@ try {
                                                        s.thuong_hieu, s.kho, s.ban, s.view, s.box_banchay, s.box_noibat, s.box_flash, 
                                                        s.date_post, s.status,
                                                        t.ten_kho as warehouse_name, tm.tieu_de as province_name,
-                                                       t.free_ship_all, t.free_ship_min_order, t.free_ship_discount
+                                                       t.free_ship_all as product_freeship_all, t.free_ship_min_order as product_freeship_min_order, t.free_ship_discount as product_freeship_discount,
+                                                       t_shop.free_ship_all as shop_freeship_all, t_shop.free_ship_min_order as shop_freeship_min_order, t_shop.free_ship_discount as shop_freeship_discount
                                                 FROM sanpham s
                                                 LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
+                                                LEFT JOIN transport t_shop ON s.shop = t_shop.user_id AND t_shop.is_default = 1
                                                 LEFT JOIN tinh_moi tm ON t.province = tm.id
                                                 WHERE s.id = '$product_id' AND s.shop = '$shop_id'
                                                 LIMIT 1";
@@ -321,24 +381,80 @@ try {
                                 }
                             }
                             
-                            // Logic freeship cho flash sale product
+                            // Logic freeship cho flash sale product - kiểm tra cả SHOP LEVEL và PRODUCT LEVEL
                             $freeship_icon = '';
-                            $mode = intval($product_detail['free_ship_all'] ?? 0);
-                            $discount = intval($product_detail['free_ship_discount'] ?? 0);
-                            $minOrder = intval($product_detail['free_ship_min_order'] ?? 0);
+                            
+                            // Lấy thông tin freeship từ cả 2 cấp độ
+                            $product_mode = intval($product_detail['product_freeship_all'] ?? 0);
+                            $product_discount = intval($product_detail['product_freeship_discount'] ?? 0);
+                            $product_minOrder = intval($product_detail['product_freeship_min_order'] ?? 0);
+                            
+                            $shop_mode = intval($product_detail['shop_freeship_all'] ?? 0);
+                            $shop_discount = intval($product_detail['shop_freeship_discount'] ?? 0);
+                            $shop_minOrder = intval($product_detail['shop_freeship_min_order'] ?? 0);
+                            
                             $base_price = $product_detail['gia_moi'];
                             
-                            if ($mode === 1) {
-                                $freeship_icon = 'Freeship 100%';
-                            } elseif ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
-                                $freeship_icon = 'Giảm ' . number_format($discount) . 'đ';
-                            } elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
-                                $freeship_icon = 'Giảm ' . $discount . '%';
-                            } elseif ($mode === 3) {
-                                $freeship_icon = 'Ưu đãi ship';
-                            } elseif ($mode === 0 && $discount == 0) {
-                                $freeship_icon = 'Freeship';
+                            // Ưu tiên PRODUCT LEVEL trước, nếu không có thì dùng SHOP LEVEL
+                            $final_mode = 0;
+                            $final_discount = 0;
+                            $final_minOrder = 0;
+                            
+                            if ($product_mode > 0 || $product_discount > 0) {
+                                // Có cấu hình PRODUCT LEVEL
+                                $final_mode = $product_mode;
+                                $final_discount = $product_discount;
+                                $final_minOrder = $product_minOrder;
+                            } elseif ($shop_mode > 0 || $shop_discount > 0) {
+                                // Dùng SHOP LEVEL
+                                $final_mode = $shop_mode;
+                                $final_discount = $shop_discount;
+                                $final_minOrder = $shop_minOrder;
                             }
+                            
+                            // Áp dụng logic freeship theo mode cuối cùng
+                            if ($final_mode === 1) {
+                                // Mode 1: Miễn phí ship hoàn toàn (không cần điều kiện)
+                                $freeship_icon = 'Freeship 100%';
+                            } elseif ($final_mode === 0 && $final_discount > 0 && $final_minOrder > 0) {
+                                // Mode 0: Giảm ship theo số tiền cố định (cần đạt min_order)
+                                $freeship_icon = 'Giảm ' . number_format($final_discount) . 'đ ship';
+                            } elseif ($final_mode === 2 && $final_discount > 0 && $final_minOrder > 0) {
+                                // Mode 2: Giảm ship theo % (cần đạt min_order)
+                                $freeship_icon = 'Giảm ' . $final_discount . '% ship';
+                            } elseif ($final_mode === 3) {
+                                // Mode 3: Ưu đãi ship theo sản phẩm cụ thể - cần kiểm tra fee_ship_products
+                                // Lấy fee_ship_products từ transport table
+                                $fee_ship_query = "SELECT fee_ship_products FROM transport WHERE user_id = '$shop_id' AND is_default = 1 LIMIT 1";
+                                $fee_ship_result = mysqli_query($conn, $fee_ship_query);
+                                
+                                $ship_discount_amount = 0;
+                                if ($fee_ship_result && mysqli_num_rows($fee_ship_result) > 0) {
+                                    $fee_ship_row = mysqli_fetch_assoc($fee_ship_result);
+                                    $fee_ship_products = $fee_ship_row['fee_ship_products'] ?? '';
+                                    
+                                    if (!empty($fee_ship_products)) {
+                                        $fee_ship_products_array = json_decode($fee_ship_products, true);
+                                        if (is_array($fee_ship_products_array)) {
+                                            foreach ($fee_ship_products_array as $ship_item) {
+                                                if (isset($ship_item['sp_id']) && $ship_item['sp_id'] == $product_id) {
+                                                    // Lấy số tiền hỗ trợ ship cụ thể
+                                                    if (isset($ship_item['ship_support'])) {
+                                                        $ship_discount_amount = intval($ship_item['ship_support']);
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Hiển thị số tiền hỗ trợ ship cụ thể
+                                if ($ship_discount_amount > 0) {
+                                    $freeship_icon = 'Hỗ trợ ship ' . number_format($ship_discount_amount) . '₫';
+                                }
+                            }
+                            // Không có freeship nếu không có cấu hình nào
                             
                             // Logic chính hãng
                             $chinhhang_icon = '';

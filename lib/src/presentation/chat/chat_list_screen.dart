@@ -432,7 +432,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(25),
-                    child: session.shopAvatar != null && session.shopAvatar.isNotEmpty
+                    child: session.shopAvatar.isNotEmpty
                         ? Image.network(
                             _authService.getAvatarUrl(session.shopAvatar),
                             fit: BoxFit.cover,

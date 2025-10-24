@@ -116,7 +116,7 @@ try {
                 foreach ($main_product_ids as $product_id) {
                     $product_id = intval(trim($product_id));
                     if ($product_id > 0) {
-                        $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link FROM sanpham WHERE id = $product_id LIMIT 1";
+                        $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id LIMIT 1";
                         $product_result = mysqli_query($conn, $product_query);
                         if ($product_result && mysqli_num_rows($product_result) > 0) {
                             $product = mysqli_fetch_assoc($product_result);
@@ -125,6 +125,70 @@ try {
                             $product['discount_percent'] = $product['gia_cu'] > 0 ? round((($product['gia_cu'] - $product['gia_moi']) / $product['gia_cu']) * 100) : 0;
                             $product['image_url'] = $build_image_url($product['minh_hoa']);
                             $product['product_url'] = 'https://socdo.vn/san-pham/' . $product['id'] . '/' . $product['link'] . '.html';
+                            
+                            // Thêm logic Mode 3 freeship cho main products
+                            $deal_shop = $product['shop'];
+                            $current_time = time();
+                            
+                            // Check voucher
+                            $voucher_icon = '';
+                            $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('{$product['id']}', sanpham) AND shop = '$deal_shop' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                            if (mysqli_num_rows($check_coupon) > 0) {
+                                $voucher_icon = 'Voucher';
+                            } else {
+                                $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                                if (mysqli_num_rows($check_coupon_all) > 0) {
+                                    $voucher_icon = 'Voucher';
+                                }
+                            }
+                            
+                            // Check freeship - Logic chuẩn với 4 mode
+                            $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order, fee_ship_products FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
+                            $freeship_result = mysqli_query($conn, $freeship_query);
+                            $freeship_label = '';
+                            
+                            if ($freeship_result && mysqli_num_rows($freeship_result) > 0) {
+                                $freeship_data = mysqli_fetch_assoc($freeship_result);
+                                $mode = intval($freeship_data['free_ship_all'] ?? 0);
+                                $discount = intval($freeship_data['free_ship_discount'] ?? 0);
+                                $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
+                                
+                                $base_price = $product['gia_moi'];
+                                
+                                if ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
+                                    $freeship_label = 'Giảm ' . number_format($discount) . 'đ ship';
+                                } elseif ($mode === 1) {
+                                    $freeship_label = 'Freeship 100%';
+                                } elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
+                                    $freeship_label = 'Giảm ' . intval($discount) . '% ship';
+                                } elseif ($mode === 3) {
+                                    $fee_ship_products = $freeship_data['fee_ship_products'] ?? '';
+                                    $ship_discount_amount = 0;
+                                    
+                                    if (!empty($fee_ship_products)) {
+                                        $fee_ship_products_array = json_decode($fee_ship_products, true);
+                                        if (is_array($fee_ship_products_array)) {
+                                            foreach ($fee_ship_products_array as $ship_item) {
+                                                if (isset($ship_item['sp_id']) && $ship_item['sp_id'] == $product['id']) {
+                                                    if (isset($ship_item['ship_support'])) {
+                                                        $ship_discount_amount = intval($ship_item['ship_support']);
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    if ($ship_discount_amount > 0) {
+                                        $freeship_label = 'Hỗ trợ ship ' . number_format($ship_discount_amount) . '₫';
+                                    }
+                                }
+                            }
+                            
+                            $product['voucher_icon'] = $voucher_icon;
+                            $product['freeship_icon'] = $freeship_label;
+                            $product['chinhhang_icon'] = 'Chính hãng';
+                            
                             $main_products[] = $product;
                         }
                     }
@@ -140,7 +204,7 @@ try {
                     foreach ($sub_json as $pid => $_) {
                         $product_id = intval($pid);
                         if ($product_id > 0) {
-                            $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link FROM sanpham WHERE id = $product_id LIMIT 1";
+                            $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id LIMIT 1";
                             $product_result = mysqli_query($conn, $product_query);
                             if ($product_result && mysqli_num_rows($product_result) > 0) {
                                 $product = mysqli_fetch_assoc($product_result);
@@ -149,6 +213,70 @@ try {
                                 $product['discount_percent'] = $product['gia_cu'] > 0 ? round((($product['gia_cu'] - $product['gia_moi']) / $product['gia_cu']) * 100) : 0;
                                 $product['image_url'] = $build_image_url($product['minh_hoa']);
                                 $product['product_url'] = 'https://socdo.vn/san-pham/' . $product['id'] . '/' . $product['link'] . '.html';
+                                
+                                // Thêm logic Mode 3 freeship cho sub products (JSON)
+                                $deal_shop = $product['shop'];
+                                $current_time = time();
+                                
+                                // Check voucher
+                                $voucher_icon = '';
+                                $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('{$product['id']}', sanpham) AND shop = '$deal_shop' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                                if (mysqli_num_rows($check_coupon) > 0) {
+                                    $voucher_icon = 'Voucher';
+                                } else {
+                                    $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                                    if (mysqli_num_rows($check_coupon_all) > 0) {
+                                        $voucher_icon = 'Voucher';
+                                    }
+                                }
+                                
+                                // Check freeship - Logic chuẩn với 4 mode
+                                $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order, fee_ship_products FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
+                                $freeship_result = mysqli_query($conn, $freeship_query);
+                                $freeship_label = '';
+                                
+                                if ($freeship_result && mysqli_num_rows($freeship_result) > 0) {
+                                    $freeship_data = mysqli_fetch_assoc($freeship_result);
+                                    $mode = intval($freeship_data['free_ship_all'] ?? 0);
+                                    $discount = intval($freeship_data['free_ship_discount'] ?? 0);
+                                    $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
+                                    
+                                    $base_price = $product['gia_moi'];
+                                    
+                                    if ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
+                                        $freeship_label = 'Giảm ' . number_format($discount) . 'đ ship';
+                                    } elseif ($mode === 1) {
+                                        $freeship_label = 'Freeship 100%';
+                                    } elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
+                                        $freeship_label = 'Giảm ' . intval($discount) . '% ship';
+                                    } elseif ($mode === 3) {
+                                        $fee_ship_products = $freeship_data['fee_ship_products'] ?? '';
+                                        $ship_discount_amount = 0;
+                                        
+                                        if (!empty($fee_ship_products)) {
+                                            $fee_ship_products_array = json_decode($fee_ship_products, true);
+                                            if (is_array($fee_ship_products_array)) {
+                                                foreach ($fee_ship_products_array as $ship_item) {
+                                                    if (isset($ship_item['sp_id']) && $ship_item['sp_id'] == $product['id']) {
+                                                        if (isset($ship_item['ship_support'])) {
+                                                            $ship_discount_amount = intval($ship_item['ship_support']);
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        if ($ship_discount_amount > 0) {
+                                            $freeship_label = 'Hỗ trợ ship ' . number_format($ship_discount_amount) . '₫';
+                                        }
+                                    }
+                                }
+                                
+                                $product['voucher_icon'] = $voucher_icon;
+                                $product['freeship_icon'] = $freeship_label;
+                                $product['chinhhang_icon'] = 'Chính hãng';
+                                
                                 $sub_products[] = $product;
                             }
                         }
@@ -159,7 +287,7 @@ try {
                     foreach ($sub_product_ids as $product_id) {
                         $product_id = intval(trim($product_id));
                         if ($product_id > 0) {
-                            $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link FROM sanpham WHERE id = $product_id LIMIT 1";
+                            $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id LIMIT 1";
                             $product_result = mysqli_query($conn, $product_query);
                             if ($product_result && mysqli_num_rows($product_result) > 0) {
                                 $product = mysqli_fetch_assoc($product_result);
@@ -168,6 +296,70 @@ try {
                                 $product['discount_percent'] = $product['gia_cu'] > 0 ? round((($product['gia_cu'] - $product['gia_moi']) / $product['gia_cu']) * 100) : 0;
                                 $product['image_url'] = $build_image_url($product['minh_hoa']);
                                 $product['product_url'] = 'https://socdo.vn/san-pham/' . $product['id'] . '/' . $product['link'] . '.html';
+                                
+                                // Thêm logic Mode 3 freeship cho sub products (CSV fallback)
+                                $deal_shop = $product['shop'];
+                                $current_time = time();
+                                
+                                // Check voucher
+                                $voucher_icon = '';
+                                $check_coupon = mysqli_query($conn, "SELECT id FROM coupon WHERE FIND_IN_SET('{$product['id']}', sanpham) AND shop = '$deal_shop' AND kieu = 'sanpham' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                                if (mysqli_num_rows($check_coupon) > 0) {
+                                    $voucher_icon = 'Voucher';
+                                } else {
+                                    $check_coupon_all = mysqli_query($conn, "SELECT id FROM coupon WHERE shop = '$deal_shop' AND kieu = 'all' AND status = '2' AND '$current_time' BETWEEN start AND expired LIMIT 1");
+                                    if (mysqli_num_rows($check_coupon_all) > 0) {
+                                        $voucher_icon = 'Voucher';
+                                    }
+                                }
+                                
+                                // Check freeship - Logic chuẩn với 4 mode
+                                $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order, fee_ship_products FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
+                                $freeship_result = mysqli_query($conn, $freeship_query);
+                                $freeship_label = '';
+                                
+                                if ($freeship_result && mysqli_num_rows($freeship_result) > 0) {
+                                    $freeship_data = mysqli_fetch_assoc($freeship_result);
+                                    $mode = intval($freeship_data['free_ship_all'] ?? 0);
+                                    $discount = intval($freeship_data['free_ship_discount'] ?? 0);
+                                    $minOrder = intval($freeship_data['free_ship_min_order'] ?? 0);
+                                    
+                                    $base_price = $product['gia_moi'];
+                                    
+                                    if ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
+                                        $freeship_label = 'Giảm ' . number_format($discount) . 'đ ship';
+                                    } elseif ($mode === 1) {
+                                        $freeship_label = 'Freeship 100%';
+                                    } elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
+                                        $freeship_label = 'Giảm ' . intval($discount) . '% ship';
+                                    } elseif ($mode === 3) {
+                                        $fee_ship_products = $freeship_data['fee_ship_products'] ?? '';
+                                        $ship_discount_amount = 0;
+                                        
+                                        if (!empty($fee_ship_products)) {
+                                            $fee_ship_products_array = json_decode($fee_ship_products, true);
+                                            if (is_array($fee_ship_products_array)) {
+                                                foreach ($fee_ship_products_array as $ship_item) {
+                                                    if (isset($ship_item['sp_id']) && $ship_item['sp_id'] == $product['id']) {
+                                                        if (isset($ship_item['ship_support'])) {
+                                                            $ship_discount_amount = intval($ship_item['ship_support']);
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        if ($ship_discount_amount > 0) {
+                                            $freeship_label = 'Hỗ trợ ship ' . number_format($ship_discount_amount) . '₫';
+                                        }
+                                    }
+                                }
+                                
+                                $product['voucher_icon'] = $voucher_icon;
+                                $product['freeship_icon'] = $freeship_label;
+                                $product['chinhhang_icon'] = 'Chính hãng';
+                                
                                 $sub_products[] = $product;
                             }
                         }

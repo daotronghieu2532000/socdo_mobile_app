@@ -51,16 +51,9 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
             })
         .toList();
     if (items.isEmpty) {
-      // debug khi giỏ rỗng sẽ không gọi API
-      // bỏ comment nếu cần thấy log trên console
-      // ignore: avoid_print
-      print('🛒 cart empty -> skip shipping quote');
       return;
     }
-    // debug input gửi server
-    // ignore: avoid_print
-    print('🧮 shipping input items: $items');
-    // Call server to compute shipping. Server uses class_ghtk + class_superai,
+  
     // evaluates all providers and returns the cheaper one with an ETA text.
     final rawQuote = await _api.getShippingQuote(userId: u.userId, items: items);
     if (!mounted) return;
@@ -94,15 +87,25 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
             final shipFixedSupport = freeshipExcluded['ship_fixed_support'] as int? ?? 0;
             final shipPercentSupport = (freeshipExcluded['ship_percent_support'] as num?)?.toDouble() ?? 0.0;
             
-            // Tính ship support từ percent (dựa trên fee gốc)
+            // Tính ship support từ percent (dựa trên fee_before_support từ debug)
             int percentSupportAmount = 0;
             if (shipPercentSupport > 0) {
-              // Lấy fee gốc từ quotes (trước khi áp dụng freeship)
-              final quotes = rawQuote['quotes'] as List<dynamic>?;
-              if (quotes != null && quotes.isNotEmpty) {
-                final firstQuote = quotes[0] as Map<String, dynamic>;
-                final originalFee = firstQuote['fee'] as int? ?? 0;
-                percentSupportAmount = (originalFee * shipPercentSupport / 100).round();
+              // Lấy fee_before_support từ debug (fee gốc trước khi áp dụng freeship)
+              final finalFeeCalculation = debug['final_fee_calculation'] as Map<String, dynamic>?;
+              if (finalFeeCalculation != null) {
+                final feeBeforeSupport = finalFeeCalculation['fee_before_support'] as int? ?? 0;
+                percentSupportAmount = (feeBeforeSupport * shipPercentSupport / 100).round();
+                print('🔍 Percent Support Calculation:');
+                print('  - Fee Before Support: $feeBeforeSupport');
+                print('  - Percent Support: $shipPercentSupport%');
+                print('  - Percent Amount: $percentSupportAmount');
+              } else {
+                // Fallback: sử dụng fee hiện tại nếu không có debug info
+                percentSupportAmount = (_shipFee! * shipPercentSupport / 100).round();
+                print('🔍 Percent Support Calculation (Fallback):');
+                print('  - Current Fee: ${_shipFee}');
+                print('  - Percent Support: $shipPercentSupport%');
+                print('  - Percent Amount: $percentSupportAmount');
               }
             }
             
@@ -152,8 +155,34 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
               
               print('🔍 DEBUG: Shop ${entry.key}: mode=$mode, discount=$discount');
               
-              // If there's any freeship config (mode >= 0 and discount > 0), show button
-              if (mode >= 0 && discount > 0) {
+              // Check freeship config based on mode
+              bool hasValidFreeship = false;
+              
+              if (mode == 0 && discount > 0) {
+                // Mode 0: Fixed discount
+                hasValidFreeship = true;
+              } else if (mode == 1) {
+                // Mode 1: 100% freeship
+                hasValidFreeship = true;
+              } else if (mode == 2 && discount > 0) {
+                // Mode 2: Percentage discount
+                hasValidFreeship = true;
+              } else if (mode == 3) {
+                // Mode 3: Per-product freeship - check if any products have ship support
+                final products = config['products'] as Map<String, dynamic>?;
+                if (products != null && products.isNotEmpty) {
+                  for (final productEntry in products.entries) {
+                    final productConfig = productEntry.value as Map<String, dynamic>;
+                    final supportAmount = productConfig['value'] as int? ?? 0;
+                    if (supportAmount > 0) {
+                      hasValidFreeship = true;
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              if (hasValidFreeship) {
                 print('🔍 DEBUG: Found freeship config! Setting _hasFreeshipAvailable = true');
                 _hasFreeshipAvailable = true;
                 break;
@@ -425,8 +454,25 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
         statusColor = applied ? Colors.green : Colors.orange;
         break;
       case 3:
-        title = 'Miễn phí ship theo sản phẩm';
-        description = 'Miễn phí ship cho sản phẩm cụ thể';
+        title = 'Hỗ trợ ship theo sản phẩm';
+        // Lấy thông tin ship support cụ thể từ config
+        final products = config['products'] as Map<String, dynamic>?;
+        if (products != null && products.isNotEmpty) {
+          // Tính tổng ship support từ các sản phẩm
+          int totalShipSupport = 0;
+          for (final productEntry in products.entries) {
+            final productConfig = productEntry.value as Map<String, dynamic>;
+            final supportAmount = productConfig['value'] as int? ?? 0;
+            totalShipSupport += supportAmount;
+          }
+          if (totalShipSupport > 0) {
+            description = 'Hỗ trợ ship ${_formatCurrency(totalShipSupport)}';
+          } else {
+            description = 'Hỗ trợ ship cho sản phẩm cụ thể';
+          }
+        } else {
+          description = 'Hỗ trợ ship cho sản phẩm cụ thể';
+        }
         statusColor = applied ? Colors.green : Colors.orange;
         break;
       default:

@@ -245,10 +245,9 @@ try {
                     $shipping_info['free_ship_details'] = 'Giảm ' . intval($discount) . '% phí ship';
                 }
             }
-            // Mode 3: Freeship theo sản phẩm cụ thể
+            // Mode 3: Ưu đãi ship theo sản phẩm cụ thể - cần kiểm tra fee_ship_products
             elseif ($mode === 3) {
                 $shipping_info['free_ship_type'] = 'per_product';
-                $shipping_info['free_ship_label'] = 'Ưu đãi ship';
                 $shipping_info['free_ship_badge_color'] = '#FF9800'; // Orange
                 
                 // Parse fee_ship_products để xem sản phẩm này có trong danh sách không
@@ -256,6 +255,7 @@ try {
                 $productId = intval($product['id']);
                 $hasSupport = false;
                 $supportDetail = '';
+                $ship_discount_amount = 0;
                 
                 if (is_array($feeShipProducts)) {
                     foreach ($feeShipProducts as $cfg) {
@@ -263,19 +263,27 @@ try {
                             $hasSupport = true;
                             $stype = $cfg['ship_type'] ?? 'vnd';
                             $val = floatval($cfg['ship_support'] ?? 0);
+                            $ship_discount_amount = intval($val);
+                            
                             if ($stype === 'percent') {
                                 $supportDetail = 'Giảm ' . intval($val) . '% phí ship';
                                 $shipping_info['free_ship_label'] = 'Giảm ' . intval($val) . '% ship';
                             } else {
-                                $supportDetail = 'Giảm ' . number_format($val) . 'đ phí ship';
-                                $shipping_info['free_ship_label'] = 'Giảm ' . number_format($val) . 'đ';
+                                $supportDetail = 'Hỗ trợ ship ' . number_format($val) . '₫';
+                                $shipping_info['free_ship_label'] = 'Hỗ trợ ship ' . number_format($val) . '₫';
                             }
                             break;
                         }
                     }
                 }
                 
-                $shipping_info['free_ship_details'] = $hasSupport ? $supportDetail : 'Ưu đãi phí ship cho sản phẩm này';
+                // Chỉ hiển thị nếu có hỗ trợ ship cụ thể
+                if ($hasSupport && $ship_discount_amount > 0) {
+                    $shipping_info['free_ship_details'] = $supportDetail;
+                } else {
+                    $shipping_info['free_ship_label'] = '';
+                    $shipping_info['free_ship_details'] = '';
+                }
             }
             // Mode 0 với discount = 0: Freeship cơ bản
             elseif ($mode === 0 && $discount == 0) {

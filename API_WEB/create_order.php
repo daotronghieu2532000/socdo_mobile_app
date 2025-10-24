@@ -117,16 +117,23 @@ try {
 	}
 
 	// Tạo thông báo cho user đặt hàng (Mobile App)
-	require_once './notification_mobile_helper.php';
-	$notificationHelper = new NotificationMobileHelper($conn);
-	$order_id = mysqli_insert_id($conn); // Lấy ID đơn hàng vừa tạo
-	
-	$notificationHelper->notifyNewOrder(
-		$user_id, 
-		$order_id, 
-		$ma_don, 
-		$tongtien
-	);
+	try {
+		$notification_file = __DIR__ . '/notification_mobile_helper.php';
+		if (file_exists($notification_file)) {
+			require_once $notification_file;
+			$notificationHelper = new NotificationMobileHelper($conn);
+			$order_id = mysqli_insert_id($conn); // Lấy ID đơn hàng vừa tạo
+			
+			$notificationHelper->notifyNewOrder(
+				$user_id, 
+				$order_id, 
+				$ma_don, 
+				$tongtien
+			);
+		}
+	} catch (Exception $notif_error) {
+		// Don't fail the order creation if notification fails
+	}
 
 	$response = [
 		'success' => true,
@@ -150,7 +157,7 @@ try {
 	echo json_encode($response, JSON_UNESCAPED_UNICODE);
 
 } catch (Exception $e) {
-	http_response_code(401);
-	echo json_encode(["success" => false, "message" => "Token không hợp lệ", "error" => $e->getMessage()]);
+	http_response_code(500);
+	echo json_encode(["success" => false, "message" => "Lỗi hệ thống", "error" => $e->getMessage()]);
 }
 ?>

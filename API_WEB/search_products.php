@@ -233,7 +233,7 @@ try {
         }
         
         // Check freeship - Logic chuẩn với 4 mode
-        $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
+        $freeship_query = "SELECT free_ship_all, free_ship_discount, free_ship_min_order, fee_ship_products FROM transport WHERE user_id = '$deal_shop' AND (free_ship_all > 0 OR free_ship_discount > 0) LIMIT 1";
         $freeship_result = mysqli_query($conn, $freeship_query);
         $freeship_label = '';
         
@@ -248,7 +248,7 @@ try {
             
             // Mode 0: Giảm cố định (VD: -15,000đ) - Cần kiểm tra điều kiện min_order
             if ($mode === 0 && $discount > 0 && $base_price >= $minOrder) {
-                $freeship_label = 'Giảm ' . number_format($discount) . 'đ';
+                $freeship_label = 'Giảm ' . number_format($discount) . 'đ ship';
             }
             // Mode 1: Freeship toàn bộ (100%)
             elseif ($mode === 1) {
@@ -258,12 +258,33 @@ try {
             elseif ($mode === 2 && $discount > 0 && $base_price >= $minOrder) {
                 $freeship_label = 'Giảm ' . intval($discount) . '% ship';
             }
-            // Mode 3: Freeship theo sản phẩm cụ thể
+            // Mode 3: Ưu đãi ship theo sản phẩm cụ thể - cần kiểm tra fee_ship_products
             elseif ($mode === 3) {
-                $freeship_label = 'Ưu đãi ship';
+                $fee_ship_products = $freeship_data['fee_ship_products'] ?? '';
+                $ship_discount_amount = 0;
+                
+                if (!empty($fee_ship_products)) {
+                    $fee_ship_products_array = json_decode($fee_ship_products, true);
+                    if (is_array($fee_ship_products_array)) {
+                        foreach ($fee_ship_products_array as $ship_item) {
+                            if (isset($ship_item['sp_id']) && $ship_item['sp_id'] == $id_sp) {
+                                // Lấy số tiền hỗ trợ ship cụ thể
+                                if (isset($ship_item['ship_support'])) {
+                                    $ship_discount_amount = intval($ship_item['ship_support']);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Hiển thị số tiền hỗ trợ ship cụ thể
+                if ($ship_discount_amount > 0) {
+                    $freeship_label = 'Hỗ trợ ship ' . number_format($ship_discount_amount) . '₫';
+                }
             }
             
-            $freeship_icon = $freeship_label ?: 'Freeship';
+            $freeship_icon = $freeship_label ?: '';
         }
         
         $chinhhang_icon = 'Chính hãng';
