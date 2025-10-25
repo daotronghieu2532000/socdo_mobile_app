@@ -136,6 +136,12 @@ try {
             ];
         }
         
+        // Debug địa chỉ gửi và nhận
+        error_log("🚢 SHIPPING CALCULATION: $provider");
+        error_log("🚢   SENDER: $sender_province, $sender_district");
+        error_log("🚢   RECEIVER: $receiver_province, $receiver_district");
+        error_log("🚢   WEIGHT: $weight g, VALUE: $amount VND");
+        
         $shipping_fee = 0;
         $provider_name = '';
         switch (strtoupper($provider)) {
@@ -161,8 +167,11 @@ try {
                     $ghtk_result = json_decode($ghtk_response, true);
                     if (isset($ghtk_result['phi_tong']) && $ghtk_result['phi_tong'] > 0) {
                         $shipping_fee = $ghtk_result['phi_tong'];
+                        error_log("🚢 GHTK RESULT: phi_tong=$shipping_fee");
+                        error_log("🚢 GHTK DETAILS: " . json_encode($ghtk_result));
                     } else {
                         $shipping_fee = 0;
+                        error_log("🚢 GHTK RESULT: No fee returned");
                     }
                 } catch (Exception $e) {
                     // Exception - không tính phí ship
@@ -171,44 +180,20 @@ try {
                 
                 $provider_name = 'GHTK';
                 break;
-            case 'BEST':
-                // BEST sử dụng bảng giá cố định
-                try {
-                    // Xác định miền gửi và nhận
-                    $sender_mien = get_mien_by_province($conn, $sender_province);
-                    $receiver_mien = get_mien_by_province($conn, $receiver_province);
-                    
-                    // Gọi hàm get_tax với các tham số cần thiết
-                    $best_response = $class_best->get_tax(
-                        $weight,              // Cân nặng (gram)
-                        $amount,              // Tiền hàng
-                        $sender_province,     // Tỉnh gửi
-                        $sender_mien,         // Miền gửi
-                        $receiver_province,   // Tỉnh nhận
-                        $receiver_mien,       // Miền nhận
-                        false,                // COD (mặc định false)
-                        false                 // Giao lại (mặc định false)
-                    );
-                    
-                    $best_result = json_decode($best_response, true);
-                    if (isset($best_result['phi_tong']) && $best_result['phi_tong'] > 0) {
-                        $shipping_fee = $best_result['phi_tong'];
-                    } else {
-                        $shipping_fee = 0;
-                    }
-                } catch (Exception $e) {
-                    // Exception - không tính phí ship
-                    $shipping_fee = 0;
-                }
-                
-                $provider_name = 'BEST';
-                break;
+            // case 'BEST':
+            //     // BEST sử dụng bảng giá cố định - TẠM COMMENT VÌ CHƯA HOẠT ĐỘNG
+            //     // Sẽ dùng lại sau vài tháng
+            //     $shipping_fee = 0;
+            //     $provider_name = 'BEST (Disabled)';
+            //     break;
             case 'SPX':
                 // SPX sử dụng bảng giá cố định
                 try {
                     // Xác định miền gửi và nhận
                     $sender_mien = get_mien_by_province($conn, $sender_province);
                     $receiver_mien = get_mien_by_province($conn, $receiver_province);
+                    
+                    error_log("🚢 SPX MIEN: sender=$sender_mien, receiver=$receiver_mien");
                     
                     // Gọi hàm get_tax với các tham số cần thiết
                     $spx_response = $class_spx->get_tax(
@@ -224,8 +209,11 @@ try {
                     $spx_result = json_decode($spx_response, true);
                     if (isset($spx_result['phi_tong']) && $spx_result['phi_tong'] > 0) {
                         $shipping_fee = $spx_result['phi_tong'];
+                        error_log("🚢 SPX RESULT: phi_tong=$shipping_fee");
+                        error_log("🚢 SPX DETAILS: " . json_encode($spx_result));
                     } else {
                         $shipping_fee = 0;
+                        error_log("🚢 SPX RESULT: No fee returned");
                     }
                 } catch (Exception $e) {
                     // Exception - không tính phí ship
@@ -545,9 +533,9 @@ try {
                         $w_gram_per_item = 500;
                     }
 
-                    // Giới hạn an toàn: 30g - 50000g (0.03kg - 50kg) - tăng giới hạn cho sản phẩm lớn
+                    // Giới hạn an toàn: 30g - 100000g (0.03kg - 100kg) - tăng giới hạn cho sản phẩm lớn
                     if ($w_gram_per_item < 30) $w_gram_per_item = 30;
-                    if ($w_gram_per_item > 50000) $w_gram_per_item = 50000;
+                    if ($w_gram_per_item > 100000) $w_gram_per_item = 100000;
                     $line_value = $price * $qty;
                     $line_weight = $w_gram_per_item * $qty;
                     $total_value += $line_value;
@@ -595,9 +583,50 @@ try {
                 $debug['db_error'] = 'no mysqli $conn available to read dia_chi';
             }
         }
-        // Địa chỉ gửi mặc định nếu thiếu
-        if (empty($sender_province)) $sender_province = 'Thành phố Hà Nội';
-        if (empty($sender_district)) $sender_district = 'Nam Từ Liêm';
+        // Lấy vị trí kho từ shop (giống checkout.php)
+        if (empty($sender_province) || empty($sender_district)) {
+            // Lấy shop đầu tiên từ items để xác định vị trí kho
+            $first_shop = null;
+            foreach (($debug['item_weights'] ?? []) as $item) {
+                $first_shop = intval($item['shop'] ?? 0);
+                if ($first_shop > 0) break;
+            }
+            
+            if ($first_shop > 0 && isset($conn) && $conn) {
+                // Lấy vị trí kho từ transport table
+                $warehouse_query = "SELECT t.province, t.district, 
+                                          tm.tieu_de as province_name, 
+                                          hm.tieu_de as district_name
+                                   FROM transport t
+                                   LEFT JOIN tinh_moi tm ON t.province = tm.id
+                                   LEFT JOIN huyen_moi hm ON t.district = hm.id
+                                   WHERE t.user_id = '$first_shop' AND t.is_default = 1
+                                   LIMIT 1";
+                
+                $warehouse_result = mysqli_query($conn, $warehouse_query);
+                if ($warehouse_result && mysqli_num_rows($warehouse_result) > 0) {
+                    $warehouse_data = mysqli_fetch_assoc($warehouse_result);
+                    $sender_province = $warehouse_data['province_name'] ?? 'Thành phố Hà Nội';
+                    $sender_district = $warehouse_data['district_name'] ?? 'Nam Từ Liêm';
+                    
+                    error_log("🚢 WAREHOUSE LOCATION: Shop $first_shop -> $sender_province, $sender_district");
+                    error_log("🚢 WAREHOUSE QUERY: $warehouse_query");
+                    error_log("🚢 WAREHOUSE DATA: " . json_encode($warehouse_data));
+                } else {
+                    // Fallback nếu không tìm thấy kho
+                    $sender_province = 'Thành phố Hà Nội';
+                    $sender_district = 'Nam Từ Liêm';
+                    error_log("🚢 WAREHOUSE FALLBACK: Shop $first_shop -> Hà Nội, Nam Từ Liêm");
+                    error_log("🚢 WAREHOUSE QUERY FAILED: $warehouse_query");
+                    error_log("🚢 WAREHOUSE ERROR: " . mysqli_error($conn));
+                }
+            } else {
+                // Fallback nếu không có shop
+                $sender_province = 'Thành phố Hà Nội';
+                $sender_district = 'Nam Từ Liêm';
+                error_log("🚢 WAREHOUSE FALLBACK: No shop found -> Hà Nội, Nam Từ Liêm");
+            }
+        }
     }
 
     // Basic validations
@@ -788,49 +817,132 @@ try {
         'ship_percent_support' => $ship_percent_support
     ];
 
-    // Sử dụng logic tính phí ship giống checkout.php
+    // Tính phí ship từ TẤT CẢ các kho (giống website checkout.php)
+    $total_shipping_fee = 0;
+    $warehouse_shipping_details = [];
     $quotes = [];
     $best_overall = null;
     $best_fee = PHP_INT_MAX;
 
     // Danh sách providers để test (giống checkout.php)
-    $shipping_providers = ['SUPERAI', 'GHTK', 'BEST', 'SPX'];
+    // BEST tạm comment vì chưa hoạt động - sẽ dùng sau vài tháng
+    $shipping_providers = ['SUPERAI', 'GHTK', 'SPX']; // 'BEST' tạm comment
     
-    // Tính phí cho tất cả providers
-    foreach ($shipping_providers as $provider) {
-        $shipping_data = calculateShippingFee(
-            $provider,
-            $sender_province,
-            $sender_district,
-            $receiver_province,
-            $receiver_district,
-            $sender_ward,
-            $receiver_ward,
-            $weight_to_quote,
-            $value_to_quote,
-            $class_ghtk,
-            $class_superai,
-            $class_best,
-            $class_spx
-        );
+    // Gom theo shop để tính phí ship từng kho
+    $shop_weights = [];
+    $shop_values = [];
+    foreach (($debug['item_weights'] ?? []) as $item) {
+        $shop = intval($item['shop'] ?? 0);
+        $shop_weights[$shop] = ($shop_weights[$shop] ?? 0) + intval($item['line_weight'] ?? 0);
+        $shop_values[$shop] = ($shop_values[$shop] ?? 0) + intval($item['line_value'] ?? 0);
+    }
+    
+    error_log("🚢 MULTI-WAREHOUSE SHIPPING: Found " . count($shop_weights) . " warehouses");
+    
+    // Tính phí ship từng kho
+    foreach ($shop_weights as $shop_id => $shop_weight) {
+        $shop_value = $shop_values[$shop_id] ?? 0;
         
-        if ($shipping_data['fee'] > 0) {
-            $q = [
-                'provider' => $shipping_data['provider'],
-                'carrier_name' => $shipping_data['provider'],
-                'carrier_id' => 0,
-                'fee' => $shipping_data['fee'],
-                'provider_code' => $shipping_data['provider_code'],
-                'raw' => $shipping_data
-            ];
-            $quotes[] = $q;
+        // Lấy vị trí kho của shop này
+        $warehouse_query = "SELECT t.province, t.district, 
+                                  tm.tieu_de as province_name, 
+                                  hm.tieu_de as district_name
+                           FROM transport t
+                           LEFT JOIN tinh_moi tm ON t.province = tm.id
+                           LEFT JOIN huyen_moi hm ON t.district = hm.id
+                           WHERE t.user_id = '$shop_id' AND t.is_default = 1
+                           LIMIT 1";
+        
+        $warehouse_result = mysqli_query($conn, $warehouse_query);
+        if ($warehouse_result && mysqli_num_rows($warehouse_result) > 0) {
+            $warehouse_data = mysqli_fetch_assoc($warehouse_result);
+            $shop_sender_province = $warehouse_data['province_name'] ?? 'Thành phố Hà Nội';
+            $shop_sender_district = $warehouse_data['district_name'] ?? 'Nam Từ Liêm';
             
-            // Chọn provider có phí thấp nhất
-            if ($shipping_data['fee'] < $best_fee) {
-                $best_fee = $shipping_data['fee'];
-                $best_overall = $q;
+            error_log("🚢 WAREHOUSE $shop_id: $shop_sender_province, $shop_sender_district");
+            
+            // Tính phí ship từ kho này
+            $shop_best_fee = PHP_INT_MAX;
+            $shop_best_provider = null;
+            
+            foreach ($shipping_providers as $provider) {
+                $shipping_data = calculateShippingFee(
+                    $provider,
+                    $shop_sender_province,
+                    $shop_sender_district,
+                    $receiver_province,
+                    $receiver_district,
+                    $sender_ward,
+                    $receiver_ward,
+                    $shop_weight,
+                    $shop_value,
+                    $class_ghtk,
+                    $class_superai,
+                    $class_best,
+                    $class_spx
+                );
+                
+                if ($shipping_data['fee'] > 0 && $shipping_data['fee'] < $shop_best_fee) {
+                    $shop_best_fee = $shipping_data['fee'];
+                    $shop_best_provider = $shipping_data;
+                }
+            }
+            
+            if ($shop_best_provider) {
+                $total_shipping_fee += $shop_best_fee;
+                $warehouse_shipping_details[] = [
+                    'shop_id' => $shop_id,
+                    'warehouse_location' => "$shop_sender_province, $shop_sender_district",
+                    'weight' => $shop_weight,
+                    'value' => $shop_value,
+                    'shipping_fee' => $shop_best_fee,
+                    'provider' => $shop_best_provider['provider'],
+                    'provider_code' => $shop_best_provider['provider_code']
+                ];
+                
+                error_log("🚢 WAREHOUSE $shop_id: $shop_best_fee VND via {$shop_best_provider['provider']}");
             }
         }
+    }
+    
+    // Tạo quotes tổng hợp với tên provider chính xác
+    if ($total_shipping_fee > 0) {
+        // Tạo provider name từ các warehouse details
+        $provider_names = [];
+        $provider_codes = [];
+        foreach ($warehouse_shipping_details as $warehouse) {
+            $provider_names[] = $warehouse['provider'];
+            $provider_codes[] = $warehouse['provider_code'];
+        }
+        
+        // Loại bỏ duplicate và tạo tên provider
+        $unique_providers = array_unique($provider_names);
+        $unique_codes = array_unique($provider_codes);
+        
+        if (count($unique_providers) == 1) {
+            // Cùng 1 provider cho tất cả kho
+            $provider_name = $unique_providers[0];
+            $provider_code = $unique_codes[0];
+        } else {
+            // Nhiều provider khác nhau
+            $provider_name = implode(' + ', $unique_providers);
+            $provider_code = implode('+', $unique_codes);
+        }
+        
+        $best_overall = [
+            'provider' => $provider_name,
+            'carrier_name' => $provider_name,
+            'carrier_id' => 0,
+            'fee' => $total_shipping_fee,
+            'provider_code' => $provider_code,
+            'raw' => ['fee' => $total_shipping_fee, 'provider' => $provider_name],
+            'warehouse_details' => $warehouse_shipping_details
+        ];
+        
+        $quotes[] = $best_overall;
+        $best_fee = $total_shipping_fee;
+        
+        error_log("🚢 TOTAL SHIPPING FEE: $total_shipping_fee VND via $provider_name from " . count($warehouse_shipping_details) . " warehouses");
     }
     
     // Debug log
@@ -859,7 +971,8 @@ try {
         $fee_before_support = intval($best_overall['fee'] ?? 0);
 
         // Nếu đã loại trừ 100% weight/value (MODE 1 hoặc MODE 3 full), fee = 0
-        if ($exclude_weight > 0 && $exclude_weight >= $weight) {
+        // Nhưng trong MODE 3, chúng ta muốn áp dụng hỗ trợ ship cố định thay vì freeship 100%
+        if ($exclude_weight > 0 && $exclude_weight >= $weight && $ship_fixed_support == 0) {
             $final_fee = 0;
             $total_support = $fee_before_support;
             error_log("🚢 FREESHIP 100% APPLIED - Fee reduced from $fee_before_support to 0");
@@ -871,21 +984,23 @@ try {
                 $support_fee += intval(round($value_to_quote * ($ship_percent_support / 100.0)));
             }
             $total_support = $support_fee;
+            // Không giới hạn hỗ trợ ship - có thể vượt quá phí ship gốc
             $final_fee = max(0, $fee_before_support - $support_fee);
 
             error_log("🚢 PARTIAL FREESHIP APPLIED:");
             error_log("🚢   fee_before_support = $fee_before_support VND");
             error_log("🚢   ship_fixed_support = $ship_fixed_support VND");
             error_log("🚢   ship_percent_support = $ship_percent_support%");
+            error_log("🚢   support_fee = $support_fee VND");
             error_log("🚢   total_support = $total_support VND");
             error_log("🚢   FINAL FEE = $final_fee VND");
         }
 
         // Trả về phí ship gốc và hỗ trợ ship riêng biệt (giống website)
         $best_overall['fee'] = $fee_before_support; // Phí ship gốc
-        $best_overall['ship_support'] = $total_support; // Hỗ trợ ship
+        $best_overall['ship_support'] = $total_support; // Hỗ trợ ship (không giới hạn)
         $best_simple['fee'] = $fee_before_support; // Phí ship gốc
-        $best_simple['ship_support'] = $total_support; // Hỗ trợ ship
+        $best_simple['ship_support'] = $total_support; // Hỗ trợ ship (không giới hạn)
 
         // Update all quotes - trả về phí ship gốc và hỗ trợ ship riêng biệt
         foreach ($quotes as &$q) {
@@ -931,6 +1046,11 @@ try {
                 'total_percent_support' => $ship_percent_support,
                 'excluded_weight' => $exclude_weight,
                 'excluded_value' => $exclude_value
+            ],
+            'warehouse_shipping' => [
+                'total_fee' => $total_shipping_fee,
+                'warehouse_count' => count($warehouse_shipping_details),
+                'warehouse_details' => $warehouse_shipping_details
             ],
             'debug' => $debug,
         ]

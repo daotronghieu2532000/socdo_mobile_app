@@ -22,6 +22,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
   String? _etaText;
   String? _provider;
   bool _hasFreeshipAvailable = false;
+  List<Map<String, dynamic>>? _warehouseDetails; // Chi tiết phí ship từng kho
   StreamSubscription<void>? _shipSub;
 
   @override
@@ -77,8 +78,16 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
       _provider = rawQuote?['provider']?.toString();
       
       // Lấy phí ship gốc và hỗ trợ ship từ API response
-      _originalShipFee = rawQuote?['fee'] as int? ?? 0; // Phí ship gốc
-      _shipSupport = rawQuote?['best']?['ship_support'] as int? ?? 0; // Hỗ trợ ship từ best
+        _originalShipFee = rawQuote?['fee'] as int? ?? 0; // Phí ship gốc
+        _shipSupport = rawQuote?['best']?['ship_support'] as int? ?? 0; // Hỗ trợ ship từ best
+        
+        // Lấy chi tiết phí ship từng kho
+        final warehouseShipping = rawQuote?['warehouse_shipping'] as Map<String, dynamic>?;
+        if (warehouseShipping != null) {
+          _warehouseDetails = List<Map<String, dynamic>>.from(
+            warehouseShipping['warehouse_details'] as List? ?? []
+          );
+        }
       
       // Debug log để kiểm tra
       print('🔍 OrderSummarySection - rawQuote keys: ${rawQuote?.keys.toList()}');
@@ -717,6 +726,20 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Phí vận chuyển: ${_originalShipFee != null ? _formatCurrency(_originalShipFee!) : 'đang tính...'}'),
+                    
+                    // Hiển thị chi tiết phí ship từng kho với provider
+                    if (_warehouseDetails != null && _warehouseDetails!.isNotEmpty)
+                      ...(_warehouseDetails!.map((warehouse) => Padding(
+                        padding: const EdgeInsets.only(left: 8, top: 2),
+                        child: Text(
+                          '• ${warehouse['warehouse_location']}: ${_formatCurrency(warehouse['shipping_fee'])} (${warehouse['provider']})',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      )).toList()),
+                    
                     if (_shipSupport != null && _shipSupport! > 0)
                       Text(
                         'Hỗ trợ ship: -${_formatCurrency(_shipSupport!)}',
