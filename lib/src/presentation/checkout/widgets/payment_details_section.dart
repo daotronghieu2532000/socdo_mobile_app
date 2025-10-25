@@ -58,12 +58,13 @@ class _PaymentDetailsSectionState extends State<PaymentDetailsSection> {
     // Lấy phí ship từ store đã cập nhật bởi OrderSummarySection
     final shipFee = ShippingQuoteStore().lastFee;
     final shipSupport = ShippingQuoteStore().shipSupport;
-    final grandTotal = (totalGoods + shipFee - voucherDiscount).clamp(0, 1 << 31);
+    final grandTotal = (totalGoods + shipFee - shipSupport - voucherDiscount).clamp(0, 1 << 31);
     
     // Debug log để so sánh với BottomOrderBar
     print('📋 PaymentDetailsSection calculation:');
     print('  - totalGoods: ${FormatUtils.formatCurrency(totalGoods)}');
     print('  - shipFee: ${FormatUtils.formatCurrency(shipFee)}');
+    print('  - shipSupport: ${FormatUtils.formatCurrency(shipSupport)}');
     print('  - shopDiscount: ${FormatUtils.formatCurrency(shopDiscount)}');
     print('  - platformDiscount: ${FormatUtils.formatCurrency(platformDiscount)}');
     print('  - voucherDiscount: ${FormatUtils.formatCurrency(voucherDiscount)}');

@@ -17,6 +17,8 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
   final _api = ApiService();
   final _auth = AuthService();
   int? _shipFee;
+  int? _originalShipFee; // Phí ship gốc
+  int? _shipSupport; // Hỗ trợ ship
   String? _etaText;
   String? _provider;
   bool _hasFreeshipAvailable = false;
@@ -74,57 +76,28 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
       _etaText = rawQuote?['eta_text']?.toString();
       _provider = rawQuote?['provider']?.toString();
       
+      // Lấy phí ship gốc và hỗ trợ ship từ API response
+      _originalShipFee = rawQuote?['fee'] as int? ?? 0; // Phí ship gốc
+      _shipSupport = rawQuote?['best']?['ship_support'] as int? ?? 0; // Hỗ trợ ship từ best
+      
+      // Debug log để kiểm tra
+      print('🔍 OrderSummarySection - rawQuote keys: ${rawQuote?.keys.toList()}');
+      print('🔍 OrderSummarySection - best keys: ${rawQuote?['best']?.keys.toList()}');
+      print('🔍 OrderSummarySection - ship_support from best: ${rawQuote?['best']?['ship_support']}');
+      print('🔍 OrderSummarySection - _shipSupport: $_shipSupport');
+      
       // Check if there's freeship available using raw API response
       _checkFreeshipAvailability(rawQuote);
       
-      // Tính ship support từ debug info
-      int shipSupport = 0;
-      if (rawQuote != null) {
-        final debug = rawQuote['debug'];
-        if (debug != null) {
-          final freeshipExcluded = debug['freeship_excluded'] as Map<String, dynamic>?;
-          if (freeshipExcluded != null) {
-            final shipFixedSupport = freeshipExcluded['ship_fixed_support'] as int? ?? 0;
-            final shipPercentSupport = (freeshipExcluded['ship_percent_support'] as num?)?.toDouble() ?? 0.0;
-            
-            // Tính ship support từ percent (dựa trên fee_before_support từ debug)
-            int percentSupportAmount = 0;
-            if (shipPercentSupport > 0) {
-              // Lấy fee_before_support từ debug (fee gốc trước khi áp dụng freeship)
-              final finalFeeCalculation = debug['final_fee_calculation'] as Map<String, dynamic>?;
-              if (finalFeeCalculation != null) {
-                final feeBeforeSupport = finalFeeCalculation['fee_before_support'] as int? ?? 0;
-                percentSupportAmount = (feeBeforeSupport * shipPercentSupport / 100).round();
-                print('🔍 Percent Support Calculation:');
-                print('  - Fee Before Support: $feeBeforeSupport');
-                print('  - Percent Support: $shipPercentSupport%');
-                print('  - Percent Amount: $percentSupportAmount');
-              } else {
-                // Fallback: sử dụng fee hiện tại nếu không có debug info
-                percentSupportAmount = (_shipFee! * shipPercentSupport / 100).round();
-                print('🔍 Percent Support Calculation (Fallback):');
-                print('  - Current Fee: $_shipFee');
-                print('  - Percent Support: $shipPercentSupport%');
-                print('  - Percent Amount: $percentSupportAmount');
-              }
-            }
-            
-            shipSupport = shipFixedSupport + percentSupportAmount;
-            print('🔍 Ship Support Calculation:');
-            print('  - Fixed Support: $shipFixedSupport');
-            print('  - Percent Support: $shipPercentSupport%');
-            print('  - Percent Amount: $percentSupportAmount');
-            print('  - Total Support: $shipSupport');
-          }
-        }
-      }
+      // Sử dụng ship_support từ API (đã tính toán chính xác)
+      // API trả về ship_support = 250.000₫ (2% của giá trị đơn hàng)
     
       // Lưu vào store dùng chung cho các section khác (PaymentDetails, Bottom bar)
       ShippingQuoteStore().setQuote(
         fee: _shipFee!,
         etaText: _etaText,
         provider: _provider,
-        shipSupport: shipSupport,
+        shipSupport: _shipSupport ?? 0,
       );
     });
   }
@@ -740,7 +713,21 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
               const Icon(Icons.mobile_friendly_rounded, color: Colors.grey),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('Phí vận chuyển: ${_shipFee != null ? _formatCurrency(_shipFee!) : 'đang tính...'}'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Phí vận chuyển: ${_originalShipFee != null ? _formatCurrency(_originalShipFee!) : 'đang tính...'}'),
+                    if (_shipSupport != null && _shipSupport! > 0)
+                      Text(
+                        'Hỗ trợ ship: -${_formatCurrency(_shipSupport!)}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
               ),
               if (_shipFee != null && _shipFee! > 0 && _hasFreeshipAvailable)
                 GestureDetector(

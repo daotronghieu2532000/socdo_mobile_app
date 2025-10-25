@@ -116,7 +116,7 @@ try {
                 foreach ($main_product_ids as $product_id) {
                     $product_id = intval(trim($product_id));
                     if ($product_id > 0) {
-                        $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id AND kho > 0 LIMIT 1";
+                        $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id AND kho > 0 AND active = 0 LIMIT 1";
                         $product_result = mysqli_query($conn, $product_query);
                         if ($product_result && mysqli_num_rows($product_result) > 0) {
                             $product = mysqli_fetch_assoc($product_result);
@@ -204,7 +204,7 @@ try {
                     foreach ($sub_json as $pid => $_) {
                         $product_id = intval($pid);
                         if ($product_id > 0) {
-                            $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id AND kho > 0 LIMIT 1";
+                            $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id AND kho > 0 AND active = 0 LIMIT 1";
                             $product_result = mysqli_query($conn, $product_query);
                             if ($product_result && mysqli_num_rows($product_result) > 0) {
                                 $product = mysqli_fetch_assoc($product_result);
@@ -287,7 +287,7 @@ try {
                     foreach ($sub_product_ids as $product_id) {
                         $product_id = intval(trim($product_id));
                         if ($product_id > 0) {
-                            $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id AND kho > 0 LIMIT 1";
+                            $product_query = "SELECT id, tieu_de, minh_hoa, gia_cu, gia_moi, link, shop FROM sanpham WHERE id = $product_id AND kho > 0 AND active = 0 LIMIT 1";
                             $product_result = mysqli_query($conn, $product_query);
                             if ($product_result && mysqli_num_rows($product_result) > 0) {
                                 $product = mysqli_fetch_assoc($product_result);

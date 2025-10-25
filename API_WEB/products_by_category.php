@@ -97,7 +97,7 @@ try {
         }
         
         // Đếm tổng số sản phẩm trong danh mục
-        $count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET($category_id, cat) > 0 AND kho > 0";
+        $count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET($category_id, cat) > 0 AND kho > 0 AND active = 0";
         $count_result = mysqli_query($conn, $count_query);
         $total_products = mysqli_fetch_assoc($count_result)['total'];
         
@@ -108,7 +108,7 @@ try {
                           FROM sanpham s
                           LEFT JOIN transport t ON s.kho_id = t.id
                           LEFT JOIN tinh_moi tm ON t.province = tm.id
-                          WHERE FIND_IN_SET($category_id, s.cat) > 0 AND s.kho > 0 $order_by LIMIT $start, $limit";
+                          WHERE FIND_IN_SET($category_id, s.cat) > 0 AND s.kho > 0 AND s.active = 0 $order_by LIMIT $start, $limit";
         $products_result = mysqli_query($conn, $products_query);
         
         if (!$products_result) {

@@ -72,7 +72,8 @@ class _BottomOrderBarState extends State<BottomOrderBar> {
     );
     final voucherDiscount = (shopDiscount + platformDiscount).clamp(0, totalGoods);
     final shipFee = ShippingQuoteStore().lastFee;
-    final grandTotal = (totalGoods + shipFee - voucherDiscount).clamp(0, 1 << 31);
+    final shipSupport = ShippingQuoteStore().shipSupport;
+    final grandTotal = (totalGoods + shipFee - shipSupport - voucherDiscount).clamp(0, 1 << 31);
     // Không để tiết kiệm vượt quá tổng tiền hàng (UX các sàn lớn)
     final totalSavings = (savingsFromOld + voucherDiscount).clamp(0, totalGoods);
     
@@ -80,6 +81,7 @@ class _BottomOrderBarState extends State<BottomOrderBar> {
     print('💰 BottomOrderBar calculation:');
     print('  - totalGoods: ${FormatUtils.formatCurrency(totalGoods)}');
     print('  - shipFee: ${FormatUtils.formatCurrency(shipFee)}');
+    print('  - shipSupport: ${FormatUtils.formatCurrency(shipSupport)}');
     print('  - shopDiscount: ${FormatUtils.formatCurrency(shopDiscount)}');
     print('  - platformDiscount: ${FormatUtils.formatCurrency(platformDiscount)}');
     print('  - voucherDiscount: ${FormatUtils.formatCurrency(voucherDiscount)}');

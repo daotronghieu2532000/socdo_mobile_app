@@ -85,7 +85,7 @@ try {
             $category['category_url'] = 'https://socdo.vn/danh-muc/' . $category['cat_id'] . '/' . $category['cat_link'] . '.html';
             
             // Đếm số sản phẩm trong danh mục
-            $count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET($category_id, cat) > 0 AND kho > 0";
+            $count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET($category_id, cat) > 0 AND kho > 0 AND active = 0";
             $count_result = mysqli_query($conn, $count_query);
             $category['total_products'] = mysqli_fetch_assoc($count_result)['total'];
             
@@ -156,7 +156,7 @@ try {
                 
                 // Đếm số sản phẩm trong danh mục
                 $cat_id = $row['cat_id'];
-                $count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET($cat_id, cat) > 0 AND kho > 0";
+                $count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET($cat_id, cat) > 0 AND kho > 0 AND active = 0";
                 $count_result = mysqli_query($conn, $count_query);
                 $row['total_products'] = mysqli_fetch_assoc($count_result)['total'];
                 

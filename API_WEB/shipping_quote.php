@@ -83,7 +83,26 @@ try {
         $decoded = (object)$payload;
     }
 
-    // Helper: get 'mien' of a province name from tinh_moi
+    // Helper: get 'mien' of a province name from tinh_moi (giống checkout.php)
+    function get_mien_by_province($conn, $province_name)
+    {
+        $stmt = mysqli_prepare($conn, "SELECT mien FROM tinh_moi WHERE tieu_de LIKE ? LIMIT 1");
+        if (!$stmt) {
+            return 'mien-nam'; // default fallback
+        }
+        $keyword = "%" . $province_name . "%";
+        mysqli_stmt_bind_param($stmt, "s", $keyword);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $mien);
+        if ($stmt->fetch()) {
+            $stmt->close();
+            return $mien;
+        }
+        $stmt->close();
+        return 'mien-nam'; // default fallback
+    }
+
+    // Helper: get 'mien' of a province name from tinh_moi (fallback function)
     function get_mien_by_province_name($conn, $provinceName)
     {
         if (empty($provinceName)) return 'mien-nam';
@@ -103,6 +122,276 @@ try {
         return 'mien-nam';
     }
 
+    // Hàm tính phí ship giống checkout.php
+    function calculateShippingFee($provider, $sender_province, $sender_district, $receiver_province, $receiver_district, $sender_ward, $receiver_ward, $weight, $amount, $class_ghtk, $class_superai, $class_best, $class_spx)
+    {
+        global $conn;
+        
+        // Kiểm tra địa chỉ nhận hàng trước khi tính phí
+        if (empty($receiver_province) || empty($receiver_district)) {
+            return [
+                'fee' => 0,
+                'provider' => 'Chưa có địa chỉ',
+                'provider_code' => 'NO_ADDRESS'
+            ];
+        }
+        
+        $shipping_fee = 0;
+        $provider_name = '';
+        switch (strtoupper($provider)) {
+            case 'GHTK':
+                // GHTK sử dụng bảng giá cố định thay vì API
+                try {
+                    // Xác định miền gửi và nhận
+                    $sender_mien = get_mien_by_province($conn, $sender_province);
+                    $receiver_mien = get_mien_by_province($conn, $receiver_province);
+                    
+                    // Gọi hàm get_tax với các tham số cần thiết
+                    $ghtk_response = $class_ghtk->get_tax(
+                        $weight,              // Cân nặng (gram)
+                        $amount,              // Tiền hàng
+                        $sender_province,     // Tỉnh gửi
+                        $sender_mien,         // Miền gửi
+                        $receiver_province,   // Tỉnh nhận
+                        $receiver_mien,       // Miền nhận
+                        false,                // COD (mặc định false)
+                        false                 // Giao lại (mặc định false)
+                    );
+                    
+                    $ghtk_result = json_decode($ghtk_response, true);
+                    if (isset($ghtk_result['phi_tong']) && $ghtk_result['phi_tong'] > 0) {
+                        $shipping_fee = $ghtk_result['phi_tong'];
+                    } else {
+                        $shipping_fee = 0;
+                    }
+                } catch (Exception $e) {
+                    // Exception - không tính phí ship
+                    $shipping_fee = 0;
+                }
+                
+                $provider_name = 'GHTK';
+                break;
+            case 'BEST':
+                // BEST sử dụng bảng giá cố định
+                try {
+                    // Xác định miền gửi và nhận
+                    $sender_mien = get_mien_by_province($conn, $sender_province);
+                    $receiver_mien = get_mien_by_province($conn, $receiver_province);
+                    
+                    // Gọi hàm get_tax với các tham số cần thiết
+                    $best_response = $class_best->get_tax(
+                        $weight,              // Cân nặng (gram)
+                        $amount,              // Tiền hàng
+                        $sender_province,     // Tỉnh gửi
+                        $sender_mien,         // Miền gửi
+                        $receiver_province,   // Tỉnh nhận
+                        $receiver_mien,       // Miền nhận
+                        false,                // COD (mặc định false)
+                        false                 // Giao lại (mặc định false)
+                    );
+                    
+                    $best_result = json_decode($best_response, true);
+                    if (isset($best_result['phi_tong']) && $best_result['phi_tong'] > 0) {
+                        $shipping_fee = $best_result['phi_tong'];
+                    } else {
+                        $shipping_fee = 0;
+                    }
+                } catch (Exception $e) {
+                    // Exception - không tính phí ship
+                    $shipping_fee = 0;
+                }
+                
+                $provider_name = 'BEST';
+                break;
+            case 'SPX':
+                // SPX sử dụng bảng giá cố định
+                try {
+                    // Xác định miền gửi và nhận
+                    $sender_mien = get_mien_by_province($conn, $sender_province);
+                    $receiver_mien = get_mien_by_province($conn, $receiver_province);
+                    
+                    // Gọi hàm get_tax với các tham số cần thiết
+                    $spx_response = $class_spx->get_tax(
+                        $weight,              // Cân nặng (gram)
+                        $amount,              // Tiền hàng
+                        $sender_province,     // Tỉnh gửi
+                        $sender_mien,         // Miền gửi
+                        $receiver_province,   // Tỉnh nhận
+                        $receiver_mien,       // Miền nhận
+                        false,                // COD (mặc định false)
+                        false                 // Giao lại (mặc định false)
+                    );
+                    $spx_result = json_decode($spx_response, true);
+                    if (isset($spx_result['phi_tong']) && $spx_result['phi_tong'] > 0) {
+                        $shipping_fee = $spx_result['phi_tong'];
+                    } else {
+                        $shipping_fee = 0;
+                    }
+                } catch (Exception $e) {
+                    // Exception - không tính phí ship
+                    $shipping_fee = 0;
+                }
+                
+                $provider_name = 'SPX-EXPRESS';
+                break;
+            case 'SUPERAI':
+            default:
+                // SUPERAI API call - weight phải là gram
+                $superai_data = array(
+                    "sender_province" => $sender_province,
+                    "sender_district" => $sender_district,
+                    "receiver_province" => $receiver_province,
+                    "receiver_district" => $receiver_district,
+                    "weight" => $weight, // SUPERAI yêu cầu weight theo gram
+                    "value" => $amount
+                );
+                try {
+                    $superai_response = $class_superai->get_fee(
+                        $sender_province,
+                        $sender_district,
+                        $receiver_province,
+                        $receiver_district,
+                        $weight,
+                        $amount
+                    );
+                    $superai_result = json_decode($superai_response, true);
+                    // Debug log SUPERAI response
+                    if (isset($superai_result['error']) && $superai_result['error'] === false && isset($superai_result['data']['services'])) {
+                        // Tìm carrier có phí ship thấp nhất
+                        $best_service = null;
+                        $lowest_total_fee = PHP_INT_MAX;
+                        // Danh sách ưu tiên carrier (càng thấp càng ưu tiên)
+                        $carrier_priority = [
+                            10 => 1,  // SPX Express - ưu tiên cao nhất
+                            6  => 2,  // BEST Express
+                            3  => 3,  // J&T Express  
+                            13 => 4,  // VietNamPost
+                            2  => 5,  // GHN
+                            4  => 6,  // Viettel Post
+                            14 => 7,  // Lazada Express
+                            // Ninja Van (carrier_id: 7) đã bị loại bỏ
+                        ];
+                        foreach ($superai_result['data']['services'] as $service) {
+                            // Loại bỏ Ninja Van vì không hoạt động nữa
+                            if (isset($service['carrier_id']) && $service['carrier_id'] == 7) {
+                                continue;
+                            }
+                            $total_fee = ($service['shipment_fee'] ?? 0) + ($service['insurance_fee'] ?? 0);
+                            $carrier_id = $service['carrier_id'] ?? 0;
+                            $current_priority = $carrier_priority[$carrier_id] ?? 999; // 999 = lowest priority for unknown carriers
+                            // Chọn service tốt hơn nếu:
+                            // 1. Phí thấp hơn, HOẶC
+                            // 2. Phí bằng nhau nhưng priority cao hơn (số nhỏ hơn)
+                            $should_select = false;
+                            if ($total_fee < $lowest_total_fee) {
+                                $should_select = true;
+                            } elseif ($total_fee == $lowest_total_fee && $best_service) {
+                                $best_priority = $carrier_priority[$best_service['carrier_id'] ?? 0] ?? 999;
+                                if ($current_priority < $best_priority) {
+                                    $should_select = true;
+                                }
+                            }
+                            if ($should_select) {
+                                $lowest_total_fee = $total_fee;
+                                $best_service = $service;
+                            }
+                        }
+                        if ($best_service) {
+                            $shipping_fee = $lowest_total_fee;
+                            $provider_name = 'SUPERAI (' . ($best_service['carrier_name'] ?? 'Unknown') . ')';
+                            // Tạo provider_code với format SUPERAI-carrier_id-carrier_name
+                            $carrier_id = $best_service['carrier_id'] ?? 0;
+                            $carrier_name = $best_service['carrier_name'] ?? 'Unknown';
+                            $provider_code_superai = 'SUPERAI-' . $carrier_id . '-' . $carrier_name;
+                        } else {
+                            $shipping_fee = 0;
+                            $provider_name = 'SUPERAI';
+                            $provider_code_superai = 'SUPERAI';
+                        }
+                    } else {
+                        // API lỗi - không tính phí ship
+                        $shipping_fee = 0;
+                        $provider_name = 'SUPERAI';
+                        $provider_code_superai = 'SUPERAI';
+                    }
+                } catch (Exception $e) {
+                    // Exception - không tính phí ship
+                    $shipping_fee = 0;
+                    $provider_name = 'SUPERAI';
+                    $provider_code_superai = 'SUPERAI';
+                }
+                break;
+        }
+        // Sử dụng provider_code_superai nếu là SUPERAI, otherwise dùng $provider
+        $final_provider_code = (strtoupper($provider) === 'SUPERAI' && isset($provider_code_superai))
+            ? $provider_code_superai
+            : $provider;
+        return [
+            'fee' => $shipping_fee,
+            'provider' => $provider_name,
+            'provider_code' => $final_provider_code
+        ];
+    }
+
+    // Hàm tìm provider tốt nhất giống checkout.php
+    function getBestShippingProvider($shipping_providers, $sender_province, $sender_district, $receiver_province, $receiver_district, $sender_ward, $receiver_ward, $weight, $amount, $class_ghtk, $class_superai, $class_best, $class_spx)
+    {
+        $best_provider = null;
+        $lowest_fee = PHP_INT_MAX;
+        $all_providers_data = [];
+        // Tính phí cho tất cả providers
+        foreach ($shipping_providers as $provider) {
+            $shipping_data = calculateShippingFee(
+                $provider,
+                $sender_province,
+                $sender_district,
+                $receiver_province,
+                $receiver_district,
+                $sender_ward,
+                $receiver_ward,
+                $weight,
+                $amount,
+                $class_ghtk,
+                $class_superai,
+                $class_best,
+                $class_spx
+            );
+            $all_providers_data[] = $shipping_data;
+            // Chỉ chọn provider có phí > 0 và thấp nhất
+            if ($shipping_data['fee'] > 0 && $shipping_data['fee'] < $lowest_fee) {
+                $lowest_fee = $shipping_data['fee'];
+                $best_provider = $shipping_data;
+            }
+        }
+        // Nếu không có provider nào trả về phí > 0, thử fallback GHTK
+        if (!$best_provider || $lowest_fee === PHP_INT_MAX) {
+            $ghtk_fallback = calculateShippingFee(
+                'GHTK',
+                $sender_province,
+                $sender_district,
+                $receiver_province,
+                $receiver_district,
+                $sender_ward,
+                $receiver_ward,
+                $weight,
+                $amount,
+                $class_ghtk,
+                $class_superai,
+                $class_best,
+                $class_spx
+            );
+            if ($ghtk_fallback['fee'] > 0) {
+                $best_provider = $ghtk_fallback;
+            }
+        }
+        $result = $best_provider ?: [
+            'fee' => 0,
+            'provider' => 'Không có',
+            'provider_code' => ''
+        ];
+        return $result;
+    }
+
     // Khởi tạo mảng debug
     $debug = [
         'mode' => '',
@@ -114,11 +403,17 @@ try {
     // Load class files: ƯU TIÊN include trực tiếp từ cùng thư mục với API
     $class_ghtk = null;
     $class_superai = null;
+    $class_best = null;
+    $class_spx = null;
     $candidate_paths = [
         __DIR__ . '/class_ghtk.php' => 'class_ghtk',
         __DIR__ . '/class_superai.php' => 'class_superai',
+        __DIR__ . '/class_best.php' => 'class_best',
+        __DIR__ . '/class_spx.php' => 'class_spx',
         '/home/socdo.vn/public_html/includes/class_ghtk.php' => 'class_ghtk',
         '/home/socdo.vn/public_html/includes/class_superai.php' => 'class_superai',
+        '/home/socdo.vn/public_html/includes/class_best.php' => 'class_best',
+        '/home/socdo.vn/public_html/includes/class_spx.php' => 'class_spx',
     ];
     foreach ($candidate_paths as $path => $className) {
         if (!class_exists($className) && file_exists($path)) {
@@ -130,7 +425,7 @@ try {
         }
     }
     // Sau khi include thủ công, nếu vẫn chưa có class, thử qua loader nếu có
-    if ((!class_exists('class_ghtk') || !class_exists('class_superai')) && isset($tlca_do)) {
+    if ((!class_exists('class_ghtk') || !class_exists('class_superai') || !class_exists('class_best') || !class_exists('class_spx')) && isset($tlca_do)) {
         try {
             if (!class_exists('class_ghtk')) {
                 $class_ghtk = $tlca_do->load('class_ghtk');
@@ -147,6 +442,22 @@ try {
         } catch (Throwable $e) {
             $debug['loader_err_superai'] = $e->getMessage();
         }
+        try {
+            if (!class_exists('class_best')) {
+                $class_best = $tlca_do->load('class_best');
+                $debug['loader_used_best'] = true;
+            }
+        } catch (Throwable $e) {
+            $debug['loader_err_best'] = $e->getMessage();
+        }
+        try {
+            if (!class_exists('class_spx')) {
+                $class_spx = $tlca_do->load('class_spx');
+                $debug['loader_used_spx'] = true;
+            }
+        } catch (Throwable $e) {
+            $debug['loader_err_spx'] = $e->getMessage();
+        }
     }
     // Instantiate if classes are available
     if (!$class_ghtk && class_exists('class_ghtk')) {
@@ -155,8 +466,16 @@ try {
     if (!$class_superai && class_exists('class_superai')) {
         $class_superai = new class_superai();
     }
+    if (!$class_best && class_exists('class_best')) {
+        $class_best = new class_best();
+    }
+    if (!$class_spx && class_exists('class_spx')) {
+        $class_spx = new class_spx();
+    }
     $debug['class_status']['class_ghtk'] = $class_ghtk ? true : false;
     $debug['class_status']['class_superai'] = $class_superai ? true : false;
+    $debug['class_status']['class_best'] = $class_best ? true : false;
+    $debug['class_status']['class_spx'] = $class_spx ? true : false;
 
     if (!$class_ghtk || !$class_superai) {
         http_response_code(500);
@@ -226,9 +545,9 @@ try {
                         $w_gram_per_item = 500;
                     }
 
-                    // Giới hạn an toàn: 30g - 5000g (0.03kg - 5kg)
+                    // Giới hạn an toàn: 30g - 50000g (0.03kg - 50kg) - tăng giới hạn cho sản phẩm lớn
                     if ($w_gram_per_item < 30) $w_gram_per_item = 30;
-                    if ($w_gram_per_item > 5000) $w_gram_per_item = 5000;
+                    if ($w_gram_per_item > 50000) $w_gram_per_item = 50000;
                     $line_value = $price * $qty;
                     $line_weight = $w_gram_per_item * $qty;
                     $total_value += $line_value;
@@ -469,65 +788,55 @@ try {
         'ship_percent_support' => $ship_percent_support
     ];
 
-    // 1) Quote from SUPERAI (returns multiple carriers), pick min
+    // Sử dụng logic tính phí ship giống checkout.php
     $quotes = [];
     $best_overall = null;
     $best_fee = PHP_INT_MAX;
 
-    try {
-        $superai_res = $class_superai->get_fee($sender_province, $sender_district, $receiver_province, $receiver_district, $weight_to_quote, $value_to_quote);
-        $debug['superai_raw'] = $superai_res;
-        $superai_json = json_decode($superai_res, true);
-        if (isset($superai_json['error']) && $superai_json['error'] === false && !empty($superai_json['data']['services'])) {
-            foreach ($superai_json['data']['services'] as $svc) {
-                if (isset($svc['carrier_id']) && $svc['carrier_id'] == 7) continue; // skip Ninja Van
-                $carrier_name = $svc['carrier_name'] ?? 'Unknown';
-                $fee = intval(($svc['shipment_fee'] ?? 0) + ($svc['insurance_fee'] ?? 0));
-                $q = [
-                    'provider' => 'SUPERAI',
-                    'carrier_name' => $carrier_name,
-                    'carrier_id' => $svc['carrier_id'] ?? 0,
-                    'fee' => $fee,
-                    'eta_text' => ($svc['estimated_delivery'] ?? ''),
-                    'raw' => $svc
-                ];
-                $quotes[] = $q;
-                if ($fee > 0 && $fee < $best_fee) {
-                    $best_fee = $fee;
-                    $best_overall = $q;
-                }
-            }
-        }
-    } catch (Exception $e) {
-        // ignore
-    }
-
-
-    // 2) Quote from GHTK (using local tariff via get_tax)
-    try {
-        $sender_mien   = get_mien_by_province_name(isset($conn) ? $conn : null, $sender_province);
-        $receiver_mien = get_mien_by_province_name(isset($conn) ? $conn : null, $receiver_province);
-        $ghtk_res = $class_ghtk->get_tax($weight_to_quote, $value_to_quote, $sender_province, $sender_mien, $receiver_province, $receiver_mien, false, false);
-        $debug['ghtk_raw'] = $ghtk_res;
-        $ghtk_json = json_decode($ghtk_res, true);
-        if (is_array($ghtk_json)) {
-            $fee = intval($ghtk_json['phi_tong'] ?? 0);
+    // Danh sách providers để test (giống checkout.php)
+    $shipping_providers = ['SUPERAI', 'GHTK', 'BEST', 'SPX'];
+    
+    // Tính phí cho tất cả providers
+    foreach ($shipping_providers as $provider) {
+        $shipping_data = calculateShippingFee(
+            $provider,
+            $sender_province,
+            $sender_district,
+            $receiver_province,
+            $receiver_district,
+            $sender_ward,
+            $receiver_ward,
+            $weight_to_quote,
+            $value_to_quote,
+            $class_ghtk,
+            $class_superai,
+            $class_best,
+            $class_spx
+        );
+        
+        if ($shipping_data['fee'] > 0) {
             $q = [
-                'provider' => 'GHTK',
-                'carrier_name' => 'Giao Hang Tiet Kiem',
+                'provider' => $shipping_data['provider'],
+                'carrier_name' => $shipping_data['provider'],
                 'carrier_id' => 0,
-                'fee' => $fee,
-                'raw' => $ghtk_json
+                'fee' => $shipping_data['fee'],
+                'provider_code' => $shipping_data['provider_code'],
+                'raw' => $shipping_data
             ];
             $quotes[] = $q;
-            if ($fee > 0 && $fee < $best_fee) {
-                $best_fee = $fee;
+            
+            // Chọn provider có phí thấp nhất
+            if ($shipping_data['fee'] < $best_fee) {
+                $best_fee = $shipping_data['fee'];
                 $best_overall = $q;
             }
         }
-    } catch (Exception $e) {
-        // ignore
     }
+    
+    // Debug log
+    $debug['shipping_providers_tested'] = $shipping_providers;
+    $debug['quotes_generated'] = count($quotes);
+    $debug['best_fee_found'] = $best_fee;
 
     // Sort quotes asc by fee
     usort($quotes, function ($a, $b) {
@@ -536,13 +845,11 @@ try {
 
     $best_simple = $best_overall ? [
         'fee' => $best_overall['fee'] ?? 0,
-        'provider' => ($best_overall['provider'] ?? '') . (isset($best_overall['carrier_name']) && $best_overall['carrier_name'] ? (' (' . $best_overall['carrier_name'] . ')') : ''),
-        // ETA: ưu tiên ETA thật từ SUPERAI nếu có, nếu không thì dùng heuristic
-        'eta_text' => (!empty($best_overall['eta_text']))
-            ? $best_overall['eta_text']
-            : ((stripos($sender_province, $receiver_province) !== false)
-                ? ('Dự kiến từ ' . date('d/m', strtotime('+1 days')) . ' - ' . date('d/m', strtotime('+2 days')))
-                : ('Dự kiến từ ' . date('d/m', strtotime('+2 days')) . ' - ' . date('d/m', strtotime('+4 days')))),
+        'provider' => $best_overall['provider'] ?? '',
+        // ETA: tính toán dựa trên khoảng cách giống checkout.php
+        'eta_text' => ((stripos($sender_province, $receiver_province) !== false)
+            ? ('Dự kiến từ ' . date('d/m', strtotime('+1 days')) . ' - ' . date('d/m', strtotime('+2 days')))
+            : ('Dự kiến từ ' . date('d/m', strtotime('+2 days')) . ' - ' . date('d/m', strtotime('+4 days')))),
     ] : ['fee' => 0, 'provider' => '', 'eta_text' => ''];
 
     // Sau khi có best_overall, áp hỗ trợ freeship
@@ -560,7 +867,8 @@ try {
             // Áp dụng fixed support và percent support
             $support_fee = $ship_fixed_support;
             if ($ship_percent_support > 0) {
-                $support_fee += intval(round($fee_before_support * ($ship_percent_support / 100.0)));
+                // Tính hỗ trợ ship theo giá trị đơn hàng (giống website)
+                $support_fee += intval(round($value_to_quote * ($ship_percent_support / 100.0)));
             }
             $total_support = $support_fee;
             $final_fee = max(0, $fee_before_support - $support_fee);
@@ -573,16 +881,16 @@ try {
             error_log("🚢   FINAL FEE = $final_fee VND");
         }
 
-        $best_overall['fee'] = $final_fee;
-        $best_simple['fee'] = $final_fee;
+        // Trả về phí ship gốc và hỗ trợ ship riêng biệt (giống website)
+        $best_overall['fee'] = $fee_before_support; // Phí ship gốc
+        $best_overall['ship_support'] = $total_support; // Hỗ trợ ship
+        $best_simple['fee'] = $fee_before_support; // Phí ship gốc
+        $best_simple['ship_support'] = $total_support; // Hỗ trợ ship
 
-        // Update all quotes
+        // Update all quotes - trả về phí ship gốc và hỗ trợ ship riêng biệt
         foreach ($quotes as &$q) {
-            if ($exclude_weight > 0 && $exclude_weight >= $weight) {
-                $q['fee'] = 0;
-            } else if ($total_support > 0) {
-                $q['fee'] = max(0, $q['fee'] - $total_support);
-            }
+            $q['ship_support'] = $total_support; // Thêm hỗ trợ ship vào mỗi quote
+            // Giữ nguyên phí ship gốc, không trừ hỗ trợ ship
         }
 
         $debug['final_fee_calculation'] = [

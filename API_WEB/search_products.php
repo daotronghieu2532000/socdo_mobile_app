@@ -82,7 +82,7 @@ try {
         }
     }
     
-    $where_clause = "sanpham.kho > 0 AND (sanpham.tieu_de LIKE '%$keyword%' OR sanpham.ma_sanpham LIKE '%$keyword%'$category_search)";
+    $where_clause = "sanpham.kho > 0 AND sanpham.active = 0 AND (sanpham.tieu_de LIKE '%$keyword%' OR sanpham.ma_sanpham LIKE '%$keyword%'$category_search)";
     
     // ORDER BY theo logic hàm list_sanpham_timkiem
     $order_clause = 'has_rating DESC, avg_rating DESC, sanpham.view DESC';

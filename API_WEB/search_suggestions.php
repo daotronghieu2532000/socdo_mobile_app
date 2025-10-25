@@ -171,7 +171,7 @@ function getSmartSuggestionsFromProducts($keyword, $conn, $limit) {
     // 1. Tìm từ khóa liên quan từ tiêu đề sản phẩm phổ biến
     $related_query = "SELECT DISTINCT tieu_de, view, ban
                       FROM sanpham 
-                      WHERE kho > 0 
+                      WHERE kho > 0 AND active = 0 AND active = 0 AND active = 0 
                       AND (
                           tieu_de LIKE '%" . substr($keyword, 0, 2) . "%' OR
                           tieu_de LIKE '%" . substr($keyword, 0, 3) . "%'
@@ -204,7 +204,7 @@ function getSmartSuggestionsFromProducts($keyword, $conn, $limit) {
     // 1.1. Tìm từ khóa từ tiêu đề sản phẩm có chứa từ khóa tương tự
     $similar_query = "SELECT DISTINCT tieu_de, view, ban
                      FROM sanpham 
-                     WHERE kho > 0 
+                     WHERE kho > 0 AND active = 0 AND active = 0 
                      AND tieu_de REGEXP '[[:space:]]" . substr($keyword, 0, 2) . "[[:alnum:]]*[[:space:]]'
                      ORDER BY view DESC, ban DESC, tieu_de ASC 
                      LIMIT 15";
@@ -231,7 +231,7 @@ function getSmartSuggestionsFromProducts($keyword, $conn, $limit) {
     // 2. Tìm từ khóa từ thương hiệu phổ biến
     $brand_query = "SELECT DISTINCT thuong_hieu, COUNT(*) as count
                     FROM sanpham 
-                    WHERE kho > 0 
+                    WHERE kho > 0 AND active = 0 
                     AND thuong_hieu IS NOT NULL 
                     AND thuong_hieu != ''
                     AND thuong_hieu LIKE '%$keyword%'
@@ -250,7 +250,7 @@ function getSmartSuggestionsFromProducts($keyword, $conn, $limit) {
     $category_query = "SELECT DISTINCT cat_tieude, COUNT(*) as count
                        FROM category_sanpham c
                        INNER JOIN sanpham s ON FIND_IN_SET(c.cat_id, s.cat)
-                       WHERE s.kho > 0 
+                       WHERE s.kho > 0 AND s.active = 0 
                        AND cat_tieude LIKE '%$keyword%'
                        GROUP BY cat_tieude
                        ORDER BY count DESC, cat_tieude ASC 
@@ -272,7 +272,7 @@ function getSmartSuggestionsFromProducts($keyword, $conn, $limit) {
                                 SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 
                                 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION SELECT 10
                             ) numbers
-                            WHERE kho > 0 
+                            WHERE kho > 0 AND active = 0 AND active = 0 AND active = 0 AND active = 0 AND active = 0 
                             AND CHAR_LENGTH(tieu_de) - CHAR_LENGTH(REPLACE(tieu_de, ' ', '')) >= numbers.n - 1
                             AND SUBSTRING_INDEX(SUBSTRING_INDEX(tieu_de, ' ', numbers.n), ' ', -1) LIKE '%$keyword%'
                             AND CHAR_LENGTH(SUBSTRING_INDEX(SUBSTRING_INDEX(tieu_de, ' ', numbers.n), ' ', -1)) >= 2
@@ -298,7 +298,7 @@ function getSmartSuggestionsFromProducts($keyword, $conn, $limit) {
                                SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 
                                UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION SELECT 10
                            ) numbers
-                           WHERE kho > 0 
+                           WHERE kho > 0 AND active = 0 AND active = 0 AND active = 0 AND active = 0 
                            AND CHAR_LENGTH(tieu_de) - CHAR_LENGTH(REPLACE(tieu_de, ' ', '')) >= numbers.n - 1
                            AND SUBSTRING_INDEX(SUBSTRING_INDEX(tieu_de, ' ', numbers.n), ' ', -1) LIKE '%$keyword%'
                            AND CHAR_LENGTH(SUBSTRING_INDEX(SUBSTRING_INDEX(tieu_de, ' ', numbers.n), ' ', -1)) BETWEEN 3 AND 15

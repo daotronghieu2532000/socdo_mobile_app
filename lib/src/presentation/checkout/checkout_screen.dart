@@ -133,10 +133,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           final couponCode = platformVoucher?.code ?? '';
           
           // Tính ship support từ freeship logic
-          // API shipping_quote.php đã xử lý freeship và trả về final_fee
-          // Chúng ta sẽ sử dụng thông tin từ debug để tính ship_support
+          // API shipping_quote.php trả về phí ship gốc và hỗ trợ ship riêng biệt
           int shipSupport = 0;
-          int finalShipFee = ship.lastFee;
+          int originalShipFee = ship.lastFee; // Phí ship gốc
+          int finalShipFee = ship.lastFee; // Phí ship cuối (sẽ được tính lại)
           
           // Gọi API shipping_quote để lấy thông tin freeship cho tất cả items
           try {
@@ -151,37 +151,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             );
             
             if (shippingQuote != null && shippingQuote['success'] == true) {
-              final debug = shippingQuote['data']?['debug'];
-              if (debug != null) {
-                final freeshipExcluded = debug['freeship_excluded'] as Map<String, dynamic>?;
-                if (freeshipExcluded != null) {
-                  // Lấy ship support từ API response
-                  final shipFixedSupport = freeshipExcluded['ship_fixed_support'] as int? ?? 0;
-                  final shipPercentSupport = freeshipExcluded['ship_percent_support'] as double? ?? 0.0;
-                  
-                  // Tính tổng ship support
-                  shipSupport = shipFixedSupport;
-                  if (shipPercentSupport > 0) {
-                    // Lấy fee_before_support từ debug để tính percent support chính xác
-                    final finalFeeCalculation = debug['final_fee_calculation'] as Map<String, dynamic>?;
-                    int percentSupportAmount = 0;
-                    if (finalFeeCalculation != null) {
-                      final feeBeforeSupport = finalFeeCalculation['fee_before_support'] as int? ?? 0;
-                      percentSupportAmount = (feeBeforeSupport * shipPercentSupport / 100).round();
-                    } else {
-                      // Fallback: sử dụng ship.lastFee nếu không có debug info
-                      percentSupportAmount = (ship.lastFee * shipPercentSupport / 100).round();
+              // Sử dụng phí ship gốc và hỗ trợ ship từ API response
+              final bestOverall = shippingQuote['data']?['best'] as Map<String, dynamic>?;
+              if (bestOverall != null) {
+                originalShipFee = bestOverall['fee'] as int? ?? ship.lastFee; // Phí ship gốc từ API
+                shipSupport = bestOverall['ship_support'] as int? ?? 0; // Hỗ trợ ship từ API
+                finalShipFee = max(0, originalShipFee - shipSupport); // Phí ship cuối
+              } else {
+                // Fallback: sử dụng logic cũ nếu không có best_overall
+                final debug = shippingQuote['data']?['debug'];
+                if (debug != null) {
+                  final freeshipExcluded = debug['freeship_excluded'] as Map<String, dynamic>?;
+                  if (freeshipExcluded != null) {
+                    // Lấy ship support từ API response
+                    final shipFixedSupport = freeshipExcluded['ship_fixed_support'] as int? ?? 0;
+                    final shipPercentSupport = freeshipExcluded['ship_percent_support'] as double? ?? 0.0;
+                    
+                    // Tính tổng ship support
+                    shipSupport = shipFixedSupport;
+                    if (shipPercentSupport > 0) {
+                      // Lấy fee_before_support từ debug để tính percent support chính xác
+                      final finalFeeCalculation = debug['final_fee_calculation'] as Map<String, dynamic>?;
+                      int percentSupportAmount = 0;
+                      if (finalFeeCalculation != null) {
+                        final feeBeforeSupport = finalFeeCalculation['fee_before_support'] as int? ?? 0;
+                        percentSupportAmount = (feeBeforeSupport * shipPercentSupport / 100).round();
+                      } else {
+                        // Fallback: sử dụng ship.lastFee nếu không có debug info
+                        percentSupportAmount = (ship.lastFee * shipPercentSupport / 100).round();
+                      }
+                      shipSupport += percentSupportAmount;
                     }
-                    shipSupport += percentSupportAmount;
+                    
+                    // Tính final ship fee
+                    finalShipFee = max(0, ship.lastFee - shipSupport);
                   }
-                  
-                  // Tính final ship fee
-                  finalShipFee = max(0, ship.lastFee - shipSupport);
                 }
               }
             }
           } catch (e) {
             // Nếu có lỗi khi gọi shipping_quote, sử dụng ship fee gốc
+            print('Error getting shipping quote: $e');
           }
           
           // Đảm bảo ship support không vượt quá ship fee gốc
@@ -205,8 +215,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             coupon: couponCode,
             giam: shopDiscount,           // ✅ Shop discount
             voucherTmdt: platformDiscount, // ✅ Platform discount
-            phiShip: finalShipFee,        // ✅ Ship fee sau khi trừ freeship
-            shipSupport: shipSupport,      // ✅ Ship support từ freeship
+            phiShip: originalShipFee,     // ✅ Phí ship gốc (giống website)
+            shipSupport: shipSupport,      // ✅ Hỗ trợ ship từ freeship
             shippingProvider: ship.provider,
           );
           
@@ -237,8 +247,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               SnackBar(content: Text('Đặt hàng thất bại: ${res?['message'] ?? 'Lỗi không xác định'}')),
             );
           }
+
         },
+        
       ),
+      
     );
   }
 }

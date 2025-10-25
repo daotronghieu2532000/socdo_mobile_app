@@ -48,7 +48,7 @@ try {
         $offset = ($page - 1) * $limit;
         
         // Xây dựng WHERE clause
-        $where_conditions = array("sanpham.status = 1", "sanpham.kho > 0");
+        $where_conditions = array("sanpham.status = 1", "sanpham.kho > 0", "sanpham.active = 0");
         
         // Điều kiện ship 0đ - Logic từ transport table
         $where_conditions[] = "EXISTS (
