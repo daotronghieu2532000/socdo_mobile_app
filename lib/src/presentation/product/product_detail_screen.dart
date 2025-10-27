@@ -7,6 +7,7 @@ import 'widgets/simple_purchase_dialog.dart';
 import 'widgets/row_tile.dart';
 import 'widgets/voucher_row.dart';
 import 'widgets/rating_preview.dart';
+import 'widgets/fake_review_generator.dart';
 import 'widgets/shop_bar.dart';
 import 'widgets/section_header.dart';
 import 'widgets/specs_table.dart';
@@ -1013,7 +1014,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       couponDetails: product.couponDetails,
                     ),
                   const SizedBox(height: 20),
-                  const RatingPreview(),
+                  Builder(
+                    builder: (context) {
+                      // Generate fake reviews và rating
+                      if (product?.id != null) {
+                        final productId = product!.id;
+                        final fakeReviews = FakeReviewGenerator.generateFakeReviews(productId);
+                        final fakeRating = FakeReviewGenerator.calculateAverageRating(fakeReviews);
+                        final fakeReviewCount = FakeReviewGenerator.calculateReviewCount(productId);
+                        
+                        return RatingPreview(
+                          rating: fakeRating,
+                          reviewCount: fakeReviewCount,
+                          productId: productId,
+                        );
+                      }
+                      return const RatingPreview();
+                    },
+                  ),
                   const SizedBox(height: 12),
                 ],
               ),

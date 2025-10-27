@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'review_item.dart';
+import 'fake_review_generator.dart';
 
 class RatingPreview extends StatelessWidget {
   final double rating;
   final int reviewCount;
   final List<Map<String, dynamic>> recentReviews;
   final VoidCallback? onViewAll;
+  final int? productId; // Thêm productId để generate fake reviews
 
   const RatingPreview({
     super.key,
@@ -13,28 +15,40 @@ class RatingPreview extends StatelessWidget {
     this.reviewCount = 71,
     this.recentReviews = const [],
     this.onViewAll,
+    this.productId,
   });
 
   @override
   Widget build(BuildContext context) {
-    final defaultReviews = [
-      {
-        'name': 'HN Hiền',
-        'initials': 'HN',
-        'rating': 5,
-        'time': '5 tháng trước',
-        'reviewText': 'Sản phẩm rất tốt, tôi rất hài lòng!',
-      },
-      {
-        'name': 'LN Linh Trần',
-        'initials': 'LN',
-        'rating': 5,
-        'time': '3 tháng trước',
-        'reviewText': 'Chất lượng tuyệt vời, sẽ mua lại.',
-      },
-    ];
-
-    final reviews = recentReviews.isNotEmpty ? recentReviews : defaultReviews;
+    // Ưu tiên sử dụng recentReviews từ props
+    // Nếu không có, generate fake reviews dựa trên productId
+    List<Map<String, dynamic>> reviews;
+    
+    if (recentReviews.isNotEmpty) {
+      reviews = recentReviews;
+    } else if (productId != null) {
+      // Generate fake reviews
+      final fakeReviews = FakeReviewGenerator.generateFakeReviews(productId!, count: 3);
+      reviews = fakeReviews;
+    } else {
+      // Fallback về default reviews
+      reviews = const [
+        {
+          'name': 'HN Hiền',
+          'initials': 'HN',
+          'rating': 5,
+          'time': '5 tháng trước',
+          'reviewText': 'Sản phẩm rất tốt, tôi rất hài lòng!',
+        },
+        {
+          'name': 'LN Linh Trần',
+          'initials': 'LN',
+          'rating': 5,
+          'time': '3 tháng trước',
+          'reviewText': 'Chất lượng tuyệt vời, sẽ mua lại.',
+        },
+      ];
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,7 +58,7 @@ class RatingPreview extends StatelessWidget {
             const Icon(Icons.star, color: Colors.amber, size: 20),
             const SizedBox(width: 4),
             Text(
-              rating.toString(), 
+              rating.toStringAsFixed(1), 
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(width: 8),
