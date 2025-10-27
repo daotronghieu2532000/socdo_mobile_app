@@ -41,15 +41,8 @@ if ($method === 'GET') {
     $where_clause = "WHERE " . implode(" AND ", $where_conditions);
     $limit_clause = $limit > 0 ? "LIMIT $limit" : "";
     
-    // Query banners with product ID from sanpham table
-    // Join with sanpham to get product_id based on link matching
-    $query = "SELECT b.*, 
-                     s.id as product_id 
-              FROM banner b
-              LEFT JOIN sanpham s ON REPLACE(b.link, '.html', '') = s.link
-              $where_clause 
-              ORDER BY thu_tu ASC 
-              $limit_clause";
+    // Query banners first
+    $query = "SELECT * FROM banner $where_clause ORDER BY thu_tu ASC $limit_clause";
     $result = mysqli_query($conn, $query);
     
     if (!$result) {
@@ -68,8 +61,28 @@ if ($method === 'GET') {
         $vi_tri = $banner['vi_tri'];
         $image_url = $banner['minh_hoa'];
         
-        // Debug: check link field
-        error_log("Banner ID: " . $banner['id'] . ", Link: '" . $banner['link'] . "'");
+        // Extract product ID from link if it's a product link
+        $product_id = null;
+        $banner_link = $banner['link'] ?? '';
+        
+        if (!empty($banner_link) && (strpos($banner_link, 'https://socdo.vn/product/') !== false || strpos($banner_link, 'https://www.socdo.vn/product/') !== false)) {
+            // Extract slug from URL: https://socdo.vn/product/slug.html -> slug
+            $slug = '';
+            if (preg_match('/product\/([^\.]+)\.html/', $banner_link, $matches)) {
+                $slug = $matches[1];
+            } elseif (preg_match('/product\/([^\/\?]+)/', $banner_link, $matches)) {
+                $slug = $matches[1];
+            }
+            
+            if (!empty($slug)) {
+                // Query product ID from sanpham table using slug
+                $product_query = "SELECT id FROM sanpham WHERE link = '" . mysqli_real_escape_string($conn, $slug) . "' LIMIT 1";
+                $product_result = mysqli_query($conn, $product_query);
+                if ($product_result && $product_row = mysqli_fetch_assoc($product_result)) {
+                    $product_id = intval($product_row['id']);
+                }
+            }
+        }
         
         // Format image URL theo từng vị trí
         switch ($vi_tri) {
@@ -107,7 +120,7 @@ if ($method === 'GET') {
             'shop_id' => intval($banner['shop_id']),
             'type' => 'image',
             'is_active' => true,
-            'product_id' => isset($banner['product_id']) && $banner['product_id'] ? intval($banner['product_id']) : null
+            'product_id' => $product_id
         ];
         
         // Add to main array

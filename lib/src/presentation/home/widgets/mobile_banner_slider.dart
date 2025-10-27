@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/banner.dart';
 import '../../../core/services/cached_api_service.dart';
 import '../../product/product_detail_screen.dart';
+import '../../shop/shop_detail_screen.dart';
 
 class MobileBannerSlider extends StatefulWidget {
   const MobileBannerSlider({super.key});
@@ -77,6 +78,29 @@ class _MobileBannerSliderState extends State<MobileBannerSlider> {
       if (banner.link.isEmpty || banner.link.trim().isEmpty) return;
       
       final link = banner.link.trim();
+      
+      // Kiểm tra xem có phải link shop không
+      if (link.contains('/shop/') && (link.startsWith('https://socdo.vn/shop/') || link.startsWith('https://www.socdo.vn/shop/'))) {
+        // Extract shop username from URL
+        // Example: https://socdo.vn/shop/username/san-pham.html
+        final uri = Uri.parse(link);
+        final segments = uri.pathSegments;
+        
+        if (segments.length >= 2 && segments[0] == 'shop') {
+          final shopUsername = segments[1];
+          // Navigate to shop detail screen
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ShopDetailScreen(
+                shopId: null, // Will be resolved by API using username
+                shopUsername: shopUsername,
+                shopName: shopUsername, // Temporary, will be loaded by API
+              ),
+            ),
+          );
+          return;
+        }
+      }
       
       // Kiểm tra xem có phải link sản phẩm không
       if (link.startsWith('https://socdo.vn/product/') || link.startsWith('https://www.socdo.vn/product/')) {

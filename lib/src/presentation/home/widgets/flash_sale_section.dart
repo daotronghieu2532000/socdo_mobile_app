@@ -56,6 +56,7 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
 
   Future<void> _loadFlashSaleDealsFromCache() async {
     try {
+      if (!mounted) return;
       setState(() {
         _isLoading = true;
         _error = null;
@@ -77,7 +78,9 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
       // Chỉ load từ cache
       final flashSaleData = await _cachedApiService.getHomeFlashSale();
       
-      if (mounted && flashSaleData.isNotEmpty) {
+      if (!mounted) return;
+      
+      if (flashSaleData.isNotEmpty) {
         // Convert Map to FlashSaleDeal
         final deals = flashSaleData.map((data) => FlashSaleDeal.fromJson(data)).toList();
         
@@ -112,6 +115,7 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
 
   Future<void> _loadFlashSaleDeals() async {
     try {
+      if (!mounted) return;
       setState(() {
         _isLoading = true;
         _error = null;
@@ -135,7 +139,9 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
       // Sử dụng cached API service
       final flashSaleData = await _cachedApiService.getHomeFlashSale();
       
-      if (mounted && flashSaleData.isNotEmpty) {
+      if (!mounted) return;
+      
+      if (flashSaleData.isNotEmpty) {
         // Convert Map to FlashSaleDeal
         final deals = flashSaleData.map((data) => FlashSaleDeal.fromJson(data)).toList();
         
