@@ -3,6 +3,9 @@ import '../../favorite_products/favorite_products_screen.dart';
 import '../../orders/orders_screen.dart';
 import '../../profile/address_book_screen.dart';
 import '../../voucher/voucher_screen.dart';
+import '../app_rating_screen.dart';
+import '../app_report_screen.dart';
+import '../support_center_screen.dart';
 
 class ActionRow extends StatelessWidget {
   final IconData icon;
@@ -61,6 +64,30 @@ class ActionRow extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => const OrdersScreen(initialIndex: 4),
+          ),
+        );
+        break;
+      case 'Báo lỗi cho chúng tôi':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AppReportScreen(),
+          ),
+        );
+        break;
+      case 'Đánh giá ứng dụng':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AppRatingScreen(),
+          ),
+        );
+        break;
+      case 'Trung tâm trợ giúp':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SupportCenterScreen(),
           ),
         );
         break;

@@ -3898,4 +3898,59 @@ class ApiService {
       return null;
     }
   }
+
+  // =============== APP RATING & FEEDBACK ===============
+  Future<Map<String, dynamic>?> submitAppRating({
+    required int userId,
+    required double rating,
+    required String comment,
+    String? deviceInfo,
+    String? appVersion,
+  }) async {
+    try {
+      final response = await post('/app_rating', body: {
+        'user_id': userId,
+        'rating': rating,
+        'comment': comment,
+        if (deviceInfo != null) 'device_info': deviceInfo,
+        if (appVersion != null) 'app_version': appVersion,
+      });
+      
+      if (response != null && response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data;
+      }
+      return null;
+    } catch (e) {
+      print('❌ Lỗi submit rating: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> submitAppReport({
+    required int userId,
+    required String description,
+    List<String>? imageUrls,
+    String? deviceInfo,
+    String? appVersion,
+  }) async {
+    try {
+      final response = await post('/app_report', body: {
+        'user_id': userId,
+        'description': description,
+        if (imageUrls != null && imageUrls.isNotEmpty) 'image_urls': imageUrls,
+        if (deviceInfo != null) 'device_info': deviceInfo,
+        if (appVersion != null) 'app_version': appVersion,
+      });
+      
+      if (response != null && response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data;
+      }
+      return null;
+    } catch (e) {
+      print('❌ Lỗi submit report: $e');
+      return null;
+    }
+  }
 }
