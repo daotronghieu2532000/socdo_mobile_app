@@ -114,23 +114,24 @@ class FakeReviewGenerator {
     // Chọn random từng bộ tên và review
     final usedNames = <String>{};
     
-    // Generate ratings trước để đảm bảo trung bình >= 4.7
+    // Generate ratings trước để đảm bảo trung bình >= 4.8
     final ratings = <int>[];
     for (int i = 0; i < count; i++) {
-      // Mỗi review có 75% chance là 5 sao, 25% là 4 sao
-      // Với 3 reviews, trung bình sẽ là: ~4.7-4.8
-      final rating = random.nextDouble() < 0.75 ? 5 : 4;
+      // Mỗi review có 85% chance là 5 sao, 15% là 4 sao
+      // Với 3 reviews, trung bình sẽ là: ~4.7-5.0
+      final rating = random.nextDouble() < 0.85 ? 5 : 4;
       ratings.add(rating);
     }
 
-    // Đảm bảo trung bình >= 4.7 (tối thiểu tổng = 14 → cần ít nhất 15 sao)
+    // Đảm bảo trung bình >= 4.8 (tối thiểu tổng = 15 sao cho 3 reviews)
+    // 5+5+4 = 14 (4.67) < 4.8
+    // 5+5+5 = 15 (5.0) >= 4.8
     final sumRatings = ratings.fold<int>(0, (sum, rating) => sum + rating);
-    if (sumRatings < 14) {
-      // Nếu tổng < 14, thay một rating 4 thành 5
+    if (sumRatings < 15) {
+      // Nếu tổng < 15, đổi tất cả rating 4 thành 5
       for (int i = 0; i < ratings.length; i++) {
         if (ratings[i] == 4) {
           ratings[i] = 5;
-          break;
         }
       }
     }
