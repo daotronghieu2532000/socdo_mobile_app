@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import '../../core/models/affiliate_product.dart';
 import '../../core/services/affiliate_service.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/cached_api_service.dart';
 import '../../core/utils/format_utils.dart';
 import '../product/product_detail_screen.dart';
 import '../common/widgets/go_top_button.dart';
@@ -24,7 +23,7 @@ class AffiliateProductsScreen extends StatefulWidget {
 class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
   final AffiliateService _affiliateService = AffiliateService();
   final AuthService _authService = AuthService();
-  final CachedApiService _cachedApiService = CachedApiService();
+
   final ScrollController _scrollController = ScrollController();
   List<AffiliateProduct> _products = [];
   List<AffiliateProduct> _filteredProducts = [];
@@ -144,7 +143,9 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
       print('🔍 Sort by: $_sortBy');
       print('🔍 Only following: $_onlyFollowed');
       
-      final productsData = await _cachedApiService.getAffiliateProducts(
+      // Không dùng cache, gọi API trực tiếp để đảm bảo data luôn mới nhất
+      print('🔄 Fetching from AffiliateService (no cache)...');
+      final result = await _affiliateService.getProducts(
         userId: _currentUserId,
         page: _currentPage,
         limit: 300,
@@ -152,32 +153,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
         sortBy: _sortBy,
         onlyFollowing: _onlyFollowed,
       );
-      
-      // print('🔍 Cached API returned: $productsData');
-      // print('🔍 Cached API result type: ${productsData.runtimeType}');
-      // print('🔍 Cached API result is null: ${productsData == null}');
-      // print('🔍 Cached API result isEmpty: ${productsData?.isEmpty}');
-      
-      // Xử lý dữ liệu từ cache hoặc API
-      Map<String, dynamic>? result;
-      
-      if (productsData != null && productsData.isNotEmpty) {
-        // Sử dụng dữ liệu từ cache
-        print('📦 Using cached products data');
-        result = productsData;
-      } else {
-        // Cache miss, gọi API trực tiếp
-        print('🔄 Cache miss, fetching from AffiliateService...');
-        result = await _affiliateService.getProducts(
-          userId: _currentUserId,
-          page: _currentPage,
-          limit: 300,
-          search: _searchQuery.isEmpty ? null : _searchQuery,
-          sortBy: _sortBy,
-          onlyFollowing: _onlyFollowed,
-        );
-        print('🔍 Direct API result: $result');
-      }
+      print('🔍 Direct API result: $result');
       
       // print('🔍 Final result: $result');
       // print('🔍 Final result products: ${result?['products']?.length ?? 0}');
@@ -199,9 +175,9 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
             _currentPage++;
             
             // Debug: Check if products have links
-            for (final product in newProducts) {
-              // print('📦 Product ${product.id}: hasLink=${product.hasLink}, shortLink=${product.shortLink}');
-            }
+            // for (final product in newProducts) {
+            //   print('📦 Product ${product.id}: hasLink=${product.hasLink}, shortLink=${product.shortLink}');
+            // }
           } else {
             print('❌ No products found in result: $result');
           }

@@ -682,6 +682,18 @@ class CachedApiService {
     print('🧹 Cleared cache for affiliate user $userId');
   }
 
+  /// Xóa cache của affiliate links cụ thể
+  void clearAffiliateLinksCache(int userId) {
+    clearCachePattern('affiliate_links:{"userId":$userId');
+    print('🧹 Cleared affiliate links cache for user $userId');
+  }
+
+  /// Xóa cache của affiliate products cụ thể
+  void clearAffiliateProductsCache(int userId) {
+    clearCachePattern('affiliate_products:{"userId":$userId');
+    print('🧹 Cleared affiliate products cache for user $userId');
+  }
+
   /// Xóa tất cả cache của affiliate
   void clearAllAffiliateCache() {
     clearCachePattern('affiliate_dashboard');

@@ -21,10 +21,11 @@ class _ProductGridState extends State<ProductGrid> {
   @override
   void initState() {
     super.initState();
-    _loadProductSuggests();
+    // Load từ cache ngay lập tức
+    _loadProductSuggestsFromCache();
   }
 
-  Future<void> _loadProductSuggests() async {
+  Future<void> _loadProductSuggestsFromCache() async {
     try {
       setState(() {
         _isLoading = true;
@@ -100,7 +101,7 @@ class _ProductGridState extends State<ProductGrid> {
             ),
             const SizedBox(height: 8),
             TextButton(
-              onPressed: _loadProductSuggests,
+              onPressed: _loadProductSuggestsFromCache,
               child: const Text('Thử lại'),
             ),
           ],
@@ -132,17 +133,15 @@ class _ProductGridState extends State<ProductGrid> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          itemBuilder: (context, index) {
+        ...List.generate(
+          visibleCount,
+          (index) {
             final product = _products[index];
             return ProductCardHorizontal(
               product: product,
               index: index,
             );
           },
-          itemCount: visibleCount,
         ),
         if (_products.length > 20) // Tăng từ 10 lên 20
           Padding(

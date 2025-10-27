@@ -3,6 +3,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/banner.dart';
 import '../../../core/services/cached_api_service.dart';
+import '../../product/product_detail_screen.dart';
 
 class MobileBannerSlider extends StatefulWidget {
   const MobileBannerSlider({super.key});
@@ -20,29 +21,33 @@ class _MobileBannerSliderState extends State<MobileBannerSlider> {
   @override
   void initState() {
     super.initState();
-    _loadBanners();
+    // Load ngay lập tức từ cache mà không gọi setState nhiều lần
+    _loadBannersFromCache();
   }
 
-  Future<void> _loadBanners() async {
+  Future<void> _loadBannersFromCache() async {
     try {
-      // Sử dụng cached API service
+      // Chỉ load từ cache, không gọi API
       final bannersData = await _cachedApiService.getHomeBanners();
       
-      if (mounted && bannersData.isNotEmpty) {
-        // Convert Map to BannerModel
-        final banners = bannersData.map((data) => BannerModel.fromJson(data)).toList();
-        
-        setState(() {
-          _banners = banners;
-          _isLoading = false;
-        });
-        
-        print('✅ Mobile banners loaded successfully (${banners.length} banners)');
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-        print('⚠️ No mobile banners found');
+      if (mounted) {
+        if (bannersData.isNotEmpty) {
+          // Convert Map to BannerModel
+          final banners = bannersData.map((data) => BannerModel.fromJson(data)).toList();
+          
+          setState(() {
+            _banners = banners;
+            _isLoading = false;
+          });
+          
+          // print('✅ Mobile banners loaded from cache (${banners.length} banners)');
+        } else {
+          // Fallback nếu không có cache
+          setState(() {
+            _isLoading = false;
+          });
+          // print('⚠️ No cached mobile banners');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -50,20 +55,67 @@ class _MobileBannerSliderState extends State<MobileBannerSlider> {
           _isLoading = false;
         });
       }
-      print('❌ Error loading mobile banners: $e');
+      // print('❌ Error loading mobile banners from cache: $e');
     }
   }
 
   Future<void> _handleBannerTap(BannerModel banner) async {
-    if (banner.link.isNotEmpty) {
-      try {
-        final uri = Uri.parse(banner.link);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      } catch (e) {
-        // print('❌ Lỗi khi mở link banner: $e');
+    try {
+      // Nếu có product_id từ API (đã join với sanpham), dùng trực tiếp
+      if (banner.productId != null && banner.productId! > 0) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ProductDetailScreen(
+              productId: banner.productId,
+            ),
+          ),
+        );
+        return;
       }
+      
+      // Nếu không có product_id, parse từ link
+      if (banner.link.isEmpty || banner.link.trim().isEmpty) return;
+      
+      final link = banner.link.trim();
+      
+      // Kiểm tra xem có phải link sản phẩm không
+      if (link.startsWith('https://socdo.vn/product/') || link.startsWith('https://www.socdo.vn/product/')) {
+        // Extract product ID from URL
+        // Examples: 
+        // - https://socdo.vn/product/123 (old format with ID)
+        // - https://socdo.vn/product/slug.html (new format with slug)
+        
+        final uri = Uri.parse(link);
+        final segments = uri.pathSegments;
+        
+        if (segments.isNotEmpty && segments[0] == 'product') {
+          if (segments.length >= 2) {
+            // Try to parse as ID (old format)
+            final productId = int.tryParse(segments[1]);
+            if (productId != null) {
+              // Navigate to product detail screen with ID
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => ProductDetailScreen(
+                    productId: productId,
+                  ),
+                ),
+              );
+              return;
+            }
+            // If not ID, could be slug - you might need to implement slug lookup
+            // For now, just open in browser
+          }
+        }
+      }
+      
+      // Mở link khác bằng web browser
+      final uri = Uri.parse(link);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      // print('❌ Lỗi khi mở link banner: $e');
     }
   }
 

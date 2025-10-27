@@ -6,7 +6,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import '../../core/services/affiliate_service.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/cached_api_service.dart';
 import '../../core/models/affiliate_link.dart';
 import '../../core/utils/format_utils.dart';
 import '../product/product_detail_screen.dart';
@@ -21,8 +20,6 @@ class AffiliateLinksScreen extends StatefulWidget {
 class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
   final AffiliateService _affiliateService = AffiliateService();
   final AuthService _authService = AuthService();
-  final CachedApiService _cachedApiService = CachedApiService();
-  final ScrollController _scrollController = ScrollController();
   List<AffiliateLink> _links = [];
   List<AffiliateLink> _filteredLinks = [];
   bool _isLoading = true;
@@ -80,8 +77,9 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
     });
 
     try {
-      // Sử dụng cached API service cho links
-      final linksData = await _cachedApiService.getAffiliateLinks(
+      // Không dùng cache, gọi API trực tiếp để đảm bảo data luôn mới nhất
+      print('🔄 Fetching from AffiliateService (no cache)...');
+      final result = await _affiliateService.getMyLinks(
         userId: _currentUserId,
         page: _currentPage,
         limit: 50,
@@ -89,26 +87,6 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
         sortBy: _sortBy,
         onlyHasLink: _onlyHasLink,
       );
-      
-      // Xử lý dữ liệu từ cache hoặc API
-      Map<String, dynamic>? result;
-      
-      if (linksData != null && linksData.isNotEmpty) {
-        // Sử dụng dữ liệu từ cache
-        print('🔗 Using cached links data');
-        result = linksData;
-      } else {
-        // Cache miss, gọi API trực tiếp
-        print('🔄 Cache miss, fetching from AffiliateService...');
-        result = await _affiliateService.getMyLinks(
-          userId: _currentUserId,
-          page: _currentPage,
-          limit: 50,
-          search: _searchQuery.isEmpty ? null : _searchQuery,
-          sortBy: _sortBy,
-          onlyHasLink: _onlyHasLink,
-        );
-      }
       
       if (mounted) {
         setState(() {
@@ -401,18 +379,33 @@ class _AffiliateLinksScreenState extends State<AffiliateLinksScreen> {
                             value: true,
                             onChanged: (v) async {
                               setState(() { _followBusy[link.spId] = true; });
-                              await _affiliateService.toggleFollow(
+                              final result = await _affiliateService.toggleFollow(
                                 userId: _currentUserId ?? 0,
                                 spId: link.spId,
                                 shopId: link.shopId,
                                 follow: v ?? true,
                               );
-                               if (!mounted) return;
-                               setState(() { _followBusy[link.spId] = false; });
-                               // Nếu bỏ theo dõi thì loại bỏ card khỏi danh sách, tránh reload toàn trang
-                               if ((v ?? true) == false) {
-                                 setState(() { _links.removeWhere((l) => l.spId == link.spId); });
-                               }
+                              
+                              if (!mounted) return;
+                              setState(() { _followBusy[link.spId] = false; });
+                              
+                              // Nếu unfollow thành công
+                              if (result != null && result['success'] == true && (v ?? true) == false) {
+                                // Loại bỏ card khỏi danh sách ngay lập tức
+                                setState(() { 
+                                  _links.removeWhere((l) => l.spId == link.spId);
+                                  _applyFilters();
+                                });
+                                
+                                // Hiển thị thông báo
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Đã bỏ theo dõi sản phẩm'),
+                                    backgroundColor: Colors.orange,
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
                              },
                            ),
                    ),

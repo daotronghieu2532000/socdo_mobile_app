@@ -8,6 +8,7 @@ import 'widgets/mobile_banner_slider.dart';
 import 'widgets/partner_banner_slider.dart';
 import '../common/widgets/go_top_button.dart';
 import '../../core/widgets/scroll_preservation_wrapper.dart';
+import '../../core/services/cached_api_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,43 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  final CachedApiService _cachedApiService = CachedApiService();
+  bool _isPreloading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _preloadData();
+  }
+
+  Future<void> _preloadData() async {
+    try {
+      // Preload tất cả dữ liệu cần thiết cho trang chủ
+      print('🚀 Preloading home data...');
+      
+      await Future.wait([
+        _cachedApiService.getHomeBanners(),
+        _cachedApiService.getHomeFlashSale(),
+        _cachedApiService.getHomePartnerBanners(),
+        _cachedApiService.getHomeSuggestions(limit: 100),
+      ]);
+      
+      print('✅ Home data preloaded successfully');
+      
+      if (mounted) {
+        setState(() {
+          _isPreloading = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error preloading home data: $e');
+      if (mounted) {
+        setState(() {
+          _isPreloading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -27,6 +65,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Hiển thị loading screen trong khi preload
+    if (_isPreloading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return ScrollPreservationWrapper(
       tabIndex: 0, // Home tab
       scrollController: _scrollController,

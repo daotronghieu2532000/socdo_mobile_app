@@ -26,7 +26,8 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
   @override
   void initState() {
     super.initState();
-    _loadFlashSaleDeals();
+    // Load từ cache ngay lập tức
+    _loadFlashSaleDealsFromCache();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeLeft.inSeconds > 0) {
         if (mounted) {
@@ -51,6 +52,62 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
   void dispose() {
     _timer.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadFlashSaleDealsFromCache() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Xác định timeline hiện tại theo logic website
+      final now = DateTime.now();
+      final hour = now.hour;
+      String currentTimeline;
+      
+      if (hour >= 0 && hour < 9) {
+        currentTimeline = '00:00';
+      } else if (hour >= 9 && hour < 16) {
+        currentTimeline = '09:00';
+      } else {
+        currentTimeline = '16:00';
+      }
+
+      // Chỉ load từ cache
+      final flashSaleData = await _cachedApiService.getHomeFlashSale();
+      
+      if (mounted && flashSaleData.isNotEmpty) {
+        // Convert Map to FlashSaleDeal
+        final deals = flashSaleData.map((data) => FlashSaleDeal.fromJson(data)).toList();
+        
+        setState(() {
+          _isLoading = false;
+          _deals = deals;
+          // Cập nhật countdown theo mốc hiện tại (đến cuối slot)
+          final slotEnd = _currentSlotEnd(currentTimeline);
+          final nowTs = DateTime.now();
+          final remaining = slotEnd.difference(nowTs).inSeconds;
+          _timeLeft = Duration(seconds: remaining > 0 ? remaining : 0);
+        });
+        
+        print('✅ Flash sale loaded from cache (${deals.length} deals)');
+      } else {
+        setState(() {
+          _isLoading = false;
+          _error = 'Không có flash sale trong cache';
+        });
+        print('⚠️ No cached flash sale');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Lỗi kết nối: $e';
+        });
+      }
+      print('❌ Error loading flash sale from cache: $e');
+    }
   }
 
   Future<void> _loadFlashSaleDeals() async {
@@ -251,10 +308,9 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          itemBuilder: (context, index) {
+        ...List.generate(
+          visibleCount,
+          (index) {
             final product = deduplicatedProducts[index];
             return FlashSaleProductCardHorizontal(
               product: product,
@@ -262,7 +318,6 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
               countdownText: slotCountdown,
             );
           },
-          itemCount: visibleCount,
         ),
         if (deduplicatedProducts.length > 10)
           Padding(

@@ -8,6 +8,7 @@ class BannerModel {
   final int shopId;
   final String type;
   final bool isActive;
+  final int? productId;
 
   BannerModel({
     required this.id,
@@ -19,6 +20,7 @@ class BannerModel {
     required this.shopId,
     required this.type,
     required this.isActive,
+    this.productId,
   });
 
   factory BannerModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class BannerModel {
       shopId: json['shop_id'] ?? 0,
       type: json['type'] ?? 'image',
       isActive: json['is_active'] ?? true,
+      productId: json['product_id'] != null ? int.tryParse(json['product_id'].toString()) : null,
     );
   }
 
@@ -46,6 +49,7 @@ class BannerModel {
       'shop_id': shopId,
       'type': type,
       'is_active': isActive,
+      'product_id': productId,
     };
   }
 }

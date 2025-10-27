@@ -787,60 +787,13 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> with TickerProviderSt
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              deal.title,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.pink,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // Status badge per selected slot using timeline_info if available
-                          Builder(
-                            builder: (_) {
-                              final currentSlot = _timeSlots[_selectedTab];
-                              String status = deal.dealStatus;
-                              if (deal.timelineInfo != null && deal.timelineInfo!['slot_status'] is Map) {
-                                final slotStatus = Map<String, dynamic>.from(deal.timelineInfo!['slot_status']);
-                                status = (slotStatus[currentSlot] as String?) ?? status;
-                              }
-                              Color color;
-                              switch (status) {
-                                case 'active':
-                                  color = Colors.green;
-                                  break;
-                                case 'upcoming':
-                                  color = Colors.orange;
-                                  break;
-                                case 'expired':
-                                  color = Colors.grey;
-                                  break;
-                                default:
-                                  color = Colors.blueGrey;
-                              }
-                              return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  status.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
+                      Text(
+                        deal.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.pink,
+                        ),
                       ),
                       // const SizedBox(height: 4),
                       // Text(

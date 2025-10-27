@@ -41,8 +41,15 @@ if ($method === 'GET') {
     $where_clause = "WHERE " . implode(" AND ", $where_conditions);
     $limit_clause = $limit > 0 ? "LIMIT $limit" : "";
     
-    // Query banners
-    $query = "SELECT * FROM banner $where_clause ORDER BY thu_tu ASC $limit_clause";
+    // Query banners with product ID from sanpham table
+    // Join with sanpham to get product_id based on link matching
+    $query = "SELECT b.*, 
+                     s.id as product_id 
+              FROM banner b
+              LEFT JOIN sanpham s ON REPLACE(b.link, '.html', '') = s.link
+              $where_clause 
+              ORDER BY thu_tu ASC 
+              $limit_clause";
     $result = mysqli_query($conn, $query);
     
     if (!$result) {
@@ -60,6 +67,9 @@ if ($method === 'GET') {
     while ($banner = mysqli_fetch_assoc($result)) {
         $vi_tri = $banner['vi_tri'];
         $image_url = $banner['minh_hoa'];
+        
+        // Debug: check link field
+        error_log("Banner ID: " . $banner['id'] . ", Link: '" . $banner['link'] . "'");
         
         // Format image URL theo từng vị trí
         switch ($vi_tri) {
@@ -91,12 +101,13 @@ if ($method === 'GET') {
             'id' => intval($banner['id']),
             'title' => $banner['tieu_de'] ?? '',
             'image' => $image_url,
-            'link' => $banner['link_url'] ?? '',
+            'link' => $banner['link'] ?? '',
             'position' => $vi_tri,
             'order' => intval($banner['thu_tu']),
             'shop_id' => intval($banner['shop_id']),
-            'type' => $banner['loai'] ?? 'image',
-            'is_active' => true
+            'type' => 'image',
+            'is_active' => true,
+            'product_id' => isset($banner['product_id']) && $banner['product_id'] ? intval($banner['product_id']) : null
         ];
         
         // Add to main array

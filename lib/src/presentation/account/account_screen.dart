@@ -68,7 +68,7 @@ class AccountScreen extends StatelessWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Đã đăng xuất thành công'),
+                          content: Text('Đã đăng xuất '),
                           backgroundColor: Colors.green,
                           duration: Duration(seconds: 2),
                         ),
