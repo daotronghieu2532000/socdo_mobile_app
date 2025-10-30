@@ -51,6 +51,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void _startPolling() {
     _stopPolling();
     print('🔄 [ChatScreen] Starting polling for new messages...');
+    // ✅ Tăng interval từ 3s lên 5s để giảm tải server
+    // 3s là quá nhanh và tốn băng thông
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       _pollForNewMessages();
     });

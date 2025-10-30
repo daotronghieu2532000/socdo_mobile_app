@@ -252,6 +252,35 @@ class _ShopProductsSectionState extends State<ShopProductsSection> {
                                 )
                               : _buildPlaceholderImage(),
                         ),
+                        // Flash sale icon (góc trái trên) - check từ isFlashSale field
+                        if (_isFlashSale(product))
+                          Positioned(
+                            top: 4,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.orange.shade700, Colors.red.shade700],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
                         // Discount badge
                         if (product.discountPercent > 0)
                           Positioned(
@@ -260,11 +289,11 @@ class _ShopProductsSectionState extends State<ShopProductsSection> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red,
+                                color: _isFlashSale(product) ? Colors.orange : Colors.red,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                '${product.discountPercent}%',
+                                _isFlashSale(product) ? 'SALE' : '${product.discountPercent}%',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -606,5 +635,16 @@ class _ShopProductsSectionState extends State<ShopProductsSection> {
         ),
       );
     }
+  }
+
+  // Helper method để check flash sale
+  bool _isFlashSale(ShopProduct product) {
+    // Check từ badges list
+    for (var badge in product.badges) {
+      if (badge.toLowerCase().contains('flash') || badge.toLowerCase().contains('sale')) {
+        return true;
+      }
+    }
+    return false;
   }
 }

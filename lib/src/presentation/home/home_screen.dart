@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'widgets/home_app_bar.dart';
+  import 'widgets/home_app_bar.dart';
 import 'widgets/quick_actions.dart';
 import 'widgets/flash_sale_section.dart';
 import 'widgets/product_grid.dart';
@@ -21,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   final CachedApiService _cachedApiService = CachedApiService();
   bool _isPreloading = true;
+  int _refreshKey = 0; // Key để trigger reload các widget con
 
   @override
   void initState() {
@@ -57,6 +58,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _refreshData() async {
+    try {
+      print('🔄 Refreshing home data...');
+      
+      // Clear cache và load lại dữ liệu
+      _cachedApiService.clearCachePattern('home_');
+      
+      await Future.wait([
+        _cachedApiService.getHomeBanners(forceRefresh: true),
+        _cachedApiService.getHomeFlashSale(forceRefresh: true),
+        _cachedApiService.getHomePartnerBanners(forceRefresh: true),
+        _cachedApiService.getHomeSuggestions(limit: 100, forceRefresh: true),
+      ]);
+      
+      print('✅ Home data refreshed successfully');
+      
+      // Trigger reload các widget con bằng cách thay đổi refreshKey
+      if (mounted) {
+        setState(() {
+          _refreshKey++;
+        });
+      }
+    } catch (e) {
+      print('❌ Error refreshing home data: $e');
+    }
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -86,35 +114,38 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const HomeAppBar(),
                 Expanded(
-                  child: ListView(
-                    controller: _scrollController,
-                    padding: EdgeInsets.zero,
-                    children: [
-                      // Mobile Banner - Full width, 295px height
-                      const MobileBannerSlider(),
-                      const SizedBox(height: 8),
-                      
-                      // Quick actions
-                      Container(
-                        color: Colors.white,
-                        child: const QuickActions(),
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      // Flash Sale section
-                      const FlashSaleSection(),
-                      const SizedBox(height: 8),
-                      
-                      // Partner Banner - Below flash sale, 160px height
-                      const PartnerBannerSlider(),
-                      const SizedBox(height: 8),
-                      
-                      // Suggested products grid
-                      Container(
-                        color: Colors.white,
-                        child: const ProductGrid(title: 'Gợi ý cho bạn'),
-                      ),
-                    ],
+                  child: RefreshIndicator(
+                    onRefresh: _refreshData,
+                    child: ListView(
+                      controller: _scrollController,
+                      padding: EdgeInsets.zero,
+                      children: [
+                        // Mobile Banner - Full width, 295px height
+                        MobileBannerSlider(key: ValueKey('mobile_banner_$_refreshKey')),
+                        const SizedBox(height: 8),
+                        
+                        // Quick actions
+                        Container(
+                          color: Colors.white,
+                          child: const QuickActions(),
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Flash Sale section
+                        FlashSaleSection(key: ValueKey('flash_sale_$_refreshKey')),
+                        const SizedBox(height: 8),
+                        
+                        // Partner Banner - Below flash sale, 160px height
+                        PartnerBannerSlider(key: ValueKey('partner_banner_$_refreshKey')),
+                        const SizedBox(height: 8),
+                        
+                        // Suggested products grid
+                        Container(
+                          color: Colors.white,
+                          child: ProductGrid(key: ValueKey('product_grid_$_refreshKey'), title: 'Gợi ý cho bạn'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

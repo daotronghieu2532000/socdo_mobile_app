@@ -48,7 +48,14 @@ try {
         $offset = ($page - 1) * $limit;
         
         // Xây dựng WHERE clause
-        $where_conditions = array("sanpham.status = 1", "sanpham.kho > 0", "sanpham.active = 0");
+        // Logic: - Sản phẩm không có biến thể: chỉ cần kho chính > 0
+        //        - Sản phẩm có biến thể: chỉ cần ít nhất 1 biến thể có kho > 0
+        $where_conditions = array(
+            "sanpham.status = 1", 
+            "sanpham.active = 0",
+            "sanpham.kho >= 0",
+            "((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = sanpham.id) AND sanpham.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = sanpham.id AND pl.kho_sanpham_socdo > 0))"
+        );
         
         // Điều kiện ship 0đ - Logic từ transport table
         $where_conditions[] = "EXISTS (

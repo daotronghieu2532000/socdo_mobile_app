@@ -47,6 +47,7 @@ class ProductDetail {
   final Map<String, dynamic>? couponInfo;
   final Map<String, dynamic>? shopInfo;
   final bool isFavorited;
+  final Map<String, dynamic>? flashSaleInfo;
 
   const ProductDetail({
     required this.id,
@@ -78,6 +79,7 @@ class ProductDetail {
     this.couponInfo,
     this.shopInfo,
     this.isFavorited = false,
+    this.flashSaleInfo,
   });
 
   factory ProductDetail.fromJson(Map<String, dynamic> json) {
@@ -225,6 +227,7 @@ class ProductDetail {
       couponInfo: safeParseMap(json['coupon_info']),
       shopInfo: safeParseMap(json['shop_info']),
       isFavorited: safeParseBool(json['is_favorited']),
+      flashSaleInfo: safeParseMap(json['flash_sale_info']),
     );
   }
 
@@ -259,6 +262,7 @@ class ProductDetail {
       'coupon_info': couponInfo,
       'shop_info': shopInfo,
       'is_favorited': isFavorited,
+      'flash_sale_info': flashSaleInfo,
     };
   }
 
@@ -326,6 +330,15 @@ class ProductDetail {
 
   /// Lấy URL shop
   String get shopUrl => shopInfo?['shop_url'] as String? ?? '';
+
+  /// Kiểm tra có flash sale không
+  bool get isFlashSale => flashSaleInfo?['is_flash_sale'] == true;
+
+  /// Lấy thời gian còn lại (seconds)
+  int get flashSaleTimeRemaining => flashSaleInfo?['time_remaining'] as int? ?? 0;
+
+  /// Lấy thời gian còn lại formatted (HH:mm:ss)
+  String get flashSaleTimeFormatted => flashSaleInfo?['time_remaining_formatted'] as String? ?? '00:00:00';
 
   @override
   String toString() {

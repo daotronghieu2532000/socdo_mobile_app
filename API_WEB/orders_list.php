@@ -107,7 +107,7 @@ try {
             0 => array('text' => 'Chờ xử lý', 'class' => 'pending', 'icon' => 'fa-clock-o'),
             1 => array('text' => 'Đã tiếp nhận đơn', 'class' => 'received', 'icon' => 'fa-check-circle'),
             2 => array('text' => 'Đã giao đơn vị vận chuyển', 'class' => 'shipping', 'icon' => 'fa-truck'),
-            3 => array('text' => 'Yêu cầu hủy đơn', 'class' => 'cancel-request', 'icon' => 'fa-exclamation-triangle'),
+            3 => array('text' => 'Chờ đánh giá', 'class' => 'rating', 'icon' => 'fa-star'),
             4 => array('text' => 'Đã hủy đơn', 'class' => 'cancelled', 'icon' => 'fa-times-circle'),
             5 => array('text' => 'Giao thành công', 'class' => 'delivered', 'icon' => 'fa-check-circle'),
             6 => array('text' => 'Đã hoàn đơn', 'class' => 'returned', 'icon' => 'fa-undo'),

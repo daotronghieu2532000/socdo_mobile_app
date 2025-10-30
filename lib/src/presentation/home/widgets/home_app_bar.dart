@@ -36,7 +36,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
     _authService.addAuthStateListener(_checkLoginStatus);
     
     // Cập nhật thông báo mỗi 60 giây
-    _timer = Timer.periodic(const Duration(seconds: 60), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (mounted && _currentUser != null) {
         _loadUnread();
       }

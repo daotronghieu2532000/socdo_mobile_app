@@ -87,6 +87,35 @@ class SearchProductCardHorizontal extends StatelessWidget {
                                 )
                               : _buildPlaceholderImage(),
                         ),
+                        // Flash sale icon (góc trái trên) - check từ badges hoặc discount cao
+                        if (_isFlashSale(product))
+                          Positioned(
+                            top: 4,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.orange.shade700, Colors.red.shade700],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
                         // Discount badge
                         if (product.discount != null && product.discount! > 0)
                           Positioned(
@@ -95,11 +124,11 @@ class SearchProductCardHorizontal extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red,
+                                color: _isFlashSale(product) ? Colors.orange : Colors.red,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                '${product.discount!.toInt()}%',
+                                _isFlashSale(product) ? 'SALE' : '${product.discount!.toInt()}%',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -455,5 +484,14 @@ class SearchProductCardHorizontal extends StatelessWidget {
         ),
       );
     }
+  }
+
+  // Helper method để check flash sale
+  bool _isFlashSale(SearchProduct product) {
+    // Check từ discount cao hoặc badges
+    if (product.discount != null && product.discount! > 50) {
+      return true;
+    }
+    return false;
   }
 }

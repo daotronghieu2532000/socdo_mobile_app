@@ -76,12 +76,17 @@ class ProductSection extends StatelessWidget {
                       );
                       final selected = await showDialog(
                         context: context,
-                        builder: (_) => VoucherDialog(
-                          shopId: shopId,
-                          shopName: shopName,
-                          shopTotal: shopTotal,
-                          currentVoucher: appliedVoucher,
-                        ),
+                        builder: (_) {
+                          // Get product IDs from items
+                          final cartProductIds = items.map((item) => item.id).toList();
+                          return VoucherDialog(
+                            shopId: shopId,
+                            shopName: shopName,
+                            shopTotal: shopTotal,
+                            currentVoucher: appliedVoucher,
+                            cartProductIds: cartProductIds,
+                          );
+                        },
                       );
                       if (selected != null && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

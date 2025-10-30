@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/banner.dart';
 import '../../../core/services/cached_api_service.dart';
@@ -184,32 +185,26 @@ class _MobileBannerSliderState extends State<MobileBannerSlider> {
                       ),
                     ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      banner.image,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: banner.image,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[200],
+                        ),
+                        errorWidget: (context, url, error) => Container(
                           color: Colors.grey[300],
                           child: const Icon(
                             Icons.image_not_supported,
                             color: Colors.grey,
                             size: 50,
                           ),
-                        );
-                      },
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      },
+                        ),
+                        fadeInDuration: const Duration(milliseconds: 300),
+                        fadeOutDuration: const Duration(milliseconds: 100),
+                      ),
                     ),
-                  ),
                 ),
               );
             },

@@ -73,9 +73,16 @@ class _RootShellState extends State<RootShell> {
     required int index,
     required IconData icon,
     required String label,
+    required BuildContext context,
   }) {
     final bool selected = _currentIndex == index;
     final Color color = selected ? Colors.red : Colors.grey;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Breakpoints: width >= 380: 11px, width >= 320: 10px, width < 320: ẩn text
+    final bool showText = screenWidth >= 320;
+    final double fontSize = screenWidth >= 380 ? 11 : (screenWidth >= 320 ? 10 : 11);
+    
     return Expanded(
       child: InkWell(
         onTap: () => _onTabChanged(index),
@@ -85,16 +92,18 @@ class _RootShellState extends State<RootShell> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, color: color, size: 20),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color, 
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  height: 1.0,
+              if (showText) ...[
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color, 
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w500,
+                    height: 1.0,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -129,9 +138,9 @@ class _RootShellState extends State<RootShell> {
               Expanded(
                 child: Row(
                   children: [
-                    _buildNavItem(index: 0, icon: Icons.home_outlined, label: 'Trang chủ'),
-                    _buildNavItem(index: 1, icon: Icons.grid_view_rounded, label: 'Danh mục'),
-                    _buildNavItem(index: 2, icon: Icons.people_outline, label: 'Affiliate'),
+                    _buildNavItem(index: 0, icon: Icons.home_outlined, label: 'Trang chủ', context: context),
+                    _buildNavItem(index: 1, icon: Icons.grid_view_rounded, label: 'Danh mục', context: context),
+                    _buildNavItem(index: 2, icon: Icons.people_outline, label: 'Affiliate', context: context),
                   ],
                 ),
               ),
@@ -169,39 +178,55 @@ class _RootShellState extends State<RootShell> {
                                       color: Colors.grey,
                                       size: 20,
                                     ),
-                                    Positioned(
-                                      top: -4,
-                                      right: -6,
-                                      child: Container(
-                                        width: 16,
-                                        height: 16,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            _cart.itemCount.toString(),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
+                                    if (_cart.itemCount > 0)
+                                      Positioned(
+                                        top: -4,
+                                        right: -6,
+                                        child: Container(
+                                          width: 16,
+                                          height: 16,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              _cart.itemCount.toString(),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                height: 1.0,
+                                              ),
+                                              textAlign: TextAlign.center,
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
                                   ],
                                 ),
-                                const SizedBox(height: 2),
-                                const Text(
-                                  'Giỏ hàng',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 10,
-                                    height: 1.0,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                Builder(
+                                  builder: (context) {
+                                    final screenWidth = MediaQuery.of(context).size.width;
+                                    final bool showText = screenWidth >= 320;
+                                    final double fontSize = screenWidth >= 380 ? 11 : (screenWidth >= 320 ? 10 : 11);
+                                    
+                                    return showText ? Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Giỏ hàng',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: fontSize,
+                                            height: 1.0,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ) : const SizedBox.shrink();
+                                  },
                                 ),
                               ],
                             ),
@@ -306,22 +331,45 @@ class _RootShellBottomBarState extends State<RootShellBottomBar> {
                             clipBehavior: Clip.none,
                             children: [
                               const Icon(Icons.shopping_cart_outlined, color: Colors.grey, size: 20),
-                              Positioned(
-                                top: -4,
-                                right: -6,
-                                child: Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                  child: Center(
-                                    child: Text(_cart.itemCount.toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                              if (_cart.itemCount > 0)
+                                Positioned(
+                                  top: -4,
+                                  right: -6,
+                                  child: Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                    child: Center(
+                                      child: Text(
+                                        _cart.itemCount.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          height: 1.0,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          const Text('Giỏ hàng', style: TextStyle(color: Colors.grey, fontSize: 10, height: 1.0, fontWeight: FontWeight.w500)),
+                          Builder(
+                            builder: (context) {
+                              final screenWidth = MediaQuery.of(context).size.width;
+                              final bool showText = screenWidth >= 320;
+                              final double fontSize = screenWidth >= 380 ? 11 : (screenWidth >= 320 ? 10 : 11);
+                              
+                              return showText ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(height: 2),
+                                  Text('Giỏ hàng', style: TextStyle(color: Colors.grey, fontSize: fontSize, height: 1.0, fontWeight: FontWeight.w500)),
+                                ],
+                              ) : const SizedBox.shrink();
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -344,6 +392,12 @@ class _RootShellBottomBarState extends State<RootShellBottomBar> {
   }
 
   Widget _navItem(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Breakpoints: width >= 380: 11px, width >= 320: 10px, width < 320: ẩn text
+    final bool showText = screenWidth >= 320;
+    final double fontSize = screenWidth >= 380 ? 11 : (screenWidth >= 320 ? 10 : 11);
+    
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -353,8 +407,10 @@ class _RootShellBottomBarState extends State<RootShellBottomBar> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, color: Colors.grey, size: 20),
-              const SizedBox(height: 3),
-              Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.w500, height: 1.0)),
+              if (showText) ...[
+                const SizedBox(height: 3),
+                Text(label, style: TextStyle(color: Colors.grey, fontSize: fontSize, fontWeight: FontWeight.w500, height: 1.0)),
+              ],
             ],
           ),
         ),

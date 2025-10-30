@@ -76,7 +76,9 @@ try {
                          ) AS pc ON s.id = pc.product_id
                          LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
                          LEFT JOIN tinh_moi tm ON t.province = tm.id
-                         WHERE s.kho > 0 AND s.active = 0 
+                         WHERE s.active = 0 
+                         AND s.kho >= 0
+                         AND ((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id AND pl.kho_sanpham_socdo > 0))
                          AND s.date_post >= UNIX_TIMESTAMP('$one_month_ago')
                          AND s.date_post <= UNIX_TIMESTAMP(NOW()) 
                          $exclude_condition
@@ -107,7 +109,7 @@ try {
                                   FROM sanpham s
                                   LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
                                   LEFT JOIN tinh_moi tm ON t.province = tm.id
-                                  WHERE s.kho > 0 AND s.active = 0 $exclude_condition
+                                  WHERE s.active = 0 AND s.kho >= 0 AND ((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id AND pl.kho_sanpham_socdo > 0)) $exclude_condition
                                   AND (
                                       (s.thuong_hieu = '$brand' AND FIND_IN_SET('$category', s.cat) > 0) OR
                                       (FIND_IN_SET('$category', s.cat) > 0 AND s.gia_moi BETWEEN $price_range_min AND $price_range_max) OR
@@ -152,7 +154,7 @@ try {
                           FROM sanpham s
                           LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
                           LEFT JOIN tinh_moi tm ON t.province = tm.id
-                          WHERE s.kho > 0 AND s.active = 0 AND s.box_banchay = 1 $category_condition $exclude_condition
+                          WHERE s.active = 0 AND s.kho >= 0 AND ((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id AND pl.kho_sanpham_socdo > 0)) AND s.box_banchay = 1 $category_condition $exclude_condition
                           ORDER BY s.ban DESC, s.view DESC 
                           LIMIT $limit";
                 break;
@@ -168,7 +170,7 @@ try {
                           FROM sanpham s
                           LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
                           LEFT JOIN tinh_moi tm ON t.province = tm.id
-                          WHERE s.kho > 0 AND s.active = 0 AND s.box_noibat = 1 $category_condition $exclude_condition
+                          WHERE s.active = 0 AND s.kho >= 0 AND ((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id AND pl.kho_sanpham_socdo > 0)) AND s.box_noibat = 1 $category_condition $exclude_condition
                           ORDER BY s.view DESC, s.date_post DESC 
                           LIMIT $limit";
                 break;
@@ -184,7 +186,7 @@ try {
                           FROM sanpham s
                           LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
                           LEFT JOIN tinh_moi tm ON t.province = tm.id
-                          WHERE s.kho > 0 AND s.active = 0 AND s.box_flash = 1 $category_condition $exclude_condition
+                          WHERE s.active = 0 AND s.kho >= 0 AND ((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id AND pl.kho_sanpham_socdo > 0)) AND s.box_flash = 1 $category_condition $exclude_condition
                           ORDER BY s.date_post DESC, s.view DESC 
                           LIMIT $limit";
                 break;
@@ -200,7 +202,7 @@ try {
                           FROM sanpham s
                           LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
                           LEFT JOIN tinh_moi tm ON t.province = tm.id
-                          WHERE s.kho > 0 AND s.active = 0 $category_condition $exclude_condition
+                          WHERE s.active = 0 AND s.kho >= 0 AND ((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id AND pl.kho_sanpham_socdo > 0)) $category_condition $exclude_condition
                           ORDER BY s.date_post DESC, s.id DESC 
                           LIMIT $limit";
                 break;
@@ -216,7 +218,7 @@ try {
                           FROM sanpham s
                           LEFT JOIN transport t ON s.kho_id = t.id AND t.user_id = s.shop
                           LEFT JOIN tinh_moi tm ON t.province = tm.id
-                          WHERE s.kho > 0 AND s.active = 0 $category_condition $exclude_condition
+                          WHERE s.active = 0 AND s.kho >= 0 AND ((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id AND pl.kho_sanpham_socdo > 0)) $category_condition $exclude_condition
                           ORDER BY RAND() 
                           LIMIT $limit";
                 break;

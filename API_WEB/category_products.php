@@ -85,7 +85,24 @@ try {
             $category['category_url'] = 'https://socdo.vn/danh-muc/' . $category['cat_id'] . '/' . $category['cat_link'] . '.html';
             
             // Đếm số sản phẩm trong danh mục
-            $count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET($category_id, cat) > 0 AND kho > 0 AND active = 0";
+            // Logic: - Sản phẩm không có biến thể: chỉ cần kho chính > 0
+            //        - Sản phẩm có biến thể: chỉ cần ít nhất 1 biến thể có kho > 0
+            $count_query = "SELECT COUNT(DISTINCT s.id) as total 
+                            FROM sanpham s
+                            WHERE FIND_IN_SET($category_id, s.cat) > 0 
+                            AND s.active = 0
+                            AND s.kho >= 0
+                            AND (
+                                -- Sản phẩm không có phân loại: check kho chính
+                                (NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0)
+                                OR
+                                -- Sản phẩm có phân loại: check kho phân loại (không check kho chính)
+                                EXISTS (
+                                    SELECT 1 FROM phanloai_sanpham pl 
+                                    WHERE pl.sp_id = s.id 
+                                    AND pl.kho_sanpham_socdo > 0
+                                )
+                            )";
             $count_result = mysqli_query($conn, $count_query);
             $category['total_products'] = mysqli_fetch_assoc($count_result)['total'];
             
@@ -155,8 +172,25 @@ try {
                 $row['category_url'] = 'https://socdo.vn/danh-muc/' . $row['cat_id'] . '/' . $row['cat_link'] . '.html';
                 
                 // Đếm số sản phẩm trong danh mục
+                // Logic: - Sản phẩm không có biến thể: chỉ cần kho chính > 0
+                //        - Sản phẩm có biến thể: chỉ cần ít nhất 1 biến thể có kho > 0
                 $cat_id = $row['cat_id'];
-                $count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET($cat_id, cat) > 0 AND kho > 0 AND active = 0";
+                $count_query = "SELECT COUNT(DISTINCT s.id) as total 
+                                FROM sanpham s
+                                WHERE FIND_IN_SET($cat_id, s.cat) > 0 
+                                AND s.active = 0
+                                AND s.kho >= 0
+                                AND (
+                                    -- Sản phẩm không có phân loại: check kho chính
+                                    (NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0)
+                                    OR
+                                    -- Sản phẩm có phân loại: check kho phân loại (không check kho chính)
+                                    EXISTS (
+                                        SELECT 1 FROM phanloai_sanpham pl 
+                                        WHERE pl.sp_id = s.id 
+                                        AND pl.kho_sanpham_socdo > 0
+                                    )
+                                )";
                 $count_result = mysqli_query($conn, $count_query);
                 $row['total_products'] = mysqli_fetch_assoc($count_result)['total'];
                 

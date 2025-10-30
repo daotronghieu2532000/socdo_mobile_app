@@ -10,11 +10,13 @@
         </trust-anchors>
     </base-config>
     
-    <!-- Cấu hình riêng cho domain api.socdo.vn -->
+    <!-- Cấu hình riêng cho domain api.socdo.vn và chat domains -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">api.socdo.vn</domain>
         <domain includeSubdomains="true">socdo.vn</domain>
         <domain includeSubdomains="true">www.socdo.vn</domain>
+        <domain includeSubdomains="true">chat.socdo.vn</domain>
+        <domain includeSubdomains="true">chat.socdo.xyz</domain>
     </domain-config>
 </network-security-config>
 

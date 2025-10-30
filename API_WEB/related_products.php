@@ -71,10 +71,13 @@ if ($method === 'GET') {
     $price_max = $price * 1.3;
     
     // Xây dựng WHERE conditions
+    // Logic: - Sản phẩm không có biến thể: chỉ cần kho chính > 0
+    //        - Sản phẩm có biến thể: chỉ cần ít nhất 1 biến thể có kho > 0
     $where_conditions = [
         "s.id != $product_id",
         "s.active = 0",
-        "s.kho > 0"
+        "s.kho >= 0",
+        "((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id AND pl.kho_sanpham_socdo > 0))"
     ];
     
     // ORDER BY logic (ưu tiên giảm dần)

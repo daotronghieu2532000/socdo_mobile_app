@@ -118,7 +118,7 @@ try {
         $shop_info['last_online'] = intval($shop_data['end_online']);
         
         // Đếm tổng số sản phẩm
-        $product_count_query = "SELECT COUNT(*) as total FROM sanpham WHERE shop = '$shop_id' AND status = 1";
+        $product_count_query = "SELECT COUNT(*) as total FROM sanpham WHERE shop = '$shop_id' AND status = 1 AND kho > 0 AND active = 0";
         $product_count_result = mysqli_query($conn, $product_count_query);
         $product_count = 0;
         if ($product_count_result) {

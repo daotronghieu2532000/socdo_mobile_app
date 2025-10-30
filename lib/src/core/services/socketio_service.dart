@@ -1,12 +1,12 @@
+import 'dart:async';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'token_manager.dart';
 import 'auth_service.dart';
 
+/// SocketIOService - Quản lý kết nối Socket.IO cho chat realtime
 class SocketIOService {
   IO.Socket? _socket;
   bool _isConnected = false;
   String? _phien;
-  final TokenManager _tokenManager = TokenManager();
   final AuthService _authService = AuthService();
   
   // Callbacks
@@ -21,171 +21,98 @@ class SocketIOService {
     try {
       _phien = phien;
       
-      // Socket.io URL - sử dụng server có sẵn
+      // ✅ ĐƠN GIẢN NHẤT: KHÔNG CONFIG GÌ CẢ
       final socketUrl = 'https://chat.socdo.vn';
+      print('🔌 [SocketIO] Connecting to $socketUrl with phien: $phien');
       
-      _socket = IO.io(socketUrl, IO.OptionBuilder()
-        .setTransports(['websocket'])
-        .enableAutoConnect()
-        .build()
-      );
+      // ✅ CHỈ CONNECT, KHÔNG CONFIG GÌ
+      _socket = IO.io(socketUrl);
 
-      // Listen to events
-      _socket!.onConnect((_) {
-        _isConnected = true;
-        print('🔌 [SocketIOService] Socket connected to server');
-        
-        // Join chat room with user_id
-        _authService.getCurrentUser().then((user) {
-          if (user != null) {
-            // Try to join room like web does
-            print('🚪 [SocketIOService] Attempting to join room: $phien');
-            print('👤 [SocketIOService] User ID: ${user.userId}');
-            
-            // Try different join methods
-            _socket!.emit('join', {'room': phien, 'user_id': user.userId});
-            _socket!.emit('join_room', {'session_id': phien, 'customer_id': user.userId});
-            _socket!.emit('subscribe', {'channel': phien});
-            
-            // Call onConnected callback AFTER getting user info
-            if (onConnected != null) {
-              onConnected!();
-            }
-          } else {
-            print('❌ [SocketIOService] Cannot join room - user not found');
-          }
-        });
-      });
-
-      _socket!.onDisconnect((_) {
-        _isConnected = false;
-        if (onDisconnected != null) {
-          onDisconnected!();
-        }
-      });
-
-      _socket!.onConnectError((error) {
-        _isConnected = false;
-        if (onError != null) {
-          onError!(error.toString());
-        }
-      });
-
-      // Test connection with ping
-      _socket!.on('pong', (data) {
-        print('🏓 [SocketIOService] Received pong: $data');
-      });
-
-      // Listen for new messages
-      _socket!.on('new_message', (data) {
-        print('📨 [SocketIOService] Received new_message event: $data');
-        if (onMessage != null) {
-          onMessage!(data);
-        }
-      });
-
-      // Listen for message sent confirmation
-      _socket!.on('message_sent', (data) {
-        print('✅ [SocketIOService] Message sent confirmation: $data');
-        // Handle message sent confirmation
-      });
-
-      // Listen for server_send_message (from web code)
-      _socket!.on('server_send_message', (data) {
-        print('📨 [SocketIOService] Received server_send_message event: $data');
-        if (onMessage != null) {
-          onMessage!(data);
-        }
-      });
-
-      // Listen for any message event
-      _socket!.on('message', (data) {
-        print('📨 [SocketIOService] Received message event: $data');
-        if (onMessage != null) {
-          onMessage!(data);
-        }
-      });
-
-      // Listen for client_send_message (from web code)
-      _socket!.on('client_send_message', (data) {
-        print('📨 [SocketIOService] Received client_send_message event: $data');
-        if (onMessage != null) {
-          onMessage!(data);
-        }
-      });
-
-      // Listen for ncc_send_message (from web code)
-      _socket!.on('ncc_send_message', (data) {
-        print('📨 [SocketIOService] Received ncc_send_message event: $data');
-        if (onMessage != null) {
-          onMessage!(data);
-        }
-      });
-
-      // Listen for server_send_message (main event from web)
-      _socket!.on('server_send_message', (data) {
-        print('📨 [SocketIOService] Received server_send_message event: $data');
-        if (onMessage != null) {
-          onMessage!(data);
-        }
-      });
-
-      // Debug: Listen for any message-related events
-      _socket!.on('message_received', (data) {
-        print('📨 [SocketIOService] Received message_received event: $data');
-        if (onMessage != null) {
-          onMessage!(data);
-        }
-      });
-
-      _socket!.on('chat_message', (data) {
-        print('📨 [SocketIOService] Received chat_message event: $data');
-        if (onMessage != null) {
-          onMessage!(data);
-        }
-      });
-
-      // Send ping to test connection
-      _socket!.emit('ping', {'test': 'connection'});
-      print('🏓 [SocketIOService] Sent ping to test connection');
-
-      // Debug: Test if we can receive any events
-      print('🔍 [SocketIOService] Listening for events...');
-
+      print('✅ [SocketIO] Socket created');
+      
+      // ✅ Setup event listeners
+      _setupEventListeners();
+      
+      print('✅ [SocketIO] Socket setup complete');
+      
+      // ✅ DEBUG: Wait 5s và check xem có connect không
+      await Future.delayed(const Duration(seconds: 5));
+      print('🔍 [SocketIO] After 5s - Connected: ${_socket?.connected}, ID: ${_socket?.id}');
+      
     } catch (e) {
+      print('❌ [SocketIO] Setup error: $e');
       _isConnected = false;
-      if (onError != null) {
-        onError!(e.toString());
-      }
+      if (onError != null) onError!(e.toString());
     }
+  }
+
+  void _setupEventListeners() {
+    if (_socket == null) return;
+
+    // ✅ Connect event
+    _socket!.onConnect((_) {
+      _isConnected = true;
+      print('✅✅✅ [SocketIO] CONNECTED! ID: ${_socket!.id}');
+      if (onConnected != null) onConnected!();
+    });
+
+    // ✅ Disconnect event
+    _socket!.onDisconnect((reason) {
+      _isConnected = false;
+      print('🔌 [SocketIO] Disconnected: $reason');
+      if (onDisconnected != null) onDisconnected!();
+    });
+
+    // ✅ Connect error event
+    _socket!.onConnectError((error) {
+      _isConnected = false;
+      print('❌ [SocketIO] Connect error: $error');
+      if (onError != null) onError!(error.toString());
+    });
+
+    // ✅ Generic error event
+    _socket!.on('error', (error) {
+      print('❌ [SocketIO] Error: $error');
+    });
+
+    // ✅ Reconnect event
+    _socket!.onReconnect((attempt) {
+      _isConnected = true;
+      print('🔄 [SocketIO] Reconnected after $attempt attempts');
+      if (onConnected != null) onConnected!();
+    });
+
+    // ✅ Business logic: Listen for messages
+    _socket!.on('server_send_message', (data) {
+      print('📨 [SocketIO] Received server_send_message: $data');
+      if (onMessage != null) onMessage!(data);
+    });
+
+    print('📝 [SocketIO] Event listeners setup complete');
   }
 
   Future<void> sendMessage(String message, {String senderType = 'customer'}) async {
     if (!_isConnected || _socket == null) {
-      print('❌ [SocketIOService] Cannot send message - not connected');
+      print('❌ [SocketIO] Cannot send - not connected');
       return;
     }
 
     final user = await _authService.getCurrentUser();
     if (user == null) {
-      print('❌ [SocketIOService] Cannot send message - user not found');
+      print('❌ [SocketIO] User not found');
       return;
     }
 
-    // Use same event as web: client_send_message
     final data = {
       'session_id': _phien,
       'customer_id': user.userId,
+      'ncc_id': 0,
       'message': message,
     };
 
-    print('📤 [SocketIOService] Sending message: $data');
+    print('📤 [SocketIO] Emitting client_send_message: $data');
     _socket!.emit('client_send_message', data);
-    
-    // Debug: Test if server responds
-    _socket!.on('message_sent', (data) {
-      print('✅ [SocketIOService] Server confirmed message sent: $data');
-    });
+    print('✅ [SocketIO] Message emitted');
   }
 
   void disconnect() {
@@ -194,5 +121,6 @@ class SocketIOService {
       _socket = null;
     }
     _isConnected = false;
+    print('🔌 [SocketIO] Disconnected');
   }
 }

@@ -130,9 +130,92 @@ try {
                 $gia_ctv_main = (int) preg_replace('/[^0-9]/', '', $r_sp['gia_ctv']);
             }
             
+            // Check flash sale và lấy giá - giống product_detail.php
+            $is_flash_sale = false;
+            $flash_check = mysqli_query($conn, "SELECT * FROM deal WHERE loai = 'flash_sale' AND status = 2 AND '$current_time' BETWEEN date_start AND date_end LIMIT 50");
+            
+            if ($flash_check && mysqli_num_rows($flash_check) > 0) {
+                while ($flash_deal = mysqli_fetch_assoc($flash_check)) {
+                    $is_in_flash_sale = false;
+                    
+                    // Check main_product
+                    if (!empty($flash_deal['main_product'])) {
+                        $main_product_ids = explode(',', $flash_deal['main_product']);
+                        $main_product_ids_int = array_map('intval', $main_product_ids);
+                        if (in_array(intval($id_sp), $main_product_ids_int)) {
+                            $is_in_flash_sale = true;
+                        }
+                    }
+                    
+                    // Check sub_product (JSON)
+                    if (!$is_in_flash_sale && !empty($flash_deal['sub_product'])) {
+                        $sub_json = json_decode($flash_deal['sub_product'], true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($sub_json)) {
+                            $product_id_str = (string)$id_sp;
+                            $product_id_int = intval($id_sp);
+                            if (isset($sub_json[$product_id_str]) || isset($sub_json[$product_id_int])) {
+                                $is_in_flash_sale = true;
+                            }
+                        }
+                    }
+                    
+                    // Check sub_id
+                    if (!$is_in_flash_sale && !empty($flash_deal['sub_id'])) {
+                        $sub_ids = explode(',', $flash_deal['sub_id']);
+                        $sub_ids_int = array_map('intval', $sub_ids);
+                        if (in_array(intval($id_sp), $sub_ids_int)) {
+                            $is_in_flash_sale = true;
+                        }
+                    }
+                    
+                    if ($is_in_flash_sale) {
+                        $flash_price = null;
+                        $flash_old_price = null;
+                        
+                        if (!empty($flash_deal['sub_product'])) {
+                            $sub_json = json_decode($flash_deal['sub_product'], true);
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($sub_json)) {
+                                $product_id_str = (string)$id_sp;
+                                $product_id_int = intval($id_sp);
+                                
+                                $product_variants = null;
+                                if (isset($sub_json[$product_id_str])) {
+                                    $product_variants = $sub_json[$product_id_str];
+                                } elseif (isset($sub_json[$product_id_int])) {
+                                    $product_variants = $sub_json[$product_id_int];
+                                }
+                                
+                                if (!empty($product_variants) && is_array($product_variants)) {
+                                    $first_variant = reset($product_variants);
+                                    $flash_price = isset($first_variant['gia']) ? intval($first_variant['gia']) : null;
+                                    $flash_old_price = isset($first_variant['gia_cu']) ? intval($first_variant['gia_cu']) : null;
+                                }
+                            }
+                        }
+                        
+                        if ($flash_price === null) {
+                            $flash_price = $gia_moi_main;
+                            $flash_old_price = $gia_cu_main;
+                        }
+                        
+                        $gia_moi_main = $flash_price;
+                        $gia_cu_main = $flash_old_price;
+                        $is_flash_sale = true;
+                        break;
+                    }
+                }
+            }
+            
             // Tính phần trăm giảm giá
             $giam = ($gia_cu_main > $gia_moi_main && $gia_cu_main > 0) ? 
                    ceil((($gia_cu_main - $gia_moi_main) / $gia_cu_main) * 100) : 0;
+            
+            // Update giá vào $r_sp
+            $r_sp['gia_moi'] = $gia_moi_main;
+            $r_sp['gia_cu'] = $gia_cu_main;
+            
+            // Add is_flash_sale to row
+            $r_sp['is_flash_sale'] = $is_flash_sale ? 1 : 0;
             
             // Format giá tiền
             $r_sp['gia_cu_formatted'] = number_format($gia_cu_main);
@@ -239,7 +322,12 @@ try {
             $badges = array();
             if ($r_sp['box_banchay'] == 1) $badges[] = 'Bán chạy';
             if ($r_sp['box_noibat'] == 1) $badges[] = 'Nổi bật';
-            if (isset($r_sp['box_flash']) && $r_sp['box_flash'] == 1) $badges[] = 'Flash sale';
+            // Ưu tiên check is_flash_sale
+            if (isset($r_sp['is_flash_sale']) && $r_sp['is_flash_sale'] == 1) {
+                $badges[] = 'Flash sale';
+            } elseif (isset($r_sp['box_flash']) && $r_sp['box_flash'] == 1) {
+                $badges[] = 'Flash sale';
+            }
             if ($giam > 0) $badges[] = "-$giam%";
             if (!empty($voucher_icon)) $badges[] = $voucher_icon;
             if (!empty($freeship_icon)) $badges[] = $freeship_icon;

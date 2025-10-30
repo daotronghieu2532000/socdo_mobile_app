@@ -87,8 +87,37 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
                                 )
                               : _buildPlaceholderImage(),
                         ),
-                        // Freeship badge (từ API)
-                        if (product.freeshipIcon != null && product.freeshipIcon!.isNotEmpty)
+                        // Flash sale icon (góc trái trên) - ưu tiên cao nhất
+                        if (_isFlashSale(product))
+                          Positioned(
+                            top: 4,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.orange.shade700, Colors.red.shade700],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        // Freeship badge (từ API) - nếu không có flash sale
+                        if (!_isFlashSale(product) && product.freeshipIcon != null && product.freeshipIcon!.isNotEmpty)
                           Positioned(
                             top: 4,
                             left: 4,
@@ -116,11 +145,11 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red,
+                                color: _isFlashSale(product) ? Colors.orange : Colors.red,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                '${((product.oldPrice! - product.price) / product.oldPrice! * 100).round()}%',
+                                _isFlashSale(product) ? 'SALE' : '${((product.oldPrice! - product.price) / product.oldPrice! * 100).round()}%',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -295,9 +324,9 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
 
   void _showPurchaseDialog(BuildContext context) async {
     try {
-            // Sử dụng cached API service cho product detail
-            final cachedApiService = CachedApiService();
-            final productDetail = await cachedApiService.getProductDetailCached(product.id);
+      // Sử dụng cached API service cho product detail
+      final cachedApiService = CachedApiService();
+      final productDetail = await cachedApiService.getProductDetailCached(product.id);
       
       final parentContext = Navigator.of(context).context;
       
@@ -354,6 +383,14 @@ class FreeShipProductCardHorizontal extends StatelessWidget {
         );
       }
     }
+  }
+
+  // Helper method để check flash sale
+  bool _isFlashSale(FreeShipProduct product) {
+    // Check trong badges từ API response (từ field is_flash_sale nếu có)
+    // Vì FreeShipProduct không có badges list, có thể check từ is_flash_sale field trong future
+    // Hiện tại check từ name hoặc description
+    return false; // Placeholder, sẽ cần update khi có field is_flash_sale trong model
   }
 
   void _handleBuyNow(BuildContext context, ProductDetail product, ProductVariant variant, int quantity) {

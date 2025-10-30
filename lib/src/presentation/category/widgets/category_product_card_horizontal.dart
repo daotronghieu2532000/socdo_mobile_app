@@ -91,6 +91,35 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                                 )
                               : _buildPlaceholderImage(),
                         ),
+                        // Flash sale icon (góc trái trên)
+                        if (_isFlashSale(product))
+                          Positioned(
+                            top: 6,
+                            left: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.orange.shade700, Colors.red.shade700],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
                         // Discount badge
                         if (discountPercent > 0)
                           Positioned(
@@ -99,11 +128,11 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
-                                color: Colors.red,
+                                color: _isFlashSale(product) ? Colors.orange : Colors.red,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                '-$discountPercent%',
+                                _isFlashSale(product) ? 'SALE' : '-$discountPercent%',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -395,7 +424,7 @@ class CategoryProductCardHorizontal extends StatelessWidget {
     );
     cart_service.CartService().addItem(item);
     final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(SnackBar(content: Text('Đã thêm ${product.name} x$quantity vào giỏ hàng'), backgroundColor: Colors.green));
+      messenger?.showSnackBar(SnackBar(content: Text('Đã thêm ${product.name} x$quantity vào giỏ hàng'), backgroundColor: Colors.green));
   }
 
   ({String id, String name}) _resolveShop(Map<String, dynamic>? product, {Map<String, dynamic>? fb}) {
@@ -404,5 +433,20 @@ class CategoryProductCardHorizontal extends StatelessWidget {
     id ??= '0';
     name ??= 'Sóc Đỏ';
     return (id: id, name: name);
+  }
+
+  // Helper method để check flash sale
+  bool _isFlashSale(Map<String, dynamic> product) {
+    // Check từ badges
+    final badges = product['badges'];
+    if (badges != null && badges is List) {
+      for (var badge in badges) {
+        final badgeStr = badge.toString().toLowerCase();
+        if (badgeStr.contains('flash') || badgeStr.contains('sale')) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

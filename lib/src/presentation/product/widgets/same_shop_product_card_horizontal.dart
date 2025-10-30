@@ -86,6 +86,35 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                                 )
                               : _buildPlaceholderImage(),
                         ),
+                        // Flash sale icon (góc trái trên)
+                        if (product.isFlashSale == 1)
+                          Positioned(
+                            top: 4,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.orange.shade700, Colors.red.shade700],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
                         // Discount badge
                         if (product.discountPercent > 0)
                           Positioned(
@@ -94,11 +123,11 @@ class SameShopProductCardHorizontal extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red,
+                                color: product.isFlashSale == 1 ? Colors.orange : Colors.red,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                '${product.discountPercent}%',
+                                product.isFlashSale == 1 ? 'SALE' : '${product.discountPercent}%',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,

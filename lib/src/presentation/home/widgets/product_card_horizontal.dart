@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:math';
 import '../../product/product_detail_screen.dart';
 import '../../product/widgets/variant_selection_dialog.dart';
@@ -84,12 +85,19 @@ class ProductCardHorizontal extends StatelessWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: product.imageUrl != null
-                              ? Image.network(
-                                  product.imageUrl!,
+                              ? CachedNetworkImage(
+                                  imageUrl: product.imageUrl!,
                                   width: 160,
                                   height: 160,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(),
+                                  placeholder: (context, url) => Container(
+                                    width: 160,
+                                    height: 160,
+                                    color: Colors.grey[200],
+                                  ),
+                                  errorWidget: (context, url, error) => _buildPlaceholderImage(),
+                                  fadeInDuration: const Duration(milliseconds: 300),
+                                  fadeOutDuration: const Duration(milliseconds: 100),
                                 )
                               : _buildPlaceholderImage(),
                         ),

@@ -24,42 +24,48 @@ class QuickActions extends StatelessWidget {
           for (int i = 0; i < items.length; i++)
             GestureDetector(
               onTap: () {
-                if (i == 0) { // Flash Sale item
+                if (i == 0) {
+                  // Flash Sale item
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const FlashSaleScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const FlashSaleScreen()),
                   );
-                } else if (i == 1) { // Ship 0 đồng item
+                } else if (i == 1) {
+                  // Ship 0 đồng item
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const FreeShipProductsScreen(),
                     ),
                   );
-                } else if (i == 2) { // Voucher item
+                } else if (i == 2) {
+                  // Voucher item
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const VoucherScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const VoucherScreen()),
                   );
-                } else if (i == 3) { // Đơn hàng
+                } else if (i == 3) {
+                  // Đơn hàng
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const OrdersScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const OrdersScreen()),
                   );
                 }
                 // Add other navigation logic for other items if needed
               },
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: Colors.white,
                     child: Icon(items[i].icon, color: Colors.red),
                   ),
-                  const SizedBox(height: 6),
-                  Text(items[i].label, style: const TextStyle(fontWeight: FontWeight.w600)),
+
+                  Text(
+                    items[i].label,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      height: 1.0,
+                    ),
+                  ),
                 ],
               ),
             ),

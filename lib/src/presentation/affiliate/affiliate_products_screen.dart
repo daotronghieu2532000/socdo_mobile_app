@@ -153,7 +153,7 @@ class _AffiliateProductsScreenState extends State<AffiliateProductsScreen> {
         sortBy: _sortBy,
         onlyFollowing: _onlyFollowed,
       );
-      print('🔍 Direct API result: $result');
+     
       
       // print('🔍 Final result: $result');
       // print('🔍 Final result products: ${result?['products']?.length ?? 0}');

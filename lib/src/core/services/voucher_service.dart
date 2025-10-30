@@ -175,7 +175,7 @@ class VoucherService extends ChangeNotifier {
   }
 
   /// Kiểm tra voucher có thể áp dụng cho đơn hàng không
-  bool canApplyVoucher(Voucher voucher, int orderTotal) {
+  bool canApplyVoucher(Voucher voucher, int orderTotal, {List<int>? productIds}) {
     // Kiểm tra giá tối thiểu
     if (voucher.minOrderValue != null && orderTotal < voucher.minOrderValue!) {
       return false;
@@ -193,6 +193,13 @@ class VoucherService extends ChangeNotifier {
     // Kiểm tra trạng thái
     if (!voucher.isActive) {
       return false;
+    }
+    
+    // Kiểm tra sản phẩm áp dụng (nếu có productIds)
+    if (productIds != null && productIds.isNotEmpty) {
+      if (!voucher.appliesToProducts(productIds)) {
+        return false;
+      }
     }
     
     return true;

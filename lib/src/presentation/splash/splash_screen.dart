@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import '../root_shell.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -20,11 +19,6 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _setupAnimations();
     _navigateToHome();
-    
-    // Loại bỏ native splash screen khi Flutter splash đã ready
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FlutterNativeSplash.remove();
-    });
   }
 
   void _setupAnimations() {

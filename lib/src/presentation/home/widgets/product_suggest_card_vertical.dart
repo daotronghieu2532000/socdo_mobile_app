@@ -87,6 +87,35 @@ class ProductSuggestCardVertical extends StatelessWidget {
                           : _buildPlaceholderImage(),
                       ),
                 ),
+                // Flash sale icon (góc trái trên) - ưu tiên hiển thị trước
+                if (_isFlashSale(product))
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.orange.shade700, Colors.red.shade700],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.local_fire_department,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
                 // Discount badge (nổi lên trên ảnh góc phải)
                 if (product.discount != null && product.discount! > 0)
                   Positioned(
@@ -95,7 +124,7 @@ class ProductSuggestCardVertical extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: _isFlashSale(product) ? Colors.orange : Colors.red,
                         borderRadius: BorderRadius.circular(4),
                         boxShadow: [
                           BoxShadow(
@@ -106,7 +135,7 @@ class ProductSuggestCardVertical extends StatelessWidget {
                         ],
                       ),
                       child: Text(
-                        '${product.discount!.toInt()}%',
+                        _isFlashSale(product) ? 'SALE' : '${product.discount!.toInt()}%',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -473,5 +502,17 @@ class ProductSuggestCardVertical extends StatelessWidget {
       );
     }
   }
-}
 
+  // Helper method để check flash sale
+  bool _isFlashSale(ProductSuggest product) {
+    // Check trong badges list
+    if (product.badges != null) {
+      for (var badge in product.badges!) {
+        if (badge.toLowerCase().contains('flash') || badge.toLowerCase().contains('sale')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+}

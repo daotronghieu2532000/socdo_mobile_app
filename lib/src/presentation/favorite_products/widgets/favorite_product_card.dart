@@ -181,11 +181,11 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.red,
+                                color: _isFlashSale() ? Colors.orange : Colors.red,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                '-${widget.product.discountPercent}%',
+                                _isFlashSale() ? 'SALE' : '-${widget.product.discountPercent}%',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -231,6 +231,35 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
                             ),
                           ),
                         ),
+                        // Flash sale icon (góc trái, dưới icon yêu thích)
+                        if (_isFlashSale())
+                          Positioned(
+                            top: 32,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.orange.shade700, Colors.red.shade700],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
                       ],
             ),
           ),
@@ -608,5 +637,16 @@ class _FavoriteProductCardState extends State<FavoriteProductCard> {
         ),
       );
     }
+  }
+
+  // Helper method để check flash sale
+  bool _isFlashSale() {
+    // Check từ badges list
+    for (var badge in widget.product.badges) {
+      if (badge.toLowerCase().contains('flash') || badge.toLowerCase().contains('sale')) {
+        return true;
+      }
+    }
+    return false;
   }
 }

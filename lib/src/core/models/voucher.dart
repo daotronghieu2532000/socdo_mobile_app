@@ -45,6 +45,10 @@ class Voucher {
   final List<String>? applicableCategories;
   // Chi tiết sản phẩm áp dụng (id, title, image)
   final List<Map<String, String>>? applicableProductsDetail;
+  // Loại voucher: 'all' (áp dụng tất cả sản phẩm) hoặc 'sanpham' (áp dụng sản phẩm cụ thể)
+  final String? voucherType;
+  // Cho biết voucher áp dụng cho tất cả sản phẩm hay không
+  final bool isAllProducts;
 
   const Voucher({
     required this.id,
@@ -71,6 +75,8 @@ class Voucher {
     this.applicableProducts,
     this.applicableCategories,
     this.applicableProductsDetail,
+    this.voucherType,
+    this.isAllProducts = false,
   });
 
   /// Helper method để parse int an toàn từ String hoặc int
@@ -175,6 +181,8 @@ class Voucher {
       applicableProducts: _parseStringList(json['applicable_products']),
       applicableCategories: _parseStringList(json['applicable_categories']),
       applicableProductsDetail: _parseProductDetailList(json['applicable_products']),
+      voucherType: json['voucher_type'] as String? ?? json['kieu'] as String?,
+      isAllProducts: json['is_all_products'] as bool? ?? (json['kieu'] as String?) == 'all',
     );
   }
 
@@ -204,6 +212,8 @@ class Voucher {
       'applicable_products': applicableProducts,
       'applicable_categories': applicableCategories,
       'applicable_products_detail': applicableProductsDetail,
+      'voucher_type': voucherType,
+      'is_all_products': isAllProducts,
     };
   }
 
@@ -232,6 +242,8 @@ class Voucher {
     List<String>? applicableProducts,
     List<String>? applicableCategories,
     List<Map<String, String>>? applicableProductsDetail,
+    String? voucherType,
+    bool? isAllProducts,
   }) {
     return Voucher(
       id: id ?? this.id,
@@ -258,6 +270,8 @@ class Voucher {
       applicableProducts: applicableProducts ?? this.applicableProducts,
       applicableCategories: applicableCategories ?? this.applicableCategories,
       applicableProductsDetail: applicableProductsDetail ?? this.applicableProductsDetail,
+      voucherType: voucherType ?? this.voucherType,
+      isAllProducts: isAllProducts ?? this.isAllProducts,
     );
   }
 
@@ -276,6 +290,23 @@ class Voucher {
   /// Kiểm tra voucher có thể sử dụng không
   bool get canUse {
     return isActive && !isExpired && (usageLimit == null || (usedCount ?? 0) < usageLimit!);
+  }
+
+  /// Kiểm tra voucher có áp dụng được cho danh sách sản phẩm không
+  bool appliesToProducts(List<int> productIds) {
+    // Nếu voucher áp dụng cho tất cả sản phẩm
+    if (isAllProducts || voucherType == 'all') {
+      return true;
+    }
+    
+    // Nếu voucher áp dụng cho sản phẩm cụ thể
+    if (voucherType == 'sanpham' && applicableProducts != null && applicableProducts!.isNotEmpty) {
+      final applicableIds = applicableProducts!.map((id) => int.tryParse(id) ?? 0).toList();
+      // Kiểm tra xem có ít nhất một sản phẩm trong giỏ hàng nằm trong danh sách sản phẩm được áp dụng
+      return productIds.any((productId) => applicableIds.contains(productId));
+    }
+    
+    return false;
   }
 
   /// Tính số ngày còn lại

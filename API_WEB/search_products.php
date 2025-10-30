@@ -82,7 +82,12 @@ try {
         }
     }
     
-    $where_clause = "sanpham.kho > 0 AND sanpham.active = 0 AND (sanpham.tieu_de LIKE '%$keyword%' OR sanpham.ma_sanpham LIKE '%$keyword%'$category_search)";
+    // Logic: - Sản phẩm không có biến thể: chỉ cần kho chính > 0
+    //        - Sản phẩm có biến thể: chỉ cần ít nhất 1 biến thể có kho > 0
+    $where_clause = "sanpham.active = 0 
+                     AND sanpham.kho >= 0
+                     AND ((NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = sanpham.id) AND sanpham.kho > 0) OR EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = sanpham.id AND pl.kho_sanpham_socdo > 0))
+                     AND (sanpham.tieu_de LIKE '%$keyword%' OR sanpham.ma_sanpham LIKE '%$keyword%'$category_search)";
     
     // ORDER BY theo logic hàm list_sanpham_timkiem
     $order_clause = 'has_rating DESC, avg_rating DESC, sanpham.view DESC';

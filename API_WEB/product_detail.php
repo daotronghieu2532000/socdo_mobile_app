@@ -162,6 +162,123 @@ try {
         
         $product['images'] = $images;
         
+        // Check if product is in flash sale
+        $flash_sale_info = null;
+        // Check status IN (1,2) - status 1: web con, status 2: Đăng sàn
+        $check_flash_sale = mysqli_query($conn, "SELECT * FROM deal WHERE loai = 'flash_sale' AND status = 2 AND '$current_time' BETWEEN date_start AND date_end LIMIT 50");
+        
+        if ($check_flash_sale && mysqli_num_rows($check_flash_sale) > 0) {
+            // Loop through all active flash sales to find if this product is included
+            while ($flash_deal = mysqli_fetch_assoc($check_flash_sale)) {
+                $is_in_flash_sale = false;
+                
+                // Check main_product
+                if (!empty($flash_deal['main_product'])) {
+                    $main_product_ids = explode(',', $flash_deal['main_product']);
+                    $main_product_ids_int = array_map('intval', $main_product_ids);
+                    if (in_array(intval($product_id), $main_product_ids_int)) {
+                        $is_in_flash_sale = true;
+                    }
+                }
+                
+                // Check sub_product (JSON) - product_id can be string or int in JSON
+                if (!$is_in_flash_sale && !empty($flash_deal['sub_product'])) {
+                    $sub_json = json_decode($flash_deal['sub_product'], true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($sub_json)) {
+                        // Check both string and int keys - try all possible formats
+                        $product_id_str = (string)$product_id;
+                        $product_id_int = intval($product_id);
+                        if (isset($sub_json[$product_id_str]) || isset($sub_json[$product_id_int])) {
+                            $is_in_flash_sale = true;
+                        }
+                    }
+                }
+                
+                // Also check if product has variants in sub_id (variant IDs comma separated)
+                if (!$is_in_flash_sale && !empty($flash_deal['sub_id'])) {
+                    // sub_id contains variant_id, so we need to check if product has any variants in this sub_id
+                    // For now, if sub_id exists, consider it a potential match
+                    // This will be more accurate once we get variant_id from product
+                }
+                
+                if ($is_in_flash_sale) {
+                    // Parse sub_product JSON để tìm giá flash sale cho sản phẩm này
+                    $flash_price = null;
+                    $flash_old_price = null;
+                    $flash_stock = null;
+                    $variant_id = null;
+                    
+                    if (!empty($flash_deal['sub_product'])) {
+                        $sub_json = json_decode($flash_deal['sub_product'], true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($sub_json)) {
+                            // Check both string and int keys - try all possible formats
+                            $product_id_str = (string)$product_id;
+                            $product_id_int = intval($product_id);
+                            
+                            $product_variants = null;
+                            if (isset($sub_json[$product_id_str])) {
+                                $product_variants = $sub_json[$product_id_str];
+                            } elseif (isset($sub_json[$product_id_int])) {
+                                $product_variants = $sub_json[$product_id_int];
+                            }
+                            
+                            // Lấy giá đầu tiên (hoặc có thể chọn variant đầu tiên)
+                            if (!empty($product_variants) && is_array($product_variants)) {
+                                $first_variant = reset($product_variants);
+                                $flash_price = isset($first_variant['gia']) ? intval($first_variant['gia']) : null;
+                                $flash_old_price = isset($first_variant['gia_cu']) ? intval($first_variant['gia_cu']) : null;
+                                $flash_stock = isset($first_variant['so_luong']) ? intval($first_variant['so_luong']) : null;
+                                $variant_id = isset($first_variant['variant_id']) ? $first_variant['variant_id'] : null;
+                            }
+                        }
+                    }
+                    
+                    // Nếu không tìm thấy trong sub_product, check main_product
+                    if ($flash_price === null) {
+                        // Sử dụng giá hiện tại của sản phẩm
+                        $flash_price = $gia_moi_main;
+                        $flash_old_price = $gia_cu_main;
+                    }
+                    
+                    // Tính thời gian còn lại
+                    $time_remaining = $flash_deal['date_end'] - $current_time;
+                    
+                    $flash_sale_info = array(
+                        'is_flash_sale' => true,
+                        'deal_id' => $flash_deal['id'],
+                        'flash_price' => $flash_price,
+                        'flash_old_price' => $flash_old_price,
+                        'flash_stock' => $flash_stock,
+                        'variant_id' => $variant_id,
+                        'date_start' => $flash_deal['date_start'],
+                        'date_end' => $flash_deal['date_end'],
+                        'time_remaining' => $time_remaining,
+                        'time_remaining_formatted' => gmdate('H:i:s', $time_remaining)
+                    );
+                    
+                    // Update giá hiển thị nếu có flash sale
+                    if ($flash_price !== null && $flash_price < $gia_moi_main) {
+                        $product['gia_moi'] = $flash_price;
+                        $product['gia_moi_formatted'] = number_format($flash_price);
+                        $discount_percent = ($flash_old_price > $flash_price && $flash_old_price > 0) ? 
+                                           ceil((($flash_old_price - $flash_price) / $flash_old_price) * 100) : 0;
+                        $product['discount_percent'] = $discount_percent;
+                        
+                        $gia_cu_main = $flash_old_price;
+                        $product['gia_cu_formatted'] = number_format($gia_cu_main);
+                    }
+                    
+                    break; // Found matching flash sale, exit loop
+                }
+            }
+        }
+        
+        if ($flash_sale_info === null) {
+            $flash_sale_info = array('is_flash_sale' => false);
+        }
+        
+        $product['flash_sale_info'] = $flash_sale_info;
+        
         // Tạo URL sản phẩm
         $product['product_url'] = 'https://socdo.vn/san-pham/' . $product['id'] . '/' . $product['link'] . '.html';
         
@@ -229,7 +346,7 @@ try {
                 $shop_data = mysqli_fetch_assoc($shop_result);
                 
                 // Đếm tổng số sản phẩm của shop
-                $product_count_query = "SELECT COUNT(*) as total FROM sanpham WHERE shop = '$deal_shop' AND status = 1";
+                $product_count_query = "SELECT COUNT(*) as total FROM sanpham WHERE shop = '$deal_shop' AND status = 1 AND kho > 0 AND active = 0";
                 $product_count_result = mysqli_query($conn, $product_count_query);
                 $product_count = 0;
                 if ($product_count_result) {
@@ -304,8 +421,8 @@ try {
         $is_favorited = ($user_id > 0) ? (intval($product['is_favorited']) === 1) : false;
         $product['is_favorited'] = $is_favorited;
         
-        // Lấy danh sách phân loại sản phẩm từ bảng phanloai_sanpham
-        $variants_query = "SELECT * FROM phanloai_sanpham WHERE sp_id = '$product_id' ORDER BY gia_moi ASC";
+        // Lấy danh sách phân loại sản phẩm từ bảng phanloai_sanpham - CHỈ lấy phân loại còn hàng
+        $variants_query = "SELECT * FROM phanloai_sanpham WHERE sp_id = '$product_id' AND kho_sanpham_socdo > 0 ORDER BY gia_moi ASC";
         $variants_result = mysqli_query($conn, $variants_query);
         $variants = array();
         
@@ -320,6 +437,9 @@ try {
                 $variant['gia_moi_formatted'] = number_format($variant['gia_moi']);
                 $variant['gia_ctv_formatted'] = number_format($variant['gia_ctv']);
                 $variant['gia_drop_formatted'] = number_format($variant['gia_drop']);
+                
+                // Thêm field stock để app hiển thị
+                $variant['stock'] = intval($variant['kho_sanpham_socdo']);
                 
                 // Tính phần trăm giảm giá
                 $variant_discount = ($variant['gia_cu'] > $variant['gia_moi'] && $variant['gia_cu'] > 0) ? 

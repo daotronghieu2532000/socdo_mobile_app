@@ -399,6 +399,9 @@ class CartServiceShopSection extends StatelessWidget {
   }
 
   void _showVoucherDialog(BuildContext context, int shopId, int shopTotal, appliedVoucher) {
+    // Get product IDs from cart items
+    final cartProductIds = items.map((item) => item.id).toList();
+    
     showDialog(
       context: context,
       builder: (context) => VoucherDialog(
@@ -406,6 +409,7 @@ class CartServiceShopSection extends StatelessWidget {
         shopName: shopName,
         shopTotal: shopTotal,
         currentVoucher: appliedVoucher,
+        cartProductIds: cartProductIds,
       ),
     ).then((result) {
       if (result != null) {

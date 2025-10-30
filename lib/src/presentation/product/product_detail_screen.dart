@@ -12,6 +12,7 @@ import 'widgets/shop_bar.dart';
 import 'widgets/section_header.dart';
 import 'widgets/specs_table.dart';
 import 'widgets/description_text.dart';
+// import 'widgets/flash_sale_timer.dart'; // Đã không dùng - thay bằng badge inline
 // import 'widgets/viewed_product_card.dart'; // Đã ẩn để dùng lại sau
 // import 'widgets/similar_product_card.dart'; // Đã thay thế bằng RelatedProductCard
 import 'widgets/related_product_card_horizontal.dart';
@@ -856,6 +857,46 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ],
                         ),
                       ),
+                      // Flash Sale Badge (nếu có flash sale)
+                      if (product?.isFlashSale == true)
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.orange.shade700, Colors.red.shade700],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'SALE',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // Icon trái tim có thể tương tác
                       GestureDetector(
                         onTap: _toggleFavorite,
@@ -883,7 +924,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   const SizedBox(height: 8),
                   Text(title, 
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
                   // TODO: Hiển thị chọn biến thể với thiết kế minimalist hiện đại (nếu có) - ĐÃ COMMENT TẠM THỜI
                   // if (product?.variants.isNotEmpty == true) ...[
                   //   Container(

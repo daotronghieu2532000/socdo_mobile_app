@@ -22,7 +22,7 @@ class _HeaderCardState extends State<HeaderCard> {
     'cho_xac_nhan': 0,
     'cho_lay_hang': 0,
     'cho_giao_hang': 0,
-    'da_huy_tra': 0,
+    'danh_gia': 0,
     'da_huy_don': 0,
   };
 
@@ -118,12 +118,12 @@ class _HeaderCardState extends State<HeaderCard> {
     int c0=0,c1=0,c2=0,c3=0,c4=0;
     for(final o in list){
       final s = toInt(o['status'] ?? o['trangthai']);
-      if ([0,1].contains(s)) {
-        c0++;
-      } else if ([11,10,12].contains(s)) c1++;
-      else if ([2,8,9,7,14].contains(s)) c2++;
-      else if ([5].contains(s)) c3++;
-      else if ([3,4,6].contains(s)) c4++; // Đơn hàng hủy: 3=yêu cầu hủy, 4=đã hủy, 6=đã hoàn đơn
+      if ([0].contains(s)) {
+        c0++; // Chờ xác nhận
+      } else if ([1, 11, 10, 12].contains(s)) c1++; // Chờ lấy hàng
+      else if ([2, 8, 9, 7, 14].contains(s)) c2++; // Chờ giao hàng
+      else if ([3, 5].contains(s)) c3++; // Đánh giá (bao gồm status 3 - Chờ đánh giá và status 5 - Giao thành công)
+      else if ([4, 6].contains(s)) c4++; // Đã hủy (status 4 - Đã hủy đơn, status 6 - Đã hoàn đơn)
     }
     if (!mounted) return;
     setState(() {
@@ -131,7 +131,7 @@ class _HeaderCardState extends State<HeaderCard> {
         'cho_xac_nhan': c0,
         'cho_lay_hang': c1,
         'cho_giao_hang': c2,
-        'da_huy_tra': c3,
+        'danh_gia': c3, // Đổi key từ 'da_huy_tra' thành 'danh_gia'
         'da_huy_don': c4,
       };
     });
@@ -279,7 +279,7 @@ class _HeaderCardState extends State<HeaderCard> {
                     StatusItem(
                       icon: Icons.reviews,
                       label: 'Đánh giá',
-                      count: _counts['da_huy_tra'] ?? 0,
+                      count: _counts['danh_gia'] ?? 0,
                       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _OrdersShortcut(index: 3))),
                     ),
                   ],

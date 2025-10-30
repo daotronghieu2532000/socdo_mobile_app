@@ -472,7 +472,7 @@ class _ShopFlashSalesSectionState extends State<ShopFlashSalesSection> {
                   Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: const Color.fromARGB(255, 25, 104, 222),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(

@@ -9,6 +9,7 @@ class VoucherDialog extends StatefulWidget {
   final String shopName;
   final int shopTotal;
   final Voucher? currentVoucher;
+  final List<int>? cartProductIds; // Danh sách product IDs trong giỏ hàng của shop này
 
   const VoucherDialog({
     super.key,
@@ -16,6 +17,7 @@ class VoucherDialog extends StatefulWidget {
     required this.shopName,
     required this.shopTotal,
     this.currentVoucher,
+    this.cartProductIds,
   });
 
   @override
@@ -49,8 +51,17 @@ class _VoucherDialogState extends State<VoucherDialog> {
       );
 
       if (mounted) {
+        // Filter vouchers based on cart product IDs
+        List<Voucher>? filteredVouchers = vouchers;
+        if (filteredVouchers != null && widget.cartProductIds != null && widget.cartProductIds!.isNotEmpty) {
+          filteredVouchers = filteredVouchers.where((voucher) {
+            // Check if voucher applies to the products in cart
+            return voucher.appliesToProducts(widget.cartProductIds!);
+          }).toList();
+        }
+        
         setState(() {
-          _vouchers = vouchers ?? [];
+          _vouchers = filteredVouchers ?? [];
           _isLoading = false;
         });
       }
@@ -279,7 +290,11 @@ class _VoucherDialogState extends State<VoucherDialog> {
       itemBuilder: (context, index) {
         final voucher = _vouchers[index];
         final isSelected = _selectedVoucher?.id == voucher.id;
-        final canApply = _voucherService.canApplyVoucher(voucher, widget.shopTotal);
+        final canApply = _voucherService.canApplyVoucher(
+          voucher, 
+          widget.shopTotal,
+          productIds: widget.cartProductIds,
+        );
         
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
@@ -420,9 +435,5 @@ class _VoucherDialogState extends State<VoucherDialog> {
       _voucherService.applyVoucher(widget.shopId, _selectedVoucher!);
       Navigator.pop(context, _selectedVoucher);
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }

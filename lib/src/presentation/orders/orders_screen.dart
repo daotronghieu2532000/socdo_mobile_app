@@ -67,12 +67,12 @@ class _OrdersScreenState extends State<OrdersScreen>
     for (final o in orders) {
       final s = (o['status'] ?? o['trangthai']) as int?;
       if (s == null) continue;
-      if ([0, 1].contains(s)) {
+      if ([0].contains(s)) {
         c0++;
-      } else if ([11, 10, 12].contains(s)) c1++;
+      } else if ([1, 11, 10, 12].contains(s)) c1++;
       else if ([2, 8, 9, 7, 14].contains(s)) c2++;
-      else if ([5].contains(s)) c3++;
-      else if ([3, 4, 6].contains(s)) c4++; // Đơn hàng hủy
+      else if ([3, 5].contains(s)) c3++; // Đánh giá (bao gồm cả status 3 - Chờ đánh giá)
+      else if ([4, 6].contains(s)) c4++; // Đơn hàng hủy
     }
     if (!mounted) return;
     setState(() {
@@ -141,11 +141,11 @@ class _OrdersScreenState extends State<OrdersScreen>
           : TabBarView(
               controller: _tabController,
               children: [
-                _OrdersList(statusGroup: const [0, 1], userId: _userId!),
+                _OrdersList(statusGroup: const [0], userId: _userId!),
                 _OrdersList(statusGroup: const [1, 11, 10, 12], userId: _userId!),
                 _OrdersList(statusGroup: const [2, 8, 9, 7, 14], userId: _userId!),
-                _OrdersList(statusGroup: const [5], userId: _userId!),
-                _OrdersList(statusGroup: const [3, 4, 6], userId: _userId!),
+                _OrdersList(statusGroup: const [3, 5], userId: _userId!),
+                _OrdersList(statusGroup: const [4, 6], userId: _userId!),
               ],
             ),
       bottomNavigationBar: const RootShellBottomBar(),
@@ -587,10 +587,13 @@ class _OrdersListState extends State<_OrdersList> {
       case 7:
       case 14:
         return const Color(0xFF722ED1); // shipping
+      case 3:
       case 5:
-        return const Color(0xFF52C41A); // delivered
+        return const Color(0xFF52C41A); // delivered/rating
       case 6:
         return const Color(0xFFF5222D); // returned
+      case 4:
+        return const Color(0xFF999999); // cancelled
       default:
         return const Color(0xFF6C757D);
     }

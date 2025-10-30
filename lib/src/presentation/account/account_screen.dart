@@ -27,7 +27,7 @@ class AccountScreen extends StatelessWidget {
           ActionList(items: const [
             ActionItem(Icons.manage_accounts_outlined, 'Thông tin cá nhân'),
             ActionItem(Icons.receipt_long_outlined, 'Tất cả đơn hàng'),
-            ActionItem(Icons.shopping_bag_outlined, 'Sản phẩm đã mua'),
+            // ActionItem(Icons.shopping_bag_outlined, 'Sản phẩm đã mua'),
             ActionItem(Icons.favorite_border, 'Sản phẩm yêu thích'),
           ]),
           const SizedBox(height: 12),
@@ -35,7 +35,7 @@ class AccountScreen extends StatelessWidget {
           ActionList(items: const [
             ActionItem(Icons.location_on_outlined, 'Sổ địa chỉ'),
             ActionItem(Icons.sell_outlined, 'Mã giảm giá'),
-            ActionItem(Icons.star_border, 'Lịch sử đánh giá'),
+            // ActionItem(Icons.star_border, 'Lịch sử đánh giá'),
             ActionItem(Icons.inventory_2_outlined, 'Đã huỷ & Trả lại'),
           ]),
           const SizedBox(height: 12),

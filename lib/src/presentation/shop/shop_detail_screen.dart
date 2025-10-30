@@ -185,19 +185,25 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
           // Tab Bar
           Container(
             color: Colors.white,
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              labelColor: Colors.red,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Colors.red,
-              tabs: const [
-                Tab(text: 'Sản phẩm'),
-                Tab(text: 'Flash Sale'),
-                Tab(text: 'Voucher'),
-                Tab(text: 'Kho hàng'),
-                Tab(text: 'Danh mục'),
-              ],
+            child: SizedBox(
+              height: 48,
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                padding: const EdgeInsets.only(left: 0),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+                tabAlignment: TabAlignment.start,
+                labelColor: Colors.red,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.red,
+                tabs: const [
+                  Tab(text: 'Sản phẩm'),
+                  Tab(text: 'Flash Sale'),
+                  Tab(text: 'Voucher'),
+                  Tab(text: 'Kho hàng'),
+                  Tab(text: 'Danh mục'),
+                ],
+              ),
             ),
           ),
           

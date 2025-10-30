@@ -113,6 +113,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         statusColor = const Color(0xFF34C759);
         statusIcon = Icons.local_shipping;
         break;
+      case 3:
+        statusColor = const Color(0xFF52C41A);
+        statusIcon = Icons.star_outline;
+        break;
       case 5:
         statusColor = const Color(0xFF34C759);
         statusIcon = Icons.check_circle;

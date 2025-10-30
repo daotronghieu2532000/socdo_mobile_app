@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'voucher_service.dart';
 
 class CartItem {
   final int id;
@@ -130,6 +131,9 @@ class CartService extends ChangeNotifier {
     final existingIndex = _items.indexWhere(
       (existing) => existing.id == item.id && existing.variant == item.variant,
     );
+    
+    final shopId = item.shopId;
+    final hadItemsBefore = _items.any((existing) => existing.shopId == shopId);
 
     if (existingIndex != -1) {
       // Update quantity if item exists
@@ -141,14 +145,29 @@ class CartService extends ChangeNotifier {
       _items.add(item);
     }
 
+    // Validate vouchers if adding to a shop that might have vouchers
+    if (hadItemsBefore) {
+      _validateAndClearVouchers(shopId);
+    }
+    
     notifyListeners();
   }
 
   // Remove item from cart
   void removeItem(int itemId, {String? variant}) {
+    final removedItem = _items.firstWhere(
+      (item) => item.id == itemId && item.variant == variant,
+      orElse: () => throw StateError('Item not found'),
+    );
+    final shopId = removedItem.shopId;
+    
     _items.removeWhere(
       (item) => item.id == itemId && item.variant == variant,
     );
+    
+    // Validate and clear vouchers if products changed
+    _validateAndClearVouchers(shopId);
+    
     notifyListeners();
   }
 
@@ -171,6 +190,13 @@ class CartService extends ChangeNotifier {
 
   // Clear all items
   void clearCart() {
+    // Clear all vouchers before clearing items
+    final voucherService = VoucherService();
+    final shopIds = _items.map((item) => item.shopId).toSet();
+    for (final shopId in shopIds) {
+      voucherService.cancelVoucher(shopId);
+    }
+    
     _items.clear();
     notifyListeners();
   }
@@ -178,16 +204,49 @@ class CartService extends ChangeNotifier {
   // Clear items by shop
   void clearShopItems(int shopId) {
     _items.removeWhere((item) => item.shopId == shopId);
+    // Clear voucher for this shop when all items are removed
+    final voucherService = VoucherService();
+    voucherService.cancelVoucher(shopId);
     notifyListeners();
   }
 
   // Remove specific item by CartItem object
   void removeCartItem(CartItem item) {
+    final shopId = item.shopId;
     _items.removeWhere((existing) => 
         existing.id == item.id && 
         existing.variant == item.variant &&
         existing.shopId == item.shopId);
+    
+    // Validate and clear vouchers if products changed
+    _validateAndClearVouchers(shopId);
+    
     notifyListeners();
+  }
+  
+  // Validate vouchers and clear if products no longer match
+  void _validateAndClearVouchers(int shopId) {
+    final voucherService = VoucherService();
+    final appliedVoucher = voucherService.getAppliedVoucher(shopId);
+    
+    if (appliedVoucher == null) return;
+    
+    // Get current product IDs for this shop
+    final currentProductIds = _items
+        .where((item) => item.shopId == shopId)
+        .map((item) => item.id)
+        .toList();
+    
+    // If no products remain for this shop, clear the voucher
+    if (currentProductIds.isEmpty) {
+      voucherService.cancelVoucher(shopId);
+      return;
+    }
+    
+    // Check if voucher still applies to remaining products
+    if (!appliedVoucher.appliesToProducts(currentProductIds)) {
+      voucherService.cancelVoucher(shopId);
+    }
   }
 
   // Update item variant with price

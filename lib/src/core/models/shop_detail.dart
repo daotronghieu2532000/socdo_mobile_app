@@ -25,57 +25,34 @@ class ShopDetail {
     try {
       // Debug từng field
       print('🔍 shop_info type: ${json['shop_info'].runtimeType}');
-      print('🔍 products type: ${json['products'].runtimeType}');
-      print('🔍 flash_sales type: ${json['flash_sales'].runtimeType}');
-      print('🔍 vouchers type: ${json['vouchers'].runtimeType}');
-      print('🔍 warehouses type: ${json['warehouses'].runtimeType}');
-      print('🔍 categories type: ${json['categories'].runtimeType}');
-      print('🔍 statistics type: ${json['statistics']?.runtimeType}');
-      print('🔍 parameters type: ${json['parameters']?.runtimeType}');
-
-      print('🔍 Bắt đầu parse shopInfo...');
       final shopInfo = ShopInfo.fromJson(json['shop_info'] as Map<String, dynamic>);
-      print('✅ shopInfo parse thành công');
-      
-      print('🔍 Bắt đầu parse products...');
+
       final List<ShopProduct> products = (json['products'] as List?)
           ?.map((product) => ShopProduct.fromJson(product as Map<String, dynamic>))
           .toList() ?? <ShopProduct>[];
-      print('✅ products parse thành công: ${products.length} sản phẩm');
-      
-      print('🔍 Bắt đầu parse flashSales...');
       final List<ShopFlashSale> flashSales = json.containsKey('flash_sales') && json['flash_sales'] is List
           ? (json['flash_sales'] as List)
               .map((flashSale) => ShopFlashSale.fromJson(flashSale as Map<String, dynamic>))
               .toList()
           : <ShopFlashSale>[];
-      print('✅ flashSales parse thành công: ${flashSales.length} flash sales');
-      
-      print('🔍 Bắt đầu parse vouchers...');
       final List<ShopVoucher> vouchers = json.containsKey('vouchers') && json['vouchers'] is List
           ? (json['vouchers'] as List)
               .map((voucher) => ShopVoucher.fromJson(voucher as Map<String, dynamic>))
               .toList()
           : <ShopVoucher>[];
-      print('✅ vouchers parse thành công: ${vouchers.length} vouchers');
-      
-      print('🔍 Bắt đầu parse warehouses...');
+    
       final List<ShopWarehouse> warehouses = json.containsKey('warehouses') && json['warehouses'] is List
           ? (json['warehouses'] as List)
               .map((warehouse) => ShopWarehouse.fromJson(warehouse as Map<String, dynamic>))
               .toList()
           : <ShopWarehouse>[];
-      print('✅ warehouses parse thành công: ${warehouses.length} warehouses');
-      
-      print('🔍 Bắt đầu parse categories...');
+    
       final List<ShopCategory> categories = json.containsKey('categories') && json['categories'] is List
           ? (json['categories'] as List)
               .map((category) => ShopCategory.fromJson(category as Map<String, dynamic>))
               .toList()
           : <ShopCategory>[];
-      print('✅ categories parse thành công: ${categories.length} categories');
-      
-      print('🔍 Tạo ShopDetail object...');
+     
       return ShopDetail(
         shopInfo: shopInfo,
         products: products,

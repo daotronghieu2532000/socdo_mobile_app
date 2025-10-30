@@ -171,8 +171,26 @@ try {
             }
             
             // Đếm số sản phẩm (nếu yêu cầu)
+            // Logic: - Sản phẩm không có biến thể: chỉ cần kho chính > 0
+            //        - Sản phẩm có biến thể: chỉ cần ít nhất 1 biến thể có kho > 0
             if ($include_products_count) {
-                $products_count_query = "SELECT COUNT(*) as total FROM sanpham WHERE FIND_IN_SET('{$category['cat_id']}', cat) > 0 AND status = 1";
+                $products_count_query = "SELECT COUNT(DISTINCT s.id) as total 
+                                        FROM sanpham s
+                                        WHERE FIND_IN_SET('{$category['cat_id']}', s.cat) > 0 
+                                        AND s.status = 1 
+                                        AND s.active = 0
+                                        AND s.kho >= 0
+                                        AND (
+                                            -- Sản phẩm không có phân loại: check kho chính
+                                            (NOT EXISTS (SELECT 1 FROM phanloai_sanpham pl WHERE pl.sp_id = s.id) AND s.kho > 0)
+                                            OR
+                                            -- Sản phẩm có phân loại: check kho phân loại (không check kho chính)
+                                            EXISTS (
+                                                SELECT 1 FROM phanloai_sanpham pl 
+                                                WHERE pl.sp_id = s.id 
+                                                AND pl.kho_sanpham_socdo > 0
+                                            )
+                                        )";
                 $products_count_result = mysqli_query($conn, $products_count_query);
                 if ($products_count_result) {
                     $products_count = mysqli_fetch_assoc($products_count_result);

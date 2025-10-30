@@ -676,7 +676,7 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
                                               ),
                                             ),
                                             child: const Text(
-                                              'Hoa hồng lên đến 10%',
+                                              'hoa hồng lên đến 30%',
                                               style: TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 12,
@@ -1296,7 +1296,7 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
                                             ),
                                           ),
                                           child: const Text(
-                                            'Hoa hồng lên đến 10%',
+                                            'hoa hồng lên đến 30%',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: 12,
@@ -1356,7 +1356,7 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
                     _buildBenefitItem(
                       Icons.monetization_on,
                       'Hoa hồng cao',
-                      'Nhận hoa hồng lên đến 10% từ mỗi đơn hàng',
+                      'Nhận hoa hồng lên đến 30% từ mỗi đơn hàng',
                     ),
                     const SizedBox(height: 12),
                     _buildBenefitItem(

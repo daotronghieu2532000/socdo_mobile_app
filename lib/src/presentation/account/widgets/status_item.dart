@@ -28,13 +28,21 @@ class StatusItem extends StatelessWidget {
                     child: Container(
                       constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                       padding: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
+                        shape: BoxShape.circle,
                       ),
-                      child: Text(
-                        count > 99 ? '99+' : '$count',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      child: Center(
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            height: 1.0,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),

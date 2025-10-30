@@ -44,10 +44,11 @@ dependencies:
   carousel_slider: ^5.0.0
   path_provider: ^2.1.1
   web_socket_channel: ^2.4.0
-  socket_io_client: ^1.0.2
+  socket_io_client: ^2.0.3
   flutter_rating_bar: ^4.0.1
   device_info_plus: ^10.1.0
   package_info_plus: ^8.0.0
+  cached_network_image: ^3.3.1
 
 dev_dependencies:
   flutter_test:
@@ -102,25 +103,16 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# Flutter Native Splash configuration
-flutter_native_splash:
-  # Màu nền trắng giống như trong hình
-  color: "#FFFFFF"
-  color_dark: "#FFFFFF"
-  
-  # Logo ở giữa màn hình
-  image: lib/src/core/assets/images/logo.png
-  image_dark: lib/src/core/assets/images/logo.png
-  
-  # Cấu hình cho các platform
-  android: true
-  ios: true
-  web: true
-  
-  # Logo ở giữa
-  android_gravity: center
-  ios_content_mode: center
-  
-  # Đảm bảo full screen
-  fullscreen: true
+# Flutter Native Splash configuration - Đã bỏ để vào luôn Flutter splash screen
+# flutter_native_splash:
+#   color: "#FFFFFF"
+#   color_dark: "#FFFFFF"
+#   image: lib/src/core/assets/images/logo.png
+#   image_dark: lib/src/core/assets/images/logo.png
+#   android: true
+#   ios: true
+#   web: true
+#   android_gravity: center
+#   ios_content_mode: center
+#   fullscreen: true
 

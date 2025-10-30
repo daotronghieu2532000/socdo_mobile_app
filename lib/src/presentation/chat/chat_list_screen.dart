@@ -40,7 +40,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void _startPolling() {
     _stopPolling();
     print('🔄 [ChatListScreen] Starting polling for chat sessions...');
-    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 6), (timer) {
       _loadChatSessionsSilently();
     });
   }

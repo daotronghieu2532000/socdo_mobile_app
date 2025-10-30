@@ -13,7 +13,7 @@ class ShopInfoHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 1),
       child: Column(
         children: [
           Row(
@@ -98,7 +98,7 @@ class ShopInfoHeader extends StatelessWidget {
             ],
           ),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           
           // Comment out shop badges
           // if (shopInfo.isCtv == 1 || shopInfo.isDropship == 1 || shopInfo.isLeader == 1)
