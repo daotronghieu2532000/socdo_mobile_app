@@ -1,4 +1,5 @@
 import 'api_service.dart';
+import 'push_notification_service.dart';
 
 class AppInitializationService {
   static final AppInitializationService _instance = AppInitializationService._internal();
@@ -6,6 +7,7 @@ class AppInitializationService {
   AppInitializationService._internal();
 
   final ApiService _apiService = ApiService();
+  final PushNotificationService _pushService = PushNotificationService();
   bool _isInitialized = false;
 
   /// Khởi tạo app - gọi khi app start
@@ -22,6 +24,12 @@ class AppInitializationService {
       final token = await _apiService.getValidToken();
       
       if (token != null) {
+        // Khởi tạo push notification service
+        _pushService.initialize().catchError((e) {
+          print('⚠️ Error initializing push service: $e');
+          // Không block app nếu push service lỗi
+        });
+        
         _isInitialized = true;
         print('✅ Khởi tạo app thành công');
         return true;

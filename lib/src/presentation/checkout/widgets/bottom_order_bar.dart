@@ -6,11 +6,13 @@ import '../../../core/services/shipping_quote_store.dart';
 
 class BottomOrderBar extends StatefulWidget {
   final int totalPrice;
+  final bool isProcessing;
   final VoidCallback onOrder;
 
   const BottomOrderBar({
     super.key,
     required this.totalPrice,
+    this.isProcessing = false,
     required this.onOrder,
   });
 
@@ -122,17 +124,40 @@ class _BottomOrderBarState extends State<BottomOrderBar> {
             SizedBox(
               height: 48,
               child: ElevatedButton(
-                onPressed: widget.onOrder,
+                onPressed: widget.isProcessing ? null : widget.onOrder,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  // Giữ nguyên màu đỏ ngay cả khi disabled
+                  disabledBackgroundColor: Colors.red,
+                  // Giảm opacity khi disabled để có hiệu ứng mờ nhẹ
+                  disabledForegroundColor: Colors.white,
                 ),
-                child: const Text(
-                  'ĐẶT HÀNG',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                ),
+                child: widget.isProcessing
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Đang xử lý...',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                          ),
+                        ],
+                      )
+                    : const Text(
+                        'ĐẶT HÀNG',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                      ),
               ),
             ),
           ],

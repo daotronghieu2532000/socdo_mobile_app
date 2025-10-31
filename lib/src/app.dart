@@ -31,7 +31,13 @@ class SocdoApp extends StatelessWidget {
         '/order/success': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
           final maDon = args?['ma_don']?.toString() ?? '';
-          return OrderSuccessScreen(maDon: maDon);
+          final orders = args?['orders'] as List<dynamic>?;
+          final summary = args?['summary'] as Map<String, dynamic>?;
+          return OrderSuccessScreen(
+            maDon: maDon,
+            orders: orders,
+            summary: summary,
+          );
         },
       },
     );

@@ -791,7 +791,7 @@ class _OrderSummarySectionState extends State<OrderSummarySection> {
               children: [
                 const Icon(Icons.accessibility_sharp, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text('Đơn vị: ${_provider!}'),
+                Text('${_provider!}'),
               ],
             ),
           const SizedBox(height: 12),

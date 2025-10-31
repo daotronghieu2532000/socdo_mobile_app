@@ -601,6 +601,9 @@ class ApiService {
     required String tenXa,
     required String tenHuyen,
     required String tenTinh,
+    required int tinh,
+    required int huyen,
+    required int xa,
     String? email,
     bool isDefault = false,
   }) async {
@@ -614,6 +617,9 @@ class ApiService {
         'ten_xa': tenXa,
         'ten_huyen': tenHuyen,
         'ten_tinh': tenTinh,
+        'tinh': tinh,
+        'huyen': huyen,
+        'xa': xa,
         if (email != null && email.isNotEmpty) 'email': email,
         'active': isDefault ? 1 : 0,
       });
@@ -636,6 +642,10 @@ class ApiService {
     required String tenTinh,
     required String tenHuyen,
     required String tenXa,
+    required int tinh,
+    required int huyen,
+    required int xa,
+    String? email,
   }) async {
     try {
       final body = {
@@ -648,6 +658,10 @@ class ApiService {
         'ten_tinh': tenTinh,
         'ten_huyen': tenHuyen,
         'ten_xa': tenXa,
+        'tinh': tinh,
+        'huyen': huyen,
+        'xa': xa,
+        if (email != null && email.isNotEmpty) 'email': email,
       };
       print('🔧 updateAddress sending body: $body');
       final response = await post('/user_profile', body: body);
@@ -3951,6 +3965,36 @@ class ApiService {
     } catch (e) {
       print('❌ Lỗi submit report: $e');
       return null;
+    }
+  }
+
+  // =============== PUSH NOTIFICATIONS ===============
+  
+  /// Register device token (FCM) to server
+  Future<bool> registerDeviceToken({
+    required int userId,
+    required String deviceToken,
+    required String platform,
+    String? deviceModel,
+    String? appVersion,
+  }) async {
+    try {
+      final response = await post('/register_device_token', body: {
+        'user_id': userId,
+        'device_token': deviceToken,
+        'platform': platform,
+        if (deviceModel != null) 'device_model': deviceModel,
+        if (appVersion != null) 'app_version': appVersion,
+      });
+
+      if (response != null && response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('❌ Lỗi register device token: $e');
+      return false;
     }
   }
 }

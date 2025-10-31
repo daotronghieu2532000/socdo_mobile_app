@@ -19,11 +19,12 @@ DROP TRIGGER IF EXISTS tr_sanpham_aff_insert;
 -- ========================================
 -- 1. TRIGGER CHO BẢNG DONHANG (Đơn hàng)
 -- ========================================
+SET collation_connection = 'utf8_general_ci';
 DELIMITER $$
 
-CREATE TRIGGER tr_donhang_status_update 
-AFTER UPDATE ON donhang 
-FOR EACH ROW 
+CREATE TRIGGER tr_donhang_status_update
+AFTER UPDATE ON donhang
+FOR EACH ROW
 BEGIN
     DECLARE product_title VARCHAR(255) DEFAULT '';
     DECLARE product_image TEXT DEFAULT '';
@@ -32,81 +33,125 @@ BEGIN
     DECLARE notification_title VARCHAR(255) DEFAULT '';
     DECLARE notification_content TEXT DEFAULT '';
     DECLARE priority VARCHAR(20) DEFAULT 'medium';
-    
-    IF OLD.status != NEW.status THEN
-        -- Lấy ID sản phẩm đầu tiên từ JSON trong field sanpham
-        SET first_product_id = '';
-        
-        -- Parse JSON để lấy ID sản phẩm đầu tiên
-        SET first_product_id = SUBSTRING_INDEX(
-            SUBSTRING_INDEX(NEW.sanpham, '":', 1), 
-            '"', -1
-        );
-        
-        -- Lấy thông tin sản phẩm từ JSON
-        SET product_title = SUBSTRING_INDEX(
-            SUBSTRING_INDEX(NEW.sanpham, '"tieu_de":"', 2), 
-            '"tieu_de":"', -1
-        );
-        SET product_title = SUBSTRING_INDEX(product_title, '"', 1);
-        
-        SET product_image = SUBSTRING_INDEX(
-            SUBSTRING_INDEX(NEW.sanpham, '"minh_hoa":"', 2), 
-            '"minh_hoa":"', -1
-        );
-        SET product_image = SUBSTRING_INDEX(product_image, '"', 1);
-        
-        SET product_price = SUBSTRING_INDEX(
-            SUBSTRING_INDEX(NEW.sanpham, '"gia_moi":"', 2), 
-            '"gia_moi":"', -1
-        );
-        SET product_price = SUBSTRING_INDEX(product_price, '"', 1);
-        SET product_price = REPLACE(product_price, ',', '');
-        SET product_price = CAST(product_price AS UNSIGNED);
-        
-        IF product_title = '' THEN
-            SET product_title = 'Sản phẩm';
-            SET product_image = '';
-            SET product_price = NEW.tongtien;
+    DECLARE temp_image TEXT DEFAULT '';
+    DECLARE temp_id VARCHAR(20) DEFAULT '';
+    DECLARE v_user_exists INT DEFAULT 0;
+
+    IF OLD.status <> NEW.status THEN
+        -- Kiểm tra user tồn tại (user đăng nhập); khách vãng lai sẽ không có trong user_info
+        IF NEW.user_id IS NOT NULL AND NEW.user_id > 0 THEN
+            SELECT COUNT(1)
+              INTO v_user_exists
+              FROM user_info ui
+             WHERE ui.user_id = NEW.user_id
+             LIMIT 1;
+        ELSE
+            SET v_user_exists = 0;
         END IF;
-        
-        -- Tạo nội dung thông báo
-        CASE NEW.status
-            WHEN 1 THEN
-                SET notification_title = 'Đơn hàng đã được xác nhận';
-                SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được xác nhận thành công. Chúng tôi sẽ chuẩn bị hàng và giao đến bạn sớm nhất. Cảm ơn bạn đã tin tưởng!');
-                SET priority = 'medium';
-            WHEN 2 THEN
-                SET notification_title = 'Đơn hàng đang được giao';
-                SET notification_content = CONCAT('Đơn hàng "', product_title, '" đang được giao hàng. Vui lòng chuẩn bị nhận hàng và thanh toán khi nhận được. Cảm ơn bạn!');
-                SET priority = 'high';
-            WHEN 3 THEN
-                SET notification_title = 'Đơn hàng đã giao thành công';
-                SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được giao thành công. Cảm ơn bạn đã mua sắm tại cửa hàng của chúng tôi!');
-                SET priority = 'medium';
-            WHEN 4 THEN
-                SET notification_title = 'Đơn hàng đã bị hủy';
-                SET notification_content = CONCAT('Rất tiếc, đơn hàng "', product_title, '" đã bị hủy. Nếu bạn có thắc mắc, vui lòng liên hệ với chúng tôi để được hỗ trợ.');
-                SET priority = 'high';
-            WHEN 5 THEN
-                SET notification_title = 'Đơn hàng đã hoàn trả';
-                SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được hoàn trả thành công. Số tiền sẽ được chuyển về tài khoản của bạn trong thời gian sớm nhất.');
-                SET priority = 'high';
-            ELSE
-                SET notification_title = 'Cập nhật đơn hàng';
-                SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được cập nhật trạng thái. Vui lòng kiểm tra chi tiết trong ứng dụng.');
-        END CASE;
-        
-        -- Insert notification
-        INSERT INTO notification_mobile (
-            user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
-        ) VALUES (
-            NEW.user_id, 'order', notification_title, notification_content,
-            CONCAT('{"order_id":', NEW.id, ',"order_code":"', NEW.ma_don, '","product_title":"', product_title, '","product_image":"', product_image, '","product_price":', product_price, ',"old_status":', OLD.status, ',"new_status":', NEW.status, ',"total_amount":', NEW.tongtien, '}'),
-            NEW.id, 'order', priority, 0, UNIX_TIMESTAMP()
-        );
-    END IF;
+
+        -- Chỉ tạo thông báo khi user hợp lệ (tránh lỗi FK)
+        IF v_user_exists = 1 THEN
+            -- Lấy sp_id đầu tiên từ nhiều format JSON khác nhau
+            IF NEW.sanpham LIKE '%":{%' THEN
+                SET temp_id = SUBSTRING_INDEX(SUBSTRING_INDEX(NEW.sanpham, '":', 1), '"', -1);
+                IF LOCATE('_', temp_id) > 0 THEN
+                    SET first_product_id = SUBSTRING_INDEX(temp_id, '_', 1);
+                ELSE
+                    SET first_product_id = temp_id;
+                END IF;
+            ELSEIF NEW.sanpham LIKE '%[{%' AND NEW.sanpham LIKE '%"id":%' THEN
+                SET first_product_id = SUBSTRING_INDEX(SUBSTRING_INDEX(NEW.sanpham, '"id":', 2), '"id":', -1);
+                SET first_product_id = SUBSTRING_INDEX(first_product_id, ',', 1);
+                SET first_product_id = TRIM(BOTH ' ' FROM first_product_id);
+            END IF;
+
+            -- Tiêu đề
+            IF NEW.sanpham LIKE '%"tieu_de":"%' THEN
+                SET product_title = SUBSTRING_INDEX(SUBSTRING_INDEX(NEW.sanpham, '"tieu_de":"', 2), '"tieu_de":"', -1);
+                SET product_title = SUBSTRING_INDEX(product_title, '"', 1);
+            END IF;
+
+            -- Ảnh: minh_hoa -> anh_chinh
+            SET temp_image = '';
+            IF NEW.sanpham LIKE '%"minh_hoa":"%' THEN
+                SET temp_image = SUBSTRING_INDEX(SUBSTRING_INDEX(NEW.sanpham, '"minh_hoa":"', 2), '"minh_hoa":"', -1);
+                SET temp_image = SUBSTRING_INDEX(temp_image, '"', 1);
+                IF temp_image NOT LIKE '[%' AND temp_image NOT LIKE '{%' AND temp_image <> '' THEN
+                    SET product_image = temp_image;
+                END IF;
+            END IF;
+
+            IF (product_image = '' OR product_image IS NULL) AND NEW.sanpham LIKE '%"anh_chinh":"%' THEN
+                SET temp_image = SUBSTRING_INDEX(SUBSTRING_INDEX(NEW.sanpham, '"anh_chinh":"', 2), '"anh_chinh":"', -1);
+                SET temp_image = SUBSTRING_INDEX(temp_image, '"', 1);
+                IF temp_image NOT LIKE '[%' AND temp_image NOT LIKE '{%' AND temp_image <> '' THEN
+                    SET product_image = temp_image;
+                END IF;
+            END IF;
+
+            -- Giá
+            IF NEW.sanpham LIKE '%"gia_moi":"%' THEN
+                SET temp_image = SUBSTRING_INDEX(SUBSTRING_INDEX(NEW.sanpham, '"gia_moi":"', 2), '"gia_moi":"', -1);
+                SET temp_image = SUBSTRING_INDEX(temp_image, '"', 1);
+                SET temp_image = REPLACE(temp_image, ',', '');
+                SET product_price = CAST(temp_image AS UNSIGNED);
+            END IF;
+
+            -- Fallback sang bảng sanpham nếu thiếu dữ liệu
+            IF (product_title = '' OR product_image = '' OR product_price = 0)
+               AND first_product_id <> '' AND CAST(first_product_id AS UNSIGNED) > 0 THEN
+                SELECT s.tieu_de,
+                       s.minh_hoa,
+                       CAST(REPLACE(COALESCE(s.gia_moi, '0'), ',', '') AS UNSIGNED)
+                  INTO product_title, product_image, product_price
+                FROM sanpham s
+                WHERE s.id = CAST(first_product_id AS UNSIGNED)
+                LIMIT 1;
+            END IF;
+
+            IF product_title = '' OR product_title IS NULL THEN SET product_title = 'Sản phẩm'; END IF;
+            IF product_image = '' OR product_image IS NULL OR product_image LIKE '[%' OR product_image LIKE '{%' THEN SET product_image = ''; END IF;
+            IF product_price = 0 OR product_price IS NULL THEN SET product_price = NEW.tongtien; END IF;
+
+            -- Nội dung theo trạng thái
+            CASE NEW.status
+                WHEN 1 THEN
+                    SET notification_title = 'Đơn hàng đã được xác nhận';
+                    SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được xác nhận thành công. Chúng tôi sẽ chuẩn bị hàng và giao đến bạn sớm nhất. Cảm ơn bạn đã tin tưởng!');
+                    SET priority = 'medium';
+                WHEN 2 THEN
+                    SET notification_title = 'Đơn hàng đang được giao';
+                    SET notification_content = CONCAT('Đơn hàng "', product_title, '" đang được giao hàng. Vui lòng chuẩn bị nhận hàng và thanh toán khi nhận được. Cảm ơn bạn!');
+                    SET priority = 'high';
+                WHEN 3 THEN
+                    SET notification_title = 'Đơn hàng đã giao thành công';
+                    SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được giao thành công. Cảm ơn bạn đã mua sắm tại cửa hàng của chúng tôi!');
+                    SET priority = 'medium';
+                WHEN 4 THEN
+                    SET notification_title = 'Đơn hàng đã bị hủy';
+                    SET notification_content = CONCAT('Rất tiếc, đơn hàng "', product_title, '" đã bị hủy. Nếu bạn có thắc mắc, vui lòng liên hệ với chúng tôi để được hỗ trợ.');
+                    SET priority = 'high';
+                WHEN 5 THEN
+                    SET notification_title = 'Đơn hàng đã hoàn trả';
+                    SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được hoàn trả thành công. Số tiền sẽ được chuyển về tài khoản của bạn trong thời gian sớm nhất.');
+                    SET priority = 'high';
+                ELSE
+                    SET notification_title = 'Cập nhật đơn hàng';
+                    SET notification_content = CONCAT('Đơn hàng "', product_title, '" đã được cập nhật trạng thái. Vui lòng kiểm tra chi tiết trong ứng dụng.');
+            END CASE;
+
+            INSERT INTO notification_mobile (
+                user_id, type, title, content, data, related_id, related_type, priority, is_read, created_at
+            ) VALUES (
+                NEW.user_id, 'order', notification_title, notification_content,
+                CONCAT('{"order_id":', NEW.id, ',"order_code":"', NEW.ma_don, '","product_title":"', product_title, '","product_image":"', product_image, '","product_price":', product_price, ',"old_status":', OLD.status, ',"new_status":', NEW.status, ',"total_amount":', NEW.tongtien, '}'),
+                NEW.id, 'order', priority, 0, UNIX_TIMESTAMP()
+            );
+        END IF; -- v_user_exists
+    END IF; -- status changed
 END$$
+
+DELIMITER ;
 
 -- ========================================
 -- 2. TRIGGER CHO BẢNG LICHSU_CHITIEU (Nạp/Rút tiền)

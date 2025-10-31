@@ -25,6 +25,7 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   String selectedPaymentMethod = 'cod'; // Chỉ hỗ trợ COD
   bool agreeToTerms = false;
+  bool _isProcessingOrder = false; // Flag để prevent double submission
   final cart_service.CartService _cartService = cart_service.CartService();
   final ApiService _api = ApiService();
   final AuthService _auth = AuthService();
@@ -78,7 +79,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
       bottomNavigationBar: BottomOrderBar(
         totalPrice: totalPrice,
+        isProcessing: _isProcessingOrder,
         onOrder: () async {
+          // Prevent double submission
+          if (_isProcessingOrder) {
+            return;
+          }
+          
           if (!agreeToTerms) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Vui lòng đồng ý với điều khoản')),
@@ -120,7 +127,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   
   // Tách logic đặt hàng ra hàm riêng để tái sử dụng
   Future<void> _processOrder(user) async {
-    // Chuẩn bị payload theo API create_order
+    // Set flag để prevent double submission
+    if (!mounted) return;
+    setState(() {
+      _isProcessingOrder = true;
+    });
+    
+    try {
+      // Chuẩn bị payload theo API create_order
     final items = _cartService.items
         .where((i) => i.isSelected)
         .map((i) => {
@@ -250,10 +264,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
     
     if (res?['success'] == true) {
+      final data = res?['data'];
+      final maDon = data?['ma_don'] ?? '';
+      final orders = data?['orders'] as List<dynamic>?;
+      final totalOrders = orders?.length ?? (maDon.isNotEmpty ? 1 : 0);
+      
+      // Tạo message phù hợp
+      String message;
+      if (totalOrders > 1) {
+        message = 'Đặt hàng thành công: $totalOrders đơn hàng';
+      } else {
+        message = 'Đặt hàng thành công: ${maDon.isNotEmpty ? maDon : ''}';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Đặt hàng thành công: ${res?['data']?['ma_don'] ?? ''}',
+            message,
             style: const TextStyle(color: Colors.white), // chữ trắng cho dễ đọc
           ),
           backgroundColor: Colors.green, // ✅ nền xanh lá cây
@@ -268,12 +295,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       Navigator.pushNamed(
         context,
         '/order/success',
-        arguments: {'ma_don': res?['data']?['ma_don']},
+        arguments: {
+          'ma_don': maDon,
+          'orders': orders,
+          'summary': data?['summary'],
+        },
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Đặt hàng thất bại: ${res?['message'] ?? 'Lỗi không xác định'}')),
       );
+    }
+    } finally {
+      // Reset flag sau khi xử lý xong (dù thành công hay thất bại)
+      if (mounted) {
+        setState(() {
+          _isProcessingOrder = false;
+        });
+      }
     }
   }
 }

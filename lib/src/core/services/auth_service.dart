@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'push_notification_service.dart';
 import '../models/user.dart';
 
 class AuthService {
@@ -94,6 +95,10 @@ class AuthService {
             await _saveUser(user);
             
             print('✅ Đăng nhập thành công: ${user.name}');
+            
+            // Register FCM token sau khi login thành công
+            _registerPushToken();
+            
             return {
               'success': true,
               'message': data['message'] ?? 'Đăng nhập thành công',
@@ -330,5 +335,15 @@ class AuthService {
   /// Lấy số dư hiển thị
   String getFormattedBalance(User user) {
     return '${user.userMoney.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} VND';
+  }
+
+  /// Register FCM token sau khi login
+  void _registerPushToken() {
+    final pushService = PushNotificationService();
+    if (pushService.isInitialized) {
+      // Token sẽ được tự động register trong PushNotificationService
+      // Chỉ cần đảm bảo service đã được initialize
+      print('📱 Push notification service ready, token will be registered');
+    }
   }
 }

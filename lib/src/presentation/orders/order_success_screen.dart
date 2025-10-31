@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 
 class OrderSuccessScreen extends StatefulWidget {
   final String maDon;
-  const OrderSuccessScreen({super.key, required this.maDon});
+  final List<dynamic>? orders;
+  final Map<String, dynamic>? summary;
+  const OrderSuccessScreen({
+    super.key, 
+    required this.maDon,
+    this.orders,
+    this.summary,
+  });
 
   @override
   State<OrderSuccessScreen> createState() => _OrderSuccessScreenState();
@@ -45,6 +52,93 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  Widget _buildOrderCodes() {
+    // Nếu có nhiều đơn hàng, hiển thị danh sách
+    if (widget.orders != null && widget.orders!.isNotEmpty) {
+      if (widget.orders!.length == 1) {
+        // Chỉ có 1 đơn hàng, hiển thị mã đơn đó
+        final order = widget.orders![0] as Map<String, dynamic>;
+        final maDon = order['ma_don']?.toString() ?? widget.maDon;
+        return Text(
+          maDon,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+            letterSpacing: 1.0,
+          ),
+        );
+      } else {
+        // Có nhiều đơn hàng, hiển thị danh sách
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Base order code
+            Text(
+              widget.maDon,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Danh sách các đơn hàng con
+            ...widget.orders!.map((order) {
+              final orderMap = order as Map<String, dynamic>;
+              final maDon = orderMap['ma_don']?.toString() ?? '';
+              return Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.arrow_right_alt,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        maDon,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            const SizedBox(height: 4),
+            Text(
+              'Tổng cộng: ${widget.orders!.length} đơn hàng',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        );
+      }
+    }
+    
+    // Fallback: hiển thị base code
+    return Text(
+      widget.maDon,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: Colors.black87,
+        letterSpacing: 1.0,
+      ),
+    );
   }
 
   @override
@@ -166,15 +260,8 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            widget.maDon,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
+                          // Hiển thị danh sách mã đơn nếu có nhiều đơn hàng
+                          _buildOrderCodes(),
                         ],
                       ),
                     ),

@@ -93,16 +93,16 @@ class _RootShellState extends State<RootShell> {
             children: [
               Icon(icon, color: color, size: 20),
               if (showText) ...[
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: color, 
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color, 
                     fontSize: fontSize,
-                    fontWeight: FontWeight.w500,
-                    height: 1.0,
-                  ),
+                  fontWeight: FontWeight.w500,
+                  height: 1.0,
                 ),
+              ),
               ],
             ],
           ),
@@ -214,15 +214,15 @@ class _RootShellState extends State<RootShell> {
                                     return showText ? Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                         Text(
-                                          'Giỏ hàng',
-                                          style: TextStyle(
-                                            color: Colors.grey,
+                                  'Giỏ hàng',
+                                  style: TextStyle(
+                                    color: Colors.grey,
                                             fontSize: fontSize,
-                                            height: 1.0,
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                                    height: 1.0,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                         ),
                                       ],
                                     ) : const SizedBox.shrink();
@@ -364,7 +364,7 @@ class _RootShellBottomBarState extends State<RootShellBottomBar> {
                               return showText ? Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const SizedBox(height: 2),
+                          const SizedBox(height: 2),
                                   Text('Giỏ hàng', style: TextStyle(color: Colors.grey, fontSize: fontSize, height: 1.0, fontWeight: FontWeight.w500)),
                                 ],
                               ) : const SizedBox.shrink();
@@ -408,7 +408,7 @@ class _RootShellBottomBarState extends State<RootShellBottomBar> {
             children: [
               Icon(icon, color: Colors.grey, size: 20),
               if (showText) ...[
-                const SizedBox(height: 3),
+              const SizedBox(height: 3),
                 Text(label, style: TextStyle(color: Colors.grey, fontSize: fontSize, fontWeight: FontWeight.w500, height: 1.0)),
               ],
             ],

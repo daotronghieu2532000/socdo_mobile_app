@@ -212,6 +212,9 @@ class _AddressBookScreenState extends State<AddressBookScreen> {
                             tenTinh: selectedProvinceName ?? '',
                             tenHuyen: selectedDistrictName ?? '',
                             tenXa: selectedWardName ?? '',
+                            tinh: selectedProvinceId ?? 0,
+                            huyen: selectedDistrictId ?? 0,
+                            xa: selectedWardId ?? 0,
                           );
                           if (!mounted) return;
                           Navigator.of(context).pop();
@@ -249,20 +252,116 @@ class _AddressBookScreenState extends State<AddressBookScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa địa chỉ "${address['ho_ten']?.toString() ?? ''}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.75,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.black.withOpacity(0.1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Xóa'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon hoặc tiêu đề
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.05),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.delete_outline,
+                  size: 24,
+                  color: Colors.black.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Tiêu đề
+              const Text(
+                'Xác nhận xóa',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Nội dung
+              Text(
+                'Bạn có chắc muốn xóa địa chỉ "${address['ho_ten']?.toString() ?? ''}"?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black.withOpacity(0.6),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Nút hành động
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        side: BorderSide(color: Colors.black.withOpacity(0.2)),
+                        backgroundColor: Colors.white,
+                      ),
+                      child: const Text(
+                        'Hủy',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        backgroundColor: Colors.black,
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Xóa',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
 
@@ -565,6 +664,9 @@ class _AddressBookScreenState extends State<AddressBookScreen> {
                               tenXa: selectedWardName ?? '',
                               tenHuyen: selectedDistrictName ?? '',
                               tenTinh: selectedProvinceName ?? '',
+                              tinh: selectedProvinceId ?? 0,
+                              huyen: selectedDistrictId ?? 0,
+                              xa: selectedWardId ?? 0,
                               isDefault: setDefault,
                             );
                             if (!mounted) return;
