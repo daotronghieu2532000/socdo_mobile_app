@@ -104,10 +104,17 @@ class PushNotificationService {
 
   /// Handle foreground message (app is open)
   void _handleForegroundMessage(RemoteMessage message) {
+    print('📨 [DEBUG] Foreground message received');
     final notification = message.notification;
     final data = message.data;
 
+    print('📨 [DEBUG] Notification title: ${notification?.title}');
+    print('📨 [DEBUG] Notification body: ${notification?.body}');
+    print('📨 [DEBUG] Message data: $data');
+    print('📨 [DEBUG] Data keys: ${data.keys.toList()}');
+
     if (notification != null) {
+      print('📨 [DEBUG] Showing local notification with payload');
       // Hiển thị local notification vì FCM không tự hiển thị khi app ở foreground
       _localNotifications.showNotification(
         id: message.hashCode,
@@ -115,6 +122,7 @@ class PushNotificationService {
         body: notification.body ?? '',
         payload: data,
       );
+      print('📨 [DEBUG] Local notification shown with ID: ${message.hashCode}');
     }
 
     // Update notification count nếu cần

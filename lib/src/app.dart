@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/services/notification_handler.dart';
 import 'presentation/splash/splash_screen.dart';
 import 'presentation/profile/profile_edit_screen.dart';
 import 'presentation/profile/address_book_screen.dart';
@@ -16,6 +17,7 @@ class SocdoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NotificationHandler.navigatorKey,
       title: 'Socdo',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
