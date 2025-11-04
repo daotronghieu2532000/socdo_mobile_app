@@ -149,78 +149,84 @@ class CategoryProductCardHorizontal extends StatelessWidget {
                   Expanded(
                     child: Container(
                       height: 140,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.2,
-                                  color: Color(0xFF333333),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Text(
-                                    FormatUtils.formatCurrency(price),
-                                    style: const TextStyle(
-                                      color: Colors.red,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                    ),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.3,
+                                    color: Color(0xFF333333),
                                   ),
-                                  if (oldPrice > 0 && oldPrice > price) ...[
-                                    const SizedBox(width: 8),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
                                     Text(
-                                      FormatUtils.formatCurrency(oldPrice),
+                                      FormatUtils.formatCurrency(price),
                                       style: const TextStyle(
-                                        color: Colors.grey,
-                                        decoration: TextDecoration.lineThrough,
-                                        fontSize: 12,
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    if (oldPrice > 0 && oldPrice > price) ...[
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        FormatUtils.formatCurrency(oldPrice),
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          decoration: TextDecoration.lineThrough,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star, size: 12, color: Colors.amber),
+                                    const SizedBox(width: 2),
+                                    Flexible(
+                                      child: Text(
+                                        '${fakeData['rating']} (${fakeData['reviews']}) | Đã bán ${fakeData['sold']}',
+                                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  const Icon(Icons.star, size: 14, color: Colors.amber),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    '${fakeData['rating']} (${fakeData['reviews']}) | Đã bán ${fakeData['sold']}',
-                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              // Badges row từ các icon riêng lẻ từ API
-                              ProductIconsRow(
-                                voucherIcon: product['voucher_icon'] as String?,
-                                freeshipIcon: product['freeship_icon'] as String?,
-                                chinhhangIcon: product['chinhhang_icon'] as String?,
-                                fontSize: 9,
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                              ),
-                            ],
+                                ),
+                                const SizedBox(height: 4),
+                                // Badges row từ các icon riêng lẻ từ API
+                                ProductIconsRow(
+                                  voucherIcon: product['voucher_icon'] as String?,
+                                  freeshipIcon: product['freeship_icon'] as String?,
+                                  chinhhangIcon: product['chinhhang_icon'] as String?,
+                                  fontSize: 9,
+                                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0),
+                                ),
+                              ],
+                            ),
                           ),
                           // Badge kho ở đáy box
                           ProductLocationBadge(
                             locationText: null,
                             // warehouseName: product['warehouse_name'] as String?,
                             provinceName: product['province_name'] as String?,
-                            fontSize: 9,
+                            fontSize: 10,
                             iconColor: Colors.black,
                             textColor: Colors.black,
                           ),

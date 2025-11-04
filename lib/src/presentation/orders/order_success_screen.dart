@@ -114,7 +114,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                   ],
                 ),
               );
-            }).toList(),
+            }),
             const SizedBox(height: 4),
             Text(
               'Tổng cộng: ${widget.orders!.length} đơn hàng',

@@ -114,8 +114,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         statusIcon = Icons.local_shipping;
         break;
       case 3:
-        statusColor = const Color(0xFF52C41A);
-        statusIcon = Icons.star_outline;
+        statusColor = const Color(0xFFFF9800);
+        statusIcon = Icons.cancel_outlined;
+        break;
+      case 4:
+        statusColor = const Color(0xFF999999);
+        statusIcon = Icons.cancel;
         break;
       case 5:
         statusColor = const Color(0xFF34C759);
@@ -659,7 +663,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _requestCancel() async {
     final user = await _auth.getCurrentUser();
     if (user == null) return;
-    final ok = await showDialog<bool>(
+    final reason = await showDialog<String>(
       context: context,
       barrierDismissible: true,
       builder: (context) {
@@ -758,7 +762,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context, false),
+                        onPressed: () => Navigator.pop(context, null),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF666666),
                           side: const BorderSide(color: Color(0xFFE9ECEF)),
@@ -779,7 +783,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
+                        onPressed: () => Navigator.pop(context, ctrl.text.trim()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF3B30),
                           foregroundColor: Colors.white,
@@ -806,11 +810,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         );
       },
     );
-    if (ok != true) return;
+    if (reason == null) return; // User cancelled
     final res = await _api.orderCancelRequest(
       userId: user.userId,
       maDon: _detail?['ma_don']?.toString(),
-      reason: '',
+      reason: reason, // Truyền lý do từ TextField
     );
     if (mounted) {
       if (res?['success'] == true) {
