@@ -51,4 +51,11 @@ app.*.map.json
 /database_web/
 /doc_web/
 
+# Keystore files - QUAN TRỌNG: Không được commit lên Git!
+android/keystore.properties
+android/app/*.jks
+android/app/*.keystore
+*.jks
+*.keystore
+
 

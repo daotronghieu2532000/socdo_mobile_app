@@ -269,6 +269,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final orders = data?['orders'] as List<dynamic>?;
       final totalOrders = orders?.length ?? (maDon.isNotEmpty ? 1 : 0);
       
+      // Clear cart sau khi đặt hàng thành công
+      _cartService.clearCart();
+      
       // Tạo message phù hợp
       String message;
       if (totalOrders > 1) {
@@ -292,9 +295,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pushNamed(
+      // Dùng pushNamedAndRemoveUntil để không thể quay lại checkout và cart
+      // Xóa tất cả route trước đó (trừ route đầu tiên - home)
+      Navigator.pushNamedAndRemoveUntil(
         context,
         '/order/success',
+        (route) => route.isFirst, // Chỉ giữ lại route đầu tiên (home)
         arguments: {
           'ma_don': maDon,
           'orders': orders,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/cached_api_service.dart';
 import '../../core/models/search_result.dart';
@@ -38,8 +39,8 @@ class _SearchScreenState extends State<SearchScreen> {
   List<String> _searchSuggestions = [];
   bool _isLoadingSuggestions = false;
   
-  // Danh mục ngẫu nhiên
-  List<String> _randomCategories = [];
+  // Danh mục nổi bật (có ảnh)
+  List<Map<String, dynamic>> _randomCategories = [];
   bool _isLoadingCategories = false;
   
   // Lịch sử tìm kiếm
@@ -248,7 +249,7 @@ class _SearchScreenState extends State<SearchScreen> {
     await _saveSearchHistory();
   }
 
-  // Load danh mục ngẫu nhiên từ suggestions API
+  // Load danh mục nổi bật với ảnh từ categories API
   Future<void> _loadRandomCategoriesFromSuggestions() async {
     if (_isLoadingCategories) return;
     
@@ -257,22 +258,62 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      // Gọi API với keyword rỗng để lấy danh mục ngẫu nhiên
-      final suggestions = await _apiService.getSearchSuggestions(
-        keyword: 'random_categories',
-        limit: 10,
+      // Lấy danh mục nổi bật từ API (cat_noibat = 1) hoặc tất cả danh mục có ảnh
+      final categories = await _apiService.getCategoriesList(
+        type: 'all',
+        includeChildren: false,
+        includeProductsCount: false,
+        limit: 100, // Lấy nhiều để random 4 cái
       );
       
-      if (mounted && suggestions != null && suggestions.isNotEmpty) {
+      if (mounted && categories != null && categories.isNotEmpty) {
+        // Lọc các danh mục có ảnh (cat_minhhoa hoặc image_url không rỗng)
+        final categoriesWithImage = categories.where((cat) {
+          final imageUrl = cat['image_url']?.toString() ?? '';
+          final thumbUrl = cat['thumb_url']?.toString() ?? '';
+          final minhhoa = cat['cat_minhhoa']?.toString() ?? '';
+          return (imageUrl.isNotEmpty || thumbUrl.isNotEmpty || minhhoa.isNotEmpty);
+        }).toList();
+        
+        // Ưu tiên danh mục nổi bật (cat_noibat = 1) trước
+        final featuredCategories = categoriesWithImage.where((cat) {
+          final isFeatured = cat['is_featured'] == true || 
+                           cat['cat_noibat'] == 1 || 
+                           cat['cat_noibat'] == '1';
+          return isFeatured;
+        }).toList();
+        
+        // Sử dụng danh mục nổi bật nếu có, nếu không thì dùng tất cả
+        final sourceCategories = featuredCategories.isNotEmpty 
+            ? featuredCategories 
+            : categoriesWithImage;
+        
+        // Random 4 danh mục dựa trên ngày hiện tại (thay đổi sau 24h)
+        final now = DateTime.now();
+        final seed = now.year * 10000 + now.month * 100 + now.day; // Seed từ ngày
+        final random = (seed % (sourceCategories.isNotEmpty ? sourceCategories.length : 1));
+        
+        List<Map<String, dynamic>> selectedCategories = [];
+        if (sourceCategories.isNotEmpty) {
+          // Lấy 4 danh mục từ vị trí random
+          for (int i = 0; i < 4 && i < sourceCategories.length; i++) {
+            final index = (random + i) % sourceCategories.length;
+            selectedCategories.add(sourceCategories[index]);
+          }
+        }
+        
         setState(() {
-          // Lấy 4 danh mục cuối cùng (là danh mục ngẫu nhiên từ API)
-          _randomCategories = suggestions.length >= 4 
-              ? suggestions.sublist(suggestions.length - 4) 
-              : suggestions;
+          _randomCategories = selectedCategories;
+          _isLoadingCategories = false;
+        });
+      } else {
+        setState(() {
+          _randomCategories = [];
           _isLoadingCategories = false;
         });
       }
     } catch (e) {
+      print('❌ Lỗi khi load danh mục nổi bật: $e');
       if (mounted) {
         setState(() {
           _randomCategories = [];
@@ -445,26 +486,27 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                // Camera button
-                GestureDetector(
-                  onTap: () {
-                    // TODO: Implement camera search
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.camera_alt_outlined,
-                      size: 18,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ),
+                // TODO: Camera button - Tạm thời comment, sẽ dùng sau
+                // const SizedBox(width: 12),
+                // // Camera button
+                // GestureDetector(
+                //   onTap: () {
+                //     // TODO: Implement camera search
+                //   },
+                //   child: Container(
+                //     width: 40,
+                //     height: 40,
+                //     decoration: BoxDecoration(
+                //       color: Colors.grey[100],
+                //       borderRadius: BorderRadius.circular(12),
+                //     ),
+                //     child: Icon(
+                //       Icons.camera_alt_outlined,
+                //       size: 18,
+                //       color: Colors.grey[700],
+                //     ),
+                //   ),
+                // ),
               ],
             ),
           ),
@@ -1035,14 +1077,14 @@ class _SearchScreenState extends State<SearchScreen> {
           _SearchHistoryList(history: _searchHistory, onTap: _onKeywordTapped),
           const SizedBox(height: 24),
         ],
-        // Hiển thị 4 danh mục ngẫu nhiên
+        // Hiển thị 4 danh mục nổi bật
         if (_randomCategories.isNotEmpty) ...[
           _SectionTitle(icon: Icons.category_outlined, title: 'Danh mục nổi bật'),
           const SizedBox(height: 12),
           _RandomCategoriesGrid(
             categories: _randomCategories,
             isLoading: _isLoadingCategories,
-            onTap: _onKeywordTapped,
+            onTap: (category) => _onKeywordTapped(category['name'] ?? ''),
           ),
           const SizedBox(height: 24),
         ],
@@ -1214,9 +1256,9 @@ class _SearchHistoryList extends StatelessWidget {
 }
 
 class _RandomCategoriesGrid extends StatelessWidget {
-  final List<String> categories;
+  final List<Map<String, dynamic>> categories;
   final bool isLoading;
-  final Function(String) onTap;
+  final Function(Map<String, dynamic>) onTap;
 
   const _RandomCategoriesGrid({
     required this.categories,
@@ -1260,7 +1302,7 @@ class _RandomCategoriesGrid extends StatelessWidget {
         crossAxisSpacing: 12,
       ),
       itemBuilder: (context, i) => _RandomCategoryItem(
-        categories[i],
+        category: categories[i],
         onTap: () => onTap(categories[i]),
       ),
     );
@@ -1268,13 +1310,27 @@ class _RandomCategoriesGrid extends StatelessWidget {
 }
 
 class _RandomCategoryItem extends StatelessWidget {
-  final String name;
+  final Map<String, dynamic> category;
   final VoidCallback onTap;
 
-  const _RandomCategoryItem(this.name, {required this.onTap});
+  const _RandomCategoryItem({required this.category, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final name = category['name']?.toString() ?? category['cat_tieude']?.toString() ?? '';
+    
+    // Lấy ảnh từ các nguồn: thumb_url > image_url > cat_minhhoa
+    String? imageUrl;
+    if (category['thumb_url'] != null && category['thumb_url'].toString().isNotEmpty) {
+      imageUrl = category['thumb_url'].toString();
+    } else if (category['image_url'] != null && category['image_url'].toString().isNotEmpty) {
+      imageUrl = category['image_url'].toString();
+    } else if (category['cat_minhhoa'] != null && category['cat_minhhoa'].toString().isNotEmpty) {
+      final minhhoa = category['cat_minhhoa'].toString();
+      // Nếu không có https:// thì thêm domain
+      imageUrl = minhhoa.startsWith('http') ? minhhoa : 'https://socdo.vn/$minhhoa';
+    }
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1293,12 +1349,57 @@ class _RandomCategoryItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Hiển thị ảnh nếu có, nếu không thì hiển thị icon mặc định
+            if (imageUrl != null && imageUrl.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  errorWidget: (context, url, error) {
+                    // Fallback về icon nếu load ảnh lỗi
+                    return Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.category,
+                        size: 24,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    );
+                  },
+                  placeholder: (context, url) {
+                    return Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              )
+            else
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 Icons.category,

@@ -208,7 +208,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.notifications_active, color: Colors.black87),
+                    child: const Icon(Icons.notifications_active, color: Colors.amber),
                   ),
                   if (_unread > 0)
                     Positioned(
@@ -243,7 +243,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.chat, color: Colors.black87),
+                    child: const Icon(Icons.chat, color: Colors.blue),
                   ),
                   if (_unreadChat > 0)
                     Positioned(
@@ -298,12 +298,12 @@ class _HomeAppBarState extends State<HomeAppBar> {
                           )
                         : Container(
                             decoration: BoxDecoration(
-                              color: Colors.red[50],
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(18),
                             ),
                             child: Icon(
                               Icons.person_add,
-                              color: Colors.red[600],
+                              color: const Color.fromARGB(255, 249, 1, 1),
                               size: 20,
                             ),
                           ),

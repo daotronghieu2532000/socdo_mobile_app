@@ -110,16 +110,19 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# Flutter Native Splash configuration - Đã bỏ để vào luôn Flutter splash screen
+# Flutter Native Splash configuration - ĐÃ TẮT để vào thẳng Flutter splash screen
 # flutter_native_splash:
-#   color: "#FFFFFF"
-#   color_dark: "#FFFFFF"
-#   image: lib/src/core/assets/images/logo.png
-#   image_dark: lib/src/core/assets/images/logo.png
+#   color: "#DC143C"
+#   color_dark: "#DC143C"
+#   image: lib/src/core/assets/images/logo_socdo.png
+#   image_dark: lib/src/core/assets/images/logo_socdo.png
 #   android: true
 #   ios: true
 #   web: true
 #   android_gravity: center
-#   ios_content_mode: center
+#   ios_content_mode: scaleAspectFit
 #   fullscreen: true
+#   android_12:
+#     image: lib/src/core/assets/images/logo_socdo.png
+#     color: "#DC143C"
 

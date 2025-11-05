@@ -36,7 +36,7 @@ class AccountScreen extends StatelessWidget {
             ActionItem(Icons.location_on_outlined, 'Sổ địa chỉ'),
             ActionItem(Icons.sell_outlined, 'Mã giảm giá'),
             // ActionItem(Icons.star_border, 'Lịch sử đánh giá'),
-            ActionItem(Icons.inventory_2_outlined, 'Đã huỷ & Trả lại'),
+            ActionItem(Icons.cancel_outlined, 'Đã huỷ & Trả lại'),
           ]),
           const SizedBox(height: 12),
           const SectionHeader(title: 'Hỗ trợ'),

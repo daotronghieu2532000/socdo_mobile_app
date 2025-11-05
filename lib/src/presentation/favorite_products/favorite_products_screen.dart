@@ -140,8 +140,11 @@ class _FavoriteProductsScreenState extends State<FavoriteProductsScreen> {
         ),
         centerTitle: true,
         actions: [
-          // Cart button
-          GestureDetector(
+          // Cart button with realtime badge
+          ListenableBuilder(
+            listenable: _cartService,
+            builder: (context, child) {
+              return GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
@@ -153,48 +156,44 @@ class _FavoriteProductsScreenState extends State<FavoriteProductsScreen> {
             child: Container(
               margin: const EdgeInsets.only(right: 16),
               child: Stack(
+                    clipBehavior: Clip.none,
                 children: [
                   const Icon(
                     Icons.shopping_cart_outlined,
                     color: Colors.white,
                     size: 24,
                   ),
-                  // Cart count badge - simplified version
-                  FutureBuilder<int>(
-                    future: Future.value(_cartService.itemCount),
-                    builder: (context, snapshot) {
-                      final count = snapshot.data ?? 0;
-                      if (count == 0) return const SizedBox.shrink();
-                      
-                      return Positioned(
-                        right: 0,
-                        top: 0,
+                      // Cart count badge - realtime version
+                      if (_cartService.itemCount > 0)
+                        Positioned(
+                          top: -4,
+                          right: -6,
                         child: Container(
-                          padding: const EdgeInsets.all(2),
+                            width: 16,
+                            height: 16,
                           decoration: const BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,
                           ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
+                            child: Center(
                           child: Text(
-                            count.toString(),
+                                _cartService.itemCount.toString(),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
+                                  height: 1.0,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
-                            textAlign: TextAlign.center,
                           ),
                         ),
-                      );
-                    },
+                    ],
                   ),
-                ],
               ),
-            ),
+              );
+            },
           ),
         ],
       ),

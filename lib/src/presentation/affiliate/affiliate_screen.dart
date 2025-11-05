@@ -464,7 +464,7 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
                                                     crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
                                                       const Text(
-                                                        '💰 Affiliate Program',
+                                                        '💰 TIẾP THỊ LIÊN KẾT',
                                                         style: TextStyle(
                                                           color: Colors.white,
                                                           fontSize: 20,
@@ -647,7 +647,7 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           const Text(
-                                            '💰 Affiliate Marketing',
+                                            '💰 TIẾP THỊ LIÊN KẾT',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: 20,
@@ -975,7 +975,7 @@ class _AffiliateScreenState extends State<AffiliateScreen> {
           const SizedBox(height: 12),
           _buildMenuCard(
             Icons.link,
-            'Affiliate đang follow ✅',
+            'ĐANG THEO DÕI ✅',
             'Quản lý các sản phẩm đang theo dõi',
             () => Navigator.push(
               context,

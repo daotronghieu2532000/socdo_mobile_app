@@ -19,28 +19,59 @@ class SocketIOService {
 
   Future<void> connect(String phien) async {
     try {
+      // Disconnect existing connection if any
+      if (_socket != null) {
+        _socket!.disconnect();
+        _socket!.dispose();
+        _socket = null;
+      }
+
       _phien = phien;
       
-      // ✅ ĐƠN GIẢN NHẤT: KHÔNG CONFIG GÌ CẢ
       final socketUrl = 'https://chat.socdo.vn';
       print('🔌 [SocketIO] Connecting to $socketUrl with phien: $phien');
       
-      // ✅ CHỈ CONNECT, KHÔNG CONFIG GÌ
-      _socket = IO.io(socketUrl);
+      // ✅ Config giống website: chỉ dùng websocket, không polling
+      _socket = IO.io(
+        socketUrl,
+        IO.OptionBuilder()
+          .setTransports(['websocket']) // ✅ CHỈ DÙNG WEBSOCKET, KHÔNG POLLING
+          .setTimeout(5000) // 5 seconds timeout
+          .setReconnectionAttempts(5) // Số lần thử reconnect
+          .setReconnectionDelay(1000) // Delay 1s giữa các lần reconnect
+          .setReconnectionDelayMax(5000) // Max delay 5s
+          .setExtraHeaders({}) // Có thể thêm headers nếu cần
+          .enableAutoConnect() // Tự động connect
+          .enableForceNew() // Force new connection
+          .build()
+      );
 
-      print('✅ [SocketIO] Socket created');
+      print('✅ [SocketIO] Socket created with websocket transport only');
       
-      // ✅ Setup event listeners
+      // ✅ Setup event listeners TRƯỚC KHI connect
       _setupEventListeners();
       
-      print('✅ [SocketIO] Socket setup complete');
+      print('✅ [SocketIO] Socket setup complete, waiting for connection...');
       
-      // ✅ DEBUG: Wait 5s và check xem có connect không
-      await Future.delayed(const Duration(seconds: 5));
-      print('🔍 [SocketIO] After 5s - Connected: ${_socket?.connected}, ID: ${_socket?.id}');
+      // ✅ Wait for connection với timeout
+      int attempts = 0;
+      while (attempts < 10 && (_socket?.connected != true)) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        attempts++;
+        if (_socket?.connected == true) {
+          print('✅✅✅ [SocketIO] CONNECTED! ID: ${_socket!.id}');
+          break;
+        }
+      }
+      
+      if (_socket?.connected != true) {
+        print('❌ [SocketIO] Connection timeout after ${attempts * 500}ms');
+        if (onError != null) onError!('Connection timeout');
+      }
       
     } catch (e) {
       print('❌ [SocketIO] Setup error: $e');
+      print('❌ [SocketIO] Error stack: ${StackTrace.current}');
       _isConnected = false;
       if (onError != null) onError!(e.toString());
     }
@@ -53,6 +84,12 @@ class SocketIOService {
     _socket!.onConnect((_) {
       _isConnected = true;
       print('✅✅✅ [SocketIO] CONNECTED! ID: ${_socket!.id}');
+      try {
+        final transportName = _socket!.io.engine?.transport?.name ?? 'unknown';
+        print('✅✅✅ [SocketIO] Transport: $transportName');
+      } catch (e) {
+        print('⚠️ [SocketIO] Could not get transport name: $e');
+      }
       if (onConnected != null) onConnected!();
     });
 
@@ -63,16 +100,18 @@ class SocketIOService {
       if (onDisconnected != null) onDisconnected!();
     });
 
-    // ✅ Connect error event
+    // ✅ Connect error event - QUAN TRỌNG để debug
     _socket!.onConnectError((error) {
       _isConnected = false;
       print('❌ [SocketIO] Connect error: $error');
+      print('❌ [SocketIO] Error type: ${error.runtimeType}');
       if (onError != null) onError!(error.toString());
     });
 
     // ✅ Generic error event
     _socket!.on('error', (error) {
-      print('❌ [SocketIO] Error: $error');
+      print('❌ [SocketIO] Socket error: $error');
+      print('❌ [SocketIO] Error type: ${error.runtimeType}');
     });
 
     // ✅ Reconnect event
@@ -82,10 +121,45 @@ class SocketIOService {
       if (onConnected != null) onConnected!();
     });
 
+    // ✅ Reconnect attempt event
+    _socket!.onReconnectAttempt((attempt) {
+      print('🔄 [SocketIO] Reconnect attempt #$attempt');
+    });
+
+    // ✅ Reconnect error event
+    _socket!.onReconnectError((error) {
+      print('❌ [SocketIO] Reconnect error: $error');
+    });
+
+    // ✅ Reconnect failed event
+    _socket!.onReconnectFailed((_) {
+      print('❌ [SocketIO] Reconnect failed after max attempts');
+    });
+
     // ✅ Business logic: Listen for messages
     _socket!.on('server_send_message', (data) {
       print('📨 [SocketIO] Received server_send_message: $data');
-      if (onMessage != null) onMessage!(data);
+      if (onMessage != null) {
+        // Convert data to Map if needed
+        if (data is Map) {
+          onMessage!(data as Map<String, dynamic>);
+        } else if (data is String) {
+          try {
+            onMessage!({'message': data});
+          } catch (e) {
+            print('❌ [SocketIO] Error parsing message: $e');
+          }
+        }
+      }
+    });
+
+    // ✅ Debug: Listen for ping/pong để verify connection
+    _socket!.on('ping', (_) {
+      print('🏓 [SocketIO] Received ping');
+    });
+
+    _socket!.on('pong', (_) {
+      print('🏓 [SocketIO] Received pong');
     });
 
     print('📝 [SocketIO] Event listeners setup complete');
@@ -118,9 +192,11 @@ class SocketIOService {
   void disconnect() {
     if (_socket != null) {
       _socket!.disconnect();
+      _socket!.dispose();
       _socket = null;
     }
     _isConnected = false;
-    print('🔌 [SocketIO] Disconnected');
+    _phien = null;
+    print('🔌 [SocketIO] Disconnected and disposed');
   }
 }

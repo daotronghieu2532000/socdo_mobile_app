@@ -14,14 +14,43 @@ class ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Lấy màu icon dựa trên title nếu không có màu được chỉ định
+    final iconColor = _getIconColor(title);
+    
     return ListTile(
-      leading: Icon(icon),
+      leading: Icon(icon, color: iconColor),
       title: Text(title),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: () => _handleNavigation(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       dense: true,
     );
+  }
+
+  // Hàm lấy màu icon dựa trên title
+  Color _getIconColor(String title) {
+    switch (title) {
+      case 'Thông tin cá nhân':
+        return Colors.blue;
+      case 'Tất cả đơn hàng':
+        return Colors.orange;
+      case 'Sản phẩm yêu thích':
+        return Colors.red;
+      case 'Sổ địa chỉ':
+        return Colors.green;
+      case 'Mã giảm giá':
+        return Colors.purple;
+      case 'Đã huỷ & Trả lại':
+        return const Color.fromARGB(255, 255, 0, 0);
+      case 'Trung tâm trợ giúp':
+        return Colors.blue;
+      case 'Báo lỗi cho chúng tôi':
+        return Colors.red;
+      case 'Đánh giá ứng dụng':
+        return Colors.amber;
+      default:
+        return Colors.grey;
+    }
   }
 
   void _handleNavigation(BuildContext context) {

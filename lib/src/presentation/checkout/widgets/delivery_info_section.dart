@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/shipping_events.dart';
 import '../../../core/models/user.dart';
 
 class DeliveryInfoSection extends StatefulWidget {
@@ -36,6 +37,20 @@ class _DeliveryInfoSectionState extends State<DeliveryInfoSection> {
   }
 
   Future<void> _openAddressBook() async {
+    // Kiểm tra đăng nhập trước
+    final u = await _auth.getCurrentUser();
+    if (u == null) {
+      // Nếu chưa đăng nhập, navigate đến trang đăng nhập
+      final loginResult = await Navigator.pushNamed(context, '/login');
+      // Nếu đăng nhập thành công, reload lại địa chỉ và trigger refresh shipping
+      if (loginResult == true) {
+        await _load();
+        // Trigger refresh shipping để OrderSummarySection tự động tính lại phí ship
+        ShippingEvents.refresh();
+      }
+      return;
+    }
+    // Nếu đã đăng nhập, mở trang địa chỉ
     await Navigator.of(context).pushNamed('/profile/address');
     await _load();
   }

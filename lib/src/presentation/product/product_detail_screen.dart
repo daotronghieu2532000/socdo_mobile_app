@@ -526,8 +526,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       final productImages = product!.images; // Safe to use ! here because of the null check above
       return GestureDetector(
         onTap: () {
-          // Có thể thêm chức năng zoom image ở đây
-          print('🔍 Image tapped: ${productImages[_currentImageIndex]}');
+          // Mở gallery xem ảnh phóng to
+          _showImageGallery(productImages, _currentImageIndex);
         },
         child: PageView.builder(
           controller: _pageController,
@@ -544,13 +544,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
     } else {
       // Fallback về ảnh đơn lẻ
+      final singleImage = _productDetail?.mainImageUrl ?? fallbackImage;
       return GestureDetector(
         onTap: () {
-          print('🔍 Single image tapped: ${_productDetail?.mainImageUrl ?? fallbackImage}');
+          // Mở gallery xem ảnh phóng to
+          _showImageGallery([singleImage], 0);
         },
-        child: _buildSingleImage(_productDetail?.mainImageUrl ?? fallbackImage),
+        child: _buildSingleImage(singleImage),
       );
     }
+  }
+
+  // Hiển thị gallery ảnh phóng to (giống Shopee)
+  void _showImageGallery(List<String> images, int initialIndex) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (BuildContext context) {
+        return _ImageGalleryViewer(
+          images: images,
+          initialIndex: initialIndex,
+      );
+      },
+    );
   }
 
   Widget _buildSingleImage(String imageUrl) {
@@ -703,9 +719,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 icon: const Icon(Icons.search),
                 tooltip: 'Tìm kiếm',
               ),
-              // Cart button - Navigate to cart screen
-              IconButton(
-                onPressed: () {
+              // Cart button - Navigate to cart screen with badge
+              ListenableBuilder(
+                listenable: _cartService,
+                builder: (context, child) {
+                  return GestureDetector(
+                    onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -713,8 +732,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.shopping_cart_outlined),
-                tooltip: 'Giỏ hàng',
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(
+                            Icons.shopping_cart_outlined,
+                            size: 24,
+                          ),
+                          if (_cartService.itemCount > 0)
+                            Positioned(
+                              top: -4,
+                              right: -6,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _cartService.itemCount.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.0,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
               // More options menu - Đã ẩn theo yêu cầu
               // PopupMenuButton<String>(
@@ -1307,6 +1363,173 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             scrollController: _scrollController,
             showAfterScrollDistance: 1000.0, // Khoảng 2.5 màn hình
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// Widget hiển thị gallery ảnh phóng to (giống Shopee)
+class _ImageGalleryViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _ImageGalleryViewer({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_ImageGalleryViewer> createState() => _ImageGalleryViewerState();
+}
+
+class _ImageGalleryViewerState extends State<_ImageGalleryViewer> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          // PageView để swipe giữa các ảnh
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.images.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final imageUrl = widget.images[index];
+              return InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                panEnabled: true,
+                boundaryMargin: const EdgeInsets.all(20),
+                child: Center(
+                  child: imageUrl.startsWith('http')
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              padding: const EdgeInsets.all(40),
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.image_not_supported,
+                                    size: 64,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Không thể tải ảnh',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              padding: const EdgeInsets.all(40),
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.image_not_supported,
+                                    size: 64,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Không thể tải ảnh',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              );
+            },
+          ),
+          // Nút đóng ở góc trên bên phải
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+          // Indicator số ảnh ở dưới (nếu có nhiều ảnh)
+          if (widget.images.length > 1)
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom + 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_currentIndex + 1} / ${widget.images.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
